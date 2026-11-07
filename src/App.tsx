@@ -1,5 +1,6 @@
 import './App.css'
 import LCDDisplay from './components/LCDDisplay'
+import TuningDial from './components/TuningDial'
 
 export default function App() {
   return (
@@ -8,9 +9,7 @@ export default function App() {
         Top Panel
       </section>
       <LCDDisplay />
-      <section className="panel panel--tuning" aria-label="Tuning Panel">
-        Tuning Panel
-      </section>
+      <TuningDial />
       <section className="panel panel--telegraph" aria-label="Telegraph Desk">
         Telegraph Desk
       </section>
