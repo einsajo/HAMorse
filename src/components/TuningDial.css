@@ -235,10 +235,13 @@
   pointer-events: none;
 
   background:
-    /* sharp specular hotspot from an upper-left light */
-    radial-gradient(circle at 33% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 3%, rgba(255, 255, 255, 0.16) 10%, rgba(255, 255, 255, 0) 24%),
-    /* secondary bounce highlight, lower right */
-    radial-gradient(circle at 72% 80%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 14%),
+    /* environmental reflection of an overhead strip light: a soft, horizontally
+       stretched band near the top instead of a pin-point hotspot */
+    radial-gradient(ellipse 46% 13% at 46% 22%, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.3) 35%, rgba(255, 255, 255, 0.08) 70%, rgba(255, 255, 255, 0) 100%),
+    /* wider, fainter halo of the same light */
+    radial-gradient(ellipse 70% 30% at 46% 20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%),
+    /* dim bounce from the desk below */
+    radial-gradient(ellipse 50% 14% at 52% 86%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%),
     /* harsh anisotropic spun-metal streaks */
     conic-gradient(
       from -20deg,
