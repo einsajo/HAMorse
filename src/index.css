@@ -1,3 +1,16 @@
+/*
+ * Local pixel font: no network requests.
+ * VT323 (SIL OFL 1.1) is served from /public/fonts. Licence: /fonts/VT323-OFL.txt
+ * The unique family name guarantees this bundled file is used, never a system copy.
+ */
+@font-face {
+  font-family: 'GF VT323';
+  src: url('/fonts/VT323-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block; /* never flash a fallback font on the LCD */
+}
+
 *,
 *::before,
 *::after {
