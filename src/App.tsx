@@ -1,4 +1,5 @@
 import './App.css'
+import LCDDisplay from './components/LCDDisplay'
 
 export default function App() {
   return (
@@ -6,9 +7,7 @@ export default function App() {
       <section className="panel panel--top" aria-label="Top Panel">
         Top Panel
       </section>
-      <section className="panel panel--display" aria-label="Display Panel">
-        Display Panel
-      </section>
+      <LCDDisplay />
       <section className="panel panel--tuning" aria-label="Tuning Panel">
         Tuning Panel
       </section>
