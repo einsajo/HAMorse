@@ -107,6 +107,23 @@
   --on: 1;
 }
 
+/* the whole breaker block is the touch target */
+.mcb,
+.decoder__plate {
+  cursor: pointer;
+  touch-action: manipulation; /* zero mobile tap delay */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.mcb:focus-visible,
+.decoder__plate:focus-visible {
+  outline: 1px solid rgba(222, 216, 198, 0.55);
+  outline-offset: 3px;
+}
+
 /* moulded cooling ribs at both ends */
 .mcb__vent {
   position: absolute;
@@ -169,15 +186,26 @@
     0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* chunky ribbed handle: thrown DOWN = OFF, UP = ON (--on drives it later) */
+/*
+ * Chunky ribbed handle. OFF = thrown DOWN and angled down, ON = snapped UP
+ * and angled up. One transform does both: a vertical throw of 40% of the slot
+ * (= 76.9% of the handle's own 52% height) plus a rotateX tilt under a short
+ * perspective. A 50ms ease-in-out reads as a heavy, spring-loaded snap.
+ */
 .mcb__handle {
   position: absolute;
   left: 7%;
   right: 7%;
   height: 52%;
-  top: calc(4% + (1 - var(--on)) * 40%);
+  top: 4%;
   border-radius: 2px 2px 3px 3px;
-  transition: top 90ms cubic-bezier(0.6, 0, 0.4, 1);
+  transform:
+    perspective(60px)
+    translateY(calc((1 - var(--on)) * 76.9%))
+    rotateX(calc(20deg - var(--on) * 40deg));
+  transition:
+    transform 0.05s ease-in-out,
+    box-shadow 0.05s ease-in-out;
   background:
     /* finger grip ribs across the handle */
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.07) 0 1px, rgba(0, 0, 0, 0.35) 1px 2.5px, rgba(0, 0, 0, 0) 2.5px 3.5px),
@@ -192,6 +220,23 @@
     0 1px 0 #141416,
     0 2px 0 #0b0b0c,
     0 4px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* ON: angled UP. The face now tips away from the overhead light, so it goes
+   darker, and the light catches its lower edge instead of the top. Its side
+   wall shows above it (it leans up). Same layer count, so box-shadow animates. */
+.mcb[data-on='true'] .mcb__handle {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0.4) 1px 2.5px, rgba(0, 0, 0, 0) 2.5px 3.5px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(90deg, #08080a 0%, #1c1c1e 30%, #242426 50%, #18181a 72%, #070708 100%);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 2px 2px rgba(0, 0, 0, 0.85),
+    0 0 0 1px #000,
+    0 -1px 0 #141416,
+    0 -2px 0 #0b0b0c,
+    0 4px 5px rgba(0, 0, 0, 0.9);
 }
 
 /* white trip-indicator stripe printed on the handle */
@@ -230,6 +275,31 @@
     0 0 0 4px #000,
     inset 0 2px 3px rgba(0, 0, 0, 0.75),
     0 3px 4px 3px rgba(0, 0, 0, 0.55);
+}
+
+/* breaker closed: the trip stripe shows red */
+.mcb[data-on='true'] .mcb__handle::after {
+  background: rgba(186, 40, 30, 0.85);
+}
+
+/* LED jewel lit: glowing red glass with light spilling onto the panel */
+.power__led {
+  transition: filter 60ms ease-out;
+}
+
+.power__led[data-on='true'] {
+  background:
+    radial-gradient(ellipse 34% 22% at 42% 28%, rgba(255, 235, 225, 0.6) 0%, rgba(255, 235, 225, 0) 100%),
+    repeating-conic-gradient(from 10deg, rgba(255, 170, 150, 0.22) 0deg 22.5deg, rgba(120, 0, 0, 0.18) 22.5deg 45deg),
+    radial-gradient(circle at 50% 45%, #ff6a52 0%, #e8261a 35%, #a80e08 70%, #5a0402 100%);
+  box-shadow:
+    0 0 0 1px #000,
+    0 0 0 2px #55585c,
+    0 0 0 3px #2a2b2e,
+    0 0 0 4px #000,
+    inset 0 1px 3px rgba(120, 0, 0, 0.6),
+    0 0 6px 3px rgba(255, 40, 20, 0.5),
+    0 0 16px 6px rgba(255, 40, 20, 0.22);
 }
 
 /* ==========================================================================
@@ -489,7 +559,8 @@
   height: calc(24 / 26 * 100%);
   border-radius: 3px;
   transform: translateX(calc(var(--slide) * 160%));
-  transition: transform 120ms cubic-bezier(0.6, 0, 0.3, 1);
+  /* fast, tactile detent snap */
+  transition: transform 65ms cubic-bezier(0.7, 0, 0.3, 1);
   background:
     /* grime packed between the ribs */
     linear-gradient(180deg, rgba(26, 25, 22, 0.4) 0%, rgba(26, 25, 22, 0) 25%, rgba(26, 25, 22, 0) 75%, rgba(26, 25, 22, 0.45) 100%),
@@ -509,4 +580,9 @@
     0 3px 0 #1a1b1d,
     0 5px 4px rgba(0, 0, 0, 0.85),
     0 9px 9px rgba(0, 0, 0, 0.45);
+}
+
+/* ON: the grip snaps across to the right-hand detent */
+.decoder__plate[data-on='true'] .decoder__thumb {
+  --slide: 1;
 }

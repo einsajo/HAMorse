@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useState } from 'react'
+import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
 
 /* Shared silkscreen-wear filter: fine noise knocks holes out of printed ink */
@@ -12,6 +13,30 @@ function InkWear({ id }: { id: string }) {
   )
 }
 
+/**
+ * Physical switches act the instant they are pushed (pointer down), not on
+ * release. Keyboard users can flip them with Enter / Space.
+ */
+function useToggleHandlers(onToggle: () => void) {
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return // primary button / touch / pen only
+      onToggle()
+    },
+    [onToggle],
+  )
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onToggle()
+      }
+    },
+    [onToggle],
+  )
+  return { onPointerDown, onKeyDown }
+}
+
 const r2 = (n: number) => Math.round(n * 100) / 100
 const deg = (d: number) => (d * Math.PI) / 180
 
@@ -19,11 +44,15 @@ const deg = (d: number) => (d * Math.PI) / 180
    Left: MAIN POWER, a heavy-duty MCB (miniature circuit breaker) whose
    handle throws vertically, plus an unlit LED jewel.  Box = 100 x 80 units.
    ========================================================================== */
-const POWER_ON = false // static for now: handle thrown DOWN = OFF
+interface SwitchProps {
+  on: boolean
+  onToggle: () => void
+}
 
-function PowerSwitch() {
+function PowerSwitch({ on, onToggle }: SwitchProps) {
+  const handlers = useToggleHandlers(onToggle)
   return (
-    <div className="power" aria-label={`Main power breaker, ${POWER_ON ? 'on' : 'off'}`} role="img">
+    <div className="power">
       <svg className="tp-print" viewBox="0 0 100 80" aria-hidden="true">
         <defs>
           <InkWear id="tp-wear-power" />
@@ -35,20 +64,30 @@ function PowerSwitch() {
         </g>
       </svg>
 
-      <span className="power__led" aria-hidden="true" />
+      {/* the jewel lights when the breaker is closed */}
+      <span className="power__led" data-on={on} aria-hidden="true" />
 
-      <div className="mcb" data-on={POWER_ON} aria-hidden="true">
-        <span className="mcb__vent mcb__vent--top" />
-        <span className="mcb__term mcb__term--top">
+      {/* the whole breaker block is the touch target; the handle snaps inside it */}
+      <div
+        className="mcb"
+        data-on={on}
+        role="switch"
+        aria-checked={on}
+        aria-label="Main power"
+        tabIndex={0}
+        {...handlers}
+      >
+        <span className="mcb__vent mcb__vent--top" aria-hidden="true" />
+        <span className="mcb__term mcb__term--top" aria-hidden="true">
           <span className="mcb__screw" />
         </span>
-        <span className="mcb__slot">
+        <span className="mcb__slot" aria-hidden="true">
           <span className="mcb__handle" />
         </span>
-        <span className="mcb__term mcb__term--bottom">
+        <span className="mcb__term mcb__term--bottom" aria-hidden="true">
           <span className="mcb__screw" />
         </span>
-        <span className="mcb__vent mcb__vent--bottom" />
+        <span className="mcb__vent mcb__vent--bottom" aria-hidden="true" />
       </div>
     </div>
   )
@@ -169,11 +208,10 @@ function SMeter() {
 /* ==========================================================================
    Right: DECODER horizontal slide switch (OFF left / ON right). Box = 100 x 84.
    ========================================================================== */
-const DECODER_ON = false // static for now
-
-function DecoderSwitch() {
+function DecoderSwitch({ on, onToggle }: SwitchProps) {
+  const handlers = useToggleHandlers(onToggle)
   return (
-    <div className="decoder" role="img" aria-label={`Decoder switch, ${DECODER_ON ? 'on' : 'off'}`}>
+    <div className="decoder">
       <svg className="tp-print" viewBox="0 0 100 84" aria-hidden="true">
         <defs>
           <InkWear id="tp-wear-dec" />
@@ -185,28 +223,45 @@ function DecoderSwitch() {
         </g>
       </svg>
 
-      <div className="decoder__plate" aria-hidden="true">
-        <span className="decoder__screw decoder__screw--l" />
-        <span className="decoder__screw decoder__screw--r" />
-        <span className="decoder__slot" />
-        <span className="decoder__thumb" style={{ '--slide': DECODER_ON ? 1 : 0 } as CSSProperties} />
+      {/* the whole plate is the touch target; the grip slides along its slot */}
+      <div
+        className="decoder__plate"
+        data-on={on}
+        role="switch"
+        aria-checked={on}
+        aria-label="Decoder"
+        tabIndex={0}
+        {...handlers}
+      >
+        <span className="decoder__screw decoder__screw--l" aria-hidden="true" />
+        <span className="decoder__screw decoder__screw--r" aria-hidden="true" />
+        <span className="decoder__slot" aria-hidden="true" />
+        <span className="decoder__thumb" aria-hidden="true" />
       </div>
     </div>
   )
 }
 
-/** Top Panel: MCB power breaker | S-meter | DECODER slide switch (static hardware only). */
+/**
+ * Top Panel: MCB power breaker | S-meter | DECODER slide switch.
+ * Switch state is local for now; it will be lifted when audio / decoding is wired up.
+ */
 export default function TopPanel() {
+  const [isPowerOn, setIsPowerOn] = useState(false)
+  const [isDecoderOn, setIsDecoderOn] = useState(false)
+  const togglePower = useCallback(() => setIsPowerOn((v) => !v), [])
+  const toggleDecoder = useCallback(() => setIsDecoderOn((v) => !v), [])
+
   return (
     <section className="top" aria-label="Top Panel">
       <div className="top__col top__col--power">
-        <PowerSwitch />
+        <PowerSwitch on={isPowerOn} onToggle={togglePower} />
       </div>
       <div className="top__col top__col--meter">
         <SMeter />
       </div>
       <div className="top__col top__col--decoder">
-        <DecoderSwitch />
+        <DecoderSwitch on={isDecoderOn} onToggle={toggleDecoder} />
       </div>
     </section>
   )
