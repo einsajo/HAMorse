@@ -9,19 +9,28 @@
                    when the knob turns, like a real light source)
    ========================================================================== */
 
+/* plate | dial | plate: separate grid columns, so the plates can never overlap the dial */
 .tuning {
   min-width: 0;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
+  justify-items: center;
+  column-gap: 3cqw;
   container-type: size;
+}
+
+.tuning__plate {
+  width: 94%;
+  max-width: 34cqw;
 }
 
 /* Dial container: touch-action none stops scroll/zoom while tuning */
 .vfo {
   position: relative;
-  width: min(94cqh, 70cqw);
+  z-index: 1; /* dial sits above the plates; its hit area is never covered */
+  width: min(94cqh, 50cqw);
   aspect-ratio: 1;
   flex: none;
   touch-action: none;
