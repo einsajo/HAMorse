@@ -7,7 +7,7 @@
    Each column is a CSS size container, so its hardware scales as one piece.
 
    Keyer geometry, in keyer-width units (cqw), mirrored about 50cqw:
-     pivot block     2 .. 9      lever (arm + pad)   3 .. 40 (tip rivet to 40.4)
+     pivot block     2 .. 9      lever (arm + thumb-piece) 3 .. 40 (contact to 40.4)
      post contact   42.8 .. 45   post               45 .. 55
    Pressing slides a lever 2.4cqw inward, so its tip strikes the post contact.
    ========================================================================== */
@@ -54,8 +54,7 @@
    Keyer
    ========================================================================== */
 .keyer {
-  --pad: min(30cqh, 15cqw);
-  --hit: 46cqh; /* finger-sized touch area, taller than the pad itself */
+  --hit: 56cqh; /* finger-sized touch area: the full height of the thumb-piece */
   --travel: 2.4cqw; /* = gap between lever tip (40.4) and post contact (42.8) */
   position: absolute;
   inset: 0;
@@ -98,7 +97,7 @@
 .keyer__screw--bl { left: 2.5cqw; bottom: 8%; }
 .keyer__screw--br { right: 2.5cqw; bottom: 8%; }
 
-/* --- Lever (arm + contact + finger pad), DIT on the left --------------- */
+/* --- Lever (Bencher-style: flat arm + vertical bakelite thumb-piece) ---- */
 .lever {
   position: absolute;
   z-index: 2;
@@ -118,88 +117,112 @@
 .lever--dah:active,
 .lever--dah[data-pressed='true'] { transform: translateX(calc(var(--travel) * -1)); }
 
-/* the thick brass arm */
-.lever__arm {
-  position: absolute;
-  top: calc(50% - 7cqh);
-  height: 14cqh;
-  left: 0;
-  right: 0;
-  border-radius: 999px;
-
-  background:
-    /* dark oxidation blotches */
-    radial-gradient(ellipse 18% 70% at 30% 40%, rgba(46, 34, 14, 0.55) 0%, rgba(46, 34, 14, 0) 100%),
-    radial-gradient(ellipse 12% 80% at 78% 60%, rgba(52, 58, 34, 0.4) 0%, rgba(52, 58, 34, 0) 100%),
-    radial-gradient(ellipse 25% 60% at 55% 70%, rgba(30, 22, 10, 0.45) 0%, rgba(30, 22, 10, 0) 100%),
-    /* tarnish speckle */
-    radial-gradient(circle at 50% 50%, rgba(30, 22, 10, 0.35) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 0 0 / 5px 4px,
-    /* dull, oxidised cylindrical shading (#C5A059 base) */
-    linear-gradient(180deg, #b8955a 0%, #c5a059 22%, #a3823f 45%, #7a5f2c 70%, #4a3818 100%);
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 230, 170, 0.25),
-    inset 0 -2px 2px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(30, 20, 6, 0.85),
-    /* hovering high above the plate */
-    0 6px 5px rgba(0, 0, 0, 0.85),
-    0 14px 14px rgba(0, 0, 0, 0.6),
-    0 24px 26px rgba(0, 0, 0, 0.45);
+/*
+ * Shared "hovering half an inch above the plate" shadow stack:
+ * tight ambient occlusion hugging the part, then a displaced contact shadow
+ * and progressively wider, softer shadows stretching downward.
+ */
+.lever {
+  --hover-shadow:
+    0 0 1px 1px rgba(0, 0, 0, 0.75),
+    0 2px 3px rgba(0, 0, 0, 0.6),
+    0 11px 5px -3px rgba(0, 0, 0, 0.7),
+    0 18px 12px -4px rgba(0, 0, 0, 0.5),
+    0 30px 26px -8px rgba(0, 0, 0, 0.38),
+    0 44px 40px -14px rgba(0, 0, 0, 0.25);
 }
 
-/* silver contact rivet at the inner tip of the arm */
-.lever__contact {
-  --c: min(9cqh, 4cqw);
+/* flat, thick bar of brushed, tarnished aluminium */
+.lever__arm {
   position: absolute;
+  top: calc(50% - 6cqh);
+  height: 12cqh;
+  left: 0;
+  right: 3cqw; /* ends inside the thumb-piece */
+  border-radius: 2px;
+
+  background:
+    /* oxidation creeping along the edges */
+    linear-gradient(180deg, rgba(34, 33, 30, 0.55) 0%, rgba(34, 33, 30, 0) 22%, rgba(34, 33, 30, 0) 78%, rgba(34, 33, 30, 0.6) 100%),
+    /* dull tarnish blotches */
+    radial-gradient(ellipse 16% 90% at 32% 50%, rgba(48, 46, 40, 0.4) 0%, rgba(48, 46, 40, 0) 100%),
+    radial-gradient(ellipse 10% 80% at 70% 40%, rgba(44, 42, 36, 0.35) 0%, rgba(44, 42, 36, 0) 100%),
+    /* chalky oxide flecks */
+    radial-gradient(circle at 50% 50%, rgba(205, 205, 195, 0.12) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 7px 4px,
+    /* brushing along the length of the bar */
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0.07) 1px 2px, rgba(0, 0, 0, 0) 2px 3px),
+    /* FLAT face: almost no falloff across the width (a bar, not a cylinder) */
+    linear-gradient(180deg, #8a8d92 0%, #7d8085 50%, #72757a 100%);
+
+  box-shadow:
+    /* crisp machined top edge, dark lower arris */
+    inset 0 1px 0 rgba(220, 222, 225, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+    inset 1px 0 0 rgba(0, 0, 0, 0.3),
+    /* bar thickness: flat side wall */
+    0 1px 0 #55585c,
+    0 2px 0 #46484c,
+    0 3px 0 #37393c,
+    0 4px 0 #282a2c,
+    var(--hover-shadow);
+}
+
+/* tarnished silver contact on the inner face of the thumb-piece */
+.lever__contact {
+  --c: min(9cqh, 3.6cqw);
+  position: absolute;
+  z-index: 2;
   top: calc(50% - var(--c) / 2);
   width: var(--c);
   height: var(--c);
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #e3e5e8 0%, #9a9da2 45%, #4a4c50 100%);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8);
+  background: radial-gradient(circle at 40% 35%, #999999 0%, #7a7a7a 45%, #555555 100%);
+  box-shadow:
+    inset 0 -1px 1px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.85);
 }
 
 .lever--dit .lever__contact { right: -0.4cqw; }
 .lever--dah .lever__contact { left: -0.4cqw; }
 
-/* circular finger pad near the tip */
+/* wide, vertical thumb-piece: heavily worn, textured black bakelite */
 .lever__pad {
   position: absolute;
-  top: calc(50% - var(--pad) / 2);
-  width: var(--pad);
-  height: var(--pad);
-  border-radius: 50%;
+  z-index: 1;
+  top: calc(50% - 26cqh);
+  height: 52cqh;
+  width: 8cqw;
+  border-radius: 4px / 6px;
 
   background:
-    /* thumb-worn centre: oxidation polished off */
-    radial-gradient(circle at 50% 52%, rgba(214, 180, 108, 0.45) 0%, rgba(214, 180, 108, 0) 32%),
-    /* concentric spun rings */
-    repeating-radial-gradient(circle at 50% 50%, rgba(255, 230, 170, 0.04) 0 1px, rgba(0, 0, 0, 0.06) 1px 2px),
-    /* dark oxidation creeping in from the rim */
-    radial-gradient(circle at 50% 50%, rgba(36, 26, 10, 0) 52%, rgba(36, 26, 10, 0.65) 86%, rgba(24, 16, 6, 0.85) 100%),
-    radial-gradient(ellipse 30% 22% at 28% 70%, rgba(52, 58, 34, 0.5) 0%, rgba(52, 58, 34, 0) 100%),
-    radial-gradient(ellipse 26% 20% at 74% 26%, rgba(46, 34, 14, 0.5) 0%, rgba(46, 34, 14, 0) 100%),
-    radial-gradient(circle at 50% 50%, rgba(30, 22, 10, 0.3) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 0 0 / 4px 5px,
-    /* domed, dull brass lit from above */
-    radial-gradient(circle at 46% 30%, #d0ad68 0%, #c5a059 30%, #96763a 62%, #5c4520 100%);
+    /* thumb wear: the black has rubbed through to brown in the middle */
+    radial-gradient(ellipse 60% 34% at 50% 50%, rgba(92, 64, 40, 0.42) 0%, rgba(70, 48, 30, 0.18) 55%, rgba(0, 0, 0, 0) 100%),
+    /* scuffs */
+    linear-gradient(104deg, rgba(0, 0, 0, 0) 46%, rgba(120, 100, 80, 0.12) 48%, rgba(0, 0, 0, 0) 50%) 0 30% / 100% 30% no-repeat,
+    linear-gradient(80deg, rgba(0, 0, 0, 0) 52%, rgba(120, 100, 80, 0.1) 54%, rgba(0, 0, 0, 0) 56%) 0 70% / 100% 26% no-repeat,
+    /* moulded stipple texture */
+    radial-gradient(circle at 50% 50%, rgba(255, 245, 230, 0.07) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 3px 3px,
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.45) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 1px 2px / 4px 5px,
+    /* slightly domed face: dull sheen down the centre, darker sides */
+    linear-gradient(90deg, #0b0a09 0%, #1d1a17 22%, #27231f 48%, #1c1916 74%, #090807 100%);
 
   box-shadow:
-    /* rolled rim */
-    inset 0 2px 1px rgba(255, 230, 170, 0.28),
-    inset 0 -3px 4px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(30, 20, 6, 0.9),
-    /* pad thickness */
-    0 2px 0 #5a431c,
-    0 3px 0 #3d2d12,
-    0 4px 0 #261c0a,
-    /* heavy drop: floating well above the plate */
-    0 8px 6px rgba(0, 0, 0, 0.85),
-    0 16px 16px rgba(0, 0, 0, 0.6),
-    0 26px 28px rgba(0, 0, 0, 0.45);
+    /* rounded-over moulded edges, worn shiny on top */
+    inset 0 1px 0 rgba(255, 240, 220, 0.16),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.85),
+    inset 1px 0 1px rgba(255, 240, 220, 0.06),
+    0 0 0 1px #000,
+    /* thick piece: deep side wall */
+    0 1px 0 #1a1714,
+    0 2px 0 #13110f,
+    0 3px 0 #0d0c0a,
+    0 4px 0 #080706,
+    0 5px 0 #040403,
+    var(--hover-shadow);
 }
 
-.lever--dit .lever__pad { right: 3.5cqw; }
-.lever--dah .lever__pad { left: 3.5cqw; }
+.lever--dit .lever__pad { right: 0.6cqw; }
+.lever--dah .lever__pad { left: 0.6cqw; }
 
 /* --- Fixed rear pivot blocks ------------------------------------------- */
 .keyer__pivot {
@@ -256,8 +279,9 @@
   width: var(--c);
   height: var(--c);
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #eef0f2 0%, #a3a6ab 45%, #505257 100%);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.8);
+  /* tarnished silver, not bright white */
+  background: radial-gradient(circle at 40% 35%, #999999 0%, #777777 45%, #555555 100%);
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .keyer__post-contact--dit { left: calc(var(--c) / -2); }
