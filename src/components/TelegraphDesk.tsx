@@ -61,20 +61,24 @@ function Keyer() {
 
 interface UtilityButtonProps {
   label: string
+  onPress?: () => void
+  /** latching switch: stays partly depressed while its function is engaged */
+  latched?: boolean
 }
 
 /** Small tactile push switch (REF / CLR) */
-function UtilityButton({ label }: UtilityButtonProps) {
-  const { pressed, handlers } = usePress()
+function UtilityButton({ label, onPress, latched }: UtilityButtonProps) {
+  const { pressed, handlers } = usePress({ onPress })
   return (
     <div className="utility">
       <div className="utility__housing">
         <div
           className="utility__cap"
           data-pressed={pressed}
+          data-latched={latched ?? false}
           role="button"
           aria-label={label}
-          aria-pressed={pressed}
+          aria-pressed={latched ?? pressed}
           {...handlers}
         />
       </div>
@@ -110,15 +114,20 @@ function TxButton() {
   )
 }
 
+interface TelegraphDeskProps {
+  isRefCardOpen: boolean
+  onRefToggle: () => void
+}
+
 /**
  * Telegraph Desk: REF/CLR utility switches | horizontal iambic squeeze keyer | TX SEND.
- * Press states are visual only; audio / buffer logic is wired up later.
+ * REF toggles the reference card; other press states are visual only for now.
  */
-export default function TelegraphDesk() {
+export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
   return (
     <section className="desk" aria-label="Telegraph Desk">
       <div className="desk__col desk__col--utils">
-        <UtilityButton label="REF" />
+        <UtilityButton label="REF" onPress={onRefToggle} latched={isRefCardOpen} />
         <UtilityButton label="CLR" />
       </div>
 

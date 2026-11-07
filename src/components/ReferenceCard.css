@@ -1,0 +1,278 @@
+/* ==========================================================================
+   Operator reference card: aged cardstock tucked BEHIND the stationary chassis
+
+   .refcard is absolutely positioned inside .stage, whose box is exactly the
+   chassis box, so 100% here means "one chassis". It comes before the chassis
+   in the DOM and sits on z-index 0 inside the isolated stage, so the radio
+   always paints over it. Only the card moves; the chassis never does.
+   ========================================================================== */
+
+.refcard {
+  --tuck: 14px; /* how much stays hidden behind the radio when open */
+  --hide: 18px; /* extra depth when closed, so its shadow can't peek out */
+  --drag: 0px; /* live finger offset while dragging it back */
+  --ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+
+  position: absolute;
+  z-index: 0;
+  /* size container: the sheet's cq units and @container rules resolve against the card */
+  container: refcard / size;
+  touch-action: none; /* dragging the card must never scroll the page */
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+  transition: transform 460ms var(--ease);
+  will-change: transform;
+}
+
+.refcard[data-dragging='true'] {
+  transition: none; /* follow the finger 1:1 */
+  cursor: grabbing;
+}
+
+.refcard[data-open='false'] {
+  pointer-events: none;
+}
+
+/* --- Portrait (mobile): slides UP out of the top edge -------------------
+   Free space above the radio = (100dvh - chassis height) / 2; 100% = chassis height. */
+.refcard {
+  left: 4%;
+  right: 4%;
+  top: 0;
+  height: min(calc((100vh - 100%) / 2 - 10px + var(--tuck)), 100% - var(--hide));
+  height: min(calc((100dvh - 100%) / 2 - 10px + var(--tuck)), 100% - var(--hide));
+  transform: translateY(var(--hide));
+}
+
+.refcard[data-open='true'] {
+  transform: translateY(calc(-100% + var(--tuck) + var(--drag)));
+}
+
+/* --- Wide (desktop / landscape): slides OUT to the right ----------------
+   Free space beside the radio = (100vw - chassis width) / 2; 100% = chassis width. */
+@media (min-aspect-ratio: 3/4) {
+  .refcard {
+    left: auto;
+    right: 0;
+    top: 6%;
+    height: 88%;
+    width: min(calc((100vw - 100%) / 2 - 12px + var(--tuck)), 100% - var(--hide), 30rem);
+    transform: translateX(calc(var(--hide) * -1));
+  }
+
+  .refcard[data-open='true'] {
+    transform: translateX(calc(100% - var(--tuck) + var(--drag)));
+  }
+}
+
+/* --- The cardstock ----------------------------------------------------- */
+.refcard__sheet {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* worn, slightly irregular corners */
+  border-radius: 7px 5px 8px 4px / 5px 8px 4px 7px;
+  color: rgba(48, 45, 40, 0.82);
+
+  background:
+    /* dark grease smudges along the handled edges */
+    radial-gradient(ellipse 14% 22% at 0% 62%, rgba(58, 44, 26, 0.38) 0%, rgba(58, 44, 26, 0) 100%),
+    radial-gradient(ellipse 18% 10% at 72% 100%, rgba(52, 40, 24, 0.4) 0%, rgba(52, 40, 24, 0) 100%),
+    radial-gradient(ellipse 9% 14% at 100% 30%, rgba(50, 38, 22, 0.32) 0%, rgba(50, 38, 22, 0) 100%),
+    radial-gradient(ellipse 7% 9% at 22% 97%, rgba(40, 30, 18, 0.34) 0%, rgba(40, 30, 18, 0) 100%),
+    /* greasy thumbprint (confined to its own small tile) */
+    radial-gradient(
+      closest-side,
+      rgba(60, 46, 28, 0.16) 0 9%, rgba(0, 0, 0, 0) 9% 18%,
+      rgba(60, 46, 28, 0.15) 18% 27%, rgba(0, 0, 0, 0) 27% 36%,
+      rgba(60, 46, 28, 0.13) 36% 45%, rgba(0, 0, 0, 0) 45% 54%,
+      rgba(60, 46, 28, 0.11) 54% 63%, rgba(0, 0, 0, 0) 63% 72%,
+      rgba(60, 46, 28, 0.07) 72% 81%, rgba(0, 0, 0, 0) 81%
+    ) 86% 84% / 9% 11% no-repeat,
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(60, 46, 28, 0.2) 0%, rgba(60, 46, 28, 0) 100%) 86% 84% / 12% 14% no-repeat,
+    /* darkened, dog-eared corners */
+    radial-gradient(circle at 0% 0%, rgba(96, 74, 40, 0.5) 0%, rgba(96, 74, 40, 0) 9%),
+    radial-gradient(circle at 100% 0%, rgba(96, 74, 40, 0.45) 0%, rgba(96, 74, 40, 0) 8%),
+    radial-gradient(circle at 0% 100%, rgba(96, 74, 40, 0.55) 0%, rgba(96, 74, 40, 0) 10%),
+    radial-gradient(circle at 100% 100%, rgba(96, 74, 40, 0.5) 0%, rgba(96, 74, 40, 0) 9%),
+    /* yellowing creeping in from the edges */
+    radial-gradient(ellipse 75% 75% at 50% 45%, rgba(150, 120, 60, 0) 55%, rgba(150, 120, 60, 0.28) 100%),
+    /* faint paper noise: fibres + flecks on co-prime tiles */
+    radial-gradient(circle at 30% 40%, rgba(70, 55, 30, 0.14) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 5px 7px,
+    radial-gradient(circle at 70% 60%, rgba(255, 250, 235, 0.25) 0 0.5px, rgba(0, 0, 0, 0) 1px) 2px 3px / 7px 11px,
+    radial-gradient(circle at 50% 50%, rgba(70, 55, 30, 0.12) 0 0.8px, rgba(0, 0, 0, 0) 1.4px) 3px 1px / 13px 17px,
+    repeating-linear-gradient(87deg, rgba(120, 100, 60, 0.035) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    /* aged cardstock base (#D4CBB3) */
+    linear-gradient(170deg, #d9d1ba 0%, #d4cbb3 45%, #cbc0a3 100%);
+
+  box-shadow:
+    /* card edge and thickness */
+    inset 0 0 0 1px rgba(120, 100, 66, 0.35),
+    inset 0 0 14px rgba(110, 88, 50, 0.25),
+    0 1px 0 rgba(90, 76, 50, 0.6),
+    /* resting on the desk, in the radio's shadow */
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    0 12px 26px rgba(0, 0, 0, 0.5);
+}
+
+/* dog-ear: the top-right corner folded over */
+.refcard__sheet::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(9cqw, 9cqh, 26px);
+  aspect-ratio: 1;
+  background:
+    linear-gradient(225deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.18) 50%, rgba(0, 0, 0, 0) 62%),
+    linear-gradient(45deg, #b7aa88 0%, #c9bd9e 48%, rgba(0, 0, 0, 0) 50%);
+  filter: drop-shadow(-1px 1px 1px rgba(60, 46, 26, 0.35));
+  border-bottom-left-radius: 2px;
+}
+
+/* --- Typewriter content ------------------------------------------------ */
+.refcard__sheet {
+  display: grid;
+  grid-template-areas:
+    'head head'
+    'morse note'
+    'q note';
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  column-gap: 3cqw;
+  row-gap: 2.5cqh;
+  /* bottom padding clears the strip that stays tucked behind the radio */
+  padding: 5cqh 4cqw calc(var(--tuck) + 3cqh);
+
+  /* typewriter faces; 'Cutive Mono' / serif-monospace is Android's built-in typewriter font */
+  font-family: 'Courier Prime', 'Cutive Mono', serif-monospace, 'Courier New', Courier, 'Nimbus Mono PS', 'Liberation Mono', monospace;
+  font-size: min(6.4cqh, 2.6cqw);
+  line-height: 1.15;
+  /* faded, slightly bled ribbon ink */
+  text-shadow: 0 0 0.6px rgba(48, 45, 40, 0.5);
+}
+
+.refcard__head {
+  grid-area: head;
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding-bottom: 1.5cqh;
+  border-bottom: 1px solid rgba(48, 45, 40, 0.4);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.refcard__morse {
+  grid-area: morse;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-content: center;
+  column-gap: 2cqw;
+}
+
+.refcard__entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.refcard__entry dt {
+  font-weight: 700;
+}
+
+.refcard__entry dd,
+.refcard__qrow dd {
+  margin: 0;
+}
+
+.refcard__entry dd {
+  letter-spacing: 0.06em;
+}
+
+.refcard__q {
+  grid-area: q;
+  margin: 0;
+  padding-top: 1.5cqh;
+  border-top: 1px dashed rgba(48, 45, 40, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 2.5em;
+  row-gap: 0.3em;
+}
+
+.refcard__qrow {
+  display: flex;
+  gap: 0.6em;
+  white-space: nowrap;
+}
+
+.refcard__qrow dt {
+  font-weight: 700;
+}
+
+/* --- Handwritten margin note in faded blue ink ------------------------- */
+.refcard__note {
+  grid-area: note;
+  align-self: center;
+  margin: 0;
+  width: min(24cqw, 11em);
+  font-family: 'Segoe Script', 'Bradley Hand', 'Lucida Handwriting', 'Brush Script MT', 'Dancing Script', cursive;
+  font-size: 1.05em;
+  line-height: 1.25;
+  color: rgba(38, 62, 140, 0.62);
+  text-shadow: 0 0 0.4px rgba(38, 62, 140, 0.45);
+  transform: rotate(-5deg);
+  transform-origin: center;
+}
+
+.refcard__sig {
+  white-space: nowrap; /* keep "- Nevlin" together as a signature */
+}
+
+/* --- Tall card (wide screens: card beside the radio) ------------------- */
+@container refcard (aspect-ratio < 1) {
+  .refcard__sheet {
+    grid-template-areas:
+      'head'
+      'morse'
+      'q'
+      'note';
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    row-gap: 2.4cqh;
+    /* left padding clears the strip tucked behind the radio */
+    padding: 4cqh 6cqw 4cqh calc(var(--tuck) + 5cqw);
+    font-size: min(2.7cqh, 5.4cqw);
+  }
+
+  .refcard__head {
+    flex-direction: column;
+    gap: 0.2em;
+    padding-bottom: 1.2cqh;
+  }
+
+  .refcard__morse {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 5cqw;
+  }
+
+  .refcard__q {
+    flex-direction: column;
+    padding-top: 1.2cqh;
+  }
+
+  .refcard__note {
+    justify-self: end;
+    width: 70%;
+    margin: 0 2cqw 1cqh 0;
+    transform: rotate(-3deg);
+  }
+}
