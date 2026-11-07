@@ -6,8 +6,8 @@
   --lcd-amber: #ffb000;
   --lcd-silt: #3a2800; /* unlit liquid crystal */
   --lcd-ink: #050505; /* lit liquid crystal (viscous pitch, not pure black) */
-  --lcd-font: 'VT323', 'Share Tech Mono', 'OCR A Std', 'OCR A Extended',
-    'Lucida Console', 'DejaVu Sans Mono', 'Courier New', ui-monospace, monospace;
+  /* bundled local font (see @font-face in index.css); monospace is a last-resort fallback only */
+  --lcd-font: 'GF VT323', monospace;
 
   min-width: 0;
   min-height: 0;
