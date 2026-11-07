@@ -26,6 +26,26 @@
   max-width: 34cqw;
 }
 
+/* Left: one tall SOP plate, same height as the dial for symmetry */
+.tuning__sop {
+  height: min(94cqh, 50cqw);
+}
+
+/* Right: two small plates stacked, centred on the dial */
+.tuning__stack {
+  width: 94%;
+  max-width: 34cqw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6cqh;
+  pointer-events: none;
+}
+
+.tuning__stack > .plate {
+  width: 100%;
+}
+
 /* Dial container: touch-action none stops scroll/zoom while tuning */
 .vfo {
   position: relative;
