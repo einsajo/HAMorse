@@ -1,0 +1,189 @@
+/* ==========================================================================
+   Tuning Panel: VFO rotary dial (static UI)
+
+   Layer order (bottom -> top):
+     .vfo__well    collar milled into the chassis (fixed)
+     .vfo__mount   carries the heavy drop shadow (fixed)
+     .vfo__knob    knurled grip + face + indicator + dimple (WILL ROTATE)
+     .vfo__sheen   specular lighting on top (fixed, so highlights stay put
+                   when the knob turns, like a real light source)
+   ========================================================================== */
+
+.tuning {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+
+/* Dial container: touch-action none stops scroll/zoom while tuning */
+.vfo {
+  position: relative;
+  width: min(94cqh, 70cqw);
+  aspect-ratio: 1;
+  flex: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* --- Collar recessed into the gunmetal --------------------------------- */
+.vfo__well {
+  position: absolute;
+  inset: 0;
+  padding: 4%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #141518 0%, #1b1c20 70%, #222428 100%);
+  box-shadow:
+    /* shadow from the chassis lip falls on the top/left wall */
+    inset 3px 4px 7px rgba(0, 0, 0, 0.95),
+    inset 1px 1px 1px rgba(0, 0, 0, 1),
+    /* light catches the bottom/right wall */
+    inset -1px -2px 1px rgba(255, 255, 255, 0.12),
+    /* chamfered edge of the hole */
+    0 -1px 0 rgba(0, 0, 0, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* --- Mount: heavy protrusion shadow ----------------------------------- */
+.vfo__mount {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.9),
+    0 2px 2px rgba(0, 0, 0, 0.9),
+    0 5px 8px rgba(0, 0, 0, 0.75),
+    0 10px 18px rgba(0, 0, 0, 0.65),
+    0 18px 32px rgba(0, 0, 0, 0.5),
+    0 26px 44px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Knob: knurled outer grip ----------------------------------------- */
+.vfo__knob {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* rotation hook for the future drag logic */
+  transform: rotate(var(--vfo-angle, 0deg));
+  will-change: transform;
+
+  background:
+    /* rolled-over outer lip of the grip */
+    radial-gradient(circle, rgba(0, 0, 0, 0) 86%, rgba(0, 0, 0, 0.55) 97%, rgba(0, 0, 0, 0.85) 100%),
+    /* knurling: 90 soft ridges / grooves */
+    repeating-conic-gradient(
+      from 0deg,
+      #6a6e75 0deg,
+      #34363b 1deg,
+      #101113 2deg,
+      #34363b 3deg,
+      #6a6e75 4deg
+    );
+}
+
+/* --- Face: machined disc inside the grip ------------------------------ */
+.vfo__face {
+  position: absolute;
+  inset: 13%;
+  border-radius: 50%;
+
+  background:
+    /* lathe (turning) rings */
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.035) 0 1px,
+      rgba(0, 0, 0, 0.06) 1px 2px
+    ),
+    /* inset radial depth: slightly dished machined face */
+    radial-gradient(circle at 50% 50%, #4a4d53 0%, #3a3d42 45%, #2b2d32 80%, #1f2024 100%);
+
+  box-shadow:
+    /* step down from face to knurl ring */
+    0 0 0 1px rgba(0, 0, 0, 0.85),
+    0 0 6px 2px rgba(0, 0, 0, 0.55),
+    /* dished-centre depth */
+    inset 0 0 10px rgba(0, 0, 0, 0.45);
+}
+
+/* Etched indicator line (12 o'clock at rest) */
+.vfo__indicator {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  width: 3.2%;
+  height: 22%;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #050505, #121315);
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 1),
+    0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 0 0.5px rgba(0, 0, 0, 0.6);
+}
+
+/* Finger dimple: concave cup, dark upper wall, lit lower wall */
+.vfo__dimple {
+  position: absolute;
+  width: 20%;
+  aspect-ratio: 1;
+  left: 58%;
+  top: 56%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 58% 64%, #50545a 0%, #2c2e33 55%, #17181b 100%);
+  box-shadow:
+    inset 2px 3px 5px rgba(0, 0, 0, 0.85),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.1),
+    0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* --- Fixed lighting over the whole knob ------------------------------- */
+.vfo__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+
+  background:
+    /* specular hotspot from an upper-left light */
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.16) 16%, rgba(255, 255, 255, 0) 40%),
+    /* anisotropic spun-metal streaks */
+    conic-gradient(
+      from 0deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0) 12%,
+      rgba(0, 0, 0, 0.2) 25%,
+      rgba(255, 255, 255, 0) 37%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 62%,
+      rgba(0, 0, 0, 0.2) 75%,
+      rgba(255, 255, 255, 0) 87%,
+      rgba(255, 255, 255, 0.1)
+    ),
+    /* top-lit / bottom-shaded body */
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.4) 100%);
+
+  box-shadow:
+    /* rim light along the top of the knurled grip */
+    inset 0 2px 1px rgba(255, 255, 255, 0.3),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.7);
+}
+
+/* lit top / shaded bottom bevel on the face edge (fixed lighting) */
+.vfo__sheen::after {
+  content: '';
+  position: absolute;
+  inset: 13%;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.28),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.55),
+    0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 1px 1px rgba(255, 255, 255, 0.1);
+}
