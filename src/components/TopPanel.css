@@ -60,7 +60,7 @@
 }
 
 /* ==========================================================================
-   MAIN POWER: knurled mounting ring + bat lever (thrown down = OFF)
+   MAIN POWER: heavy-duty MCB breaker (handle throws vertically)
    ========================================================================== */
 .power {
   position: relative;
@@ -69,65 +69,148 @@
   flex: none;
 }
 
-/* knurled mounting ring: 30 units wide, centred on the pivot (58, 34) */
-.power__ring {
+/* moulded breaker body: 38 x 76 units at (42, 2) */
+.mcb {
+  --on: 0;
   position: absolute;
   z-index: 1;
-  left: 43%;
-  width: 30%;
-  top: 23.75%;
-  height: 37.5%;
-  padding: 19%;
-  border-radius: 50%;
+  left: 42%;
+  width: 38%;
+  top: 2.5%;
+  height: 95%;
+  border-radius: 3px 3px 4px 4px;
+
+  /* aged charcoal phenolic: dull, dusty, slightly mottled */
   background:
-    /* rolled outer edge */
-    radial-gradient(circle, rgba(0, 0, 0, 0) 78%, rgba(0, 0, 0, 0.65) 100%),
-    /* fixed top-left light across the knurl */
-    linear-gradient(150deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.45) 100%),
-    /* knurling: dull, dirty steel */
-    repeating-conic-gradient(#74777c 0deg 4deg, #2a2b2f 4deg 8deg),
-    #3a3c40;
+    /* dust settled in the lower half */
+    linear-gradient(180deg, rgba(120, 110, 95, 0) 55%, rgba(120, 110, 95, 0.1) 100%),
+    /* moulding texture */
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 3px 4px,
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.25) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 1px 2px / 5px 6px,
+    /* chunky rounded block: lit face, falling off to the sides */
+    linear-gradient(90deg, #17181a 0%, #2c2e31 14%, #36383c 48%, #2c2e31 84%, #141517 100%);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.2),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.7),
+    /* moulded edge highlights */
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.7),
     0 0 0 1px #000,
-    /* the ring stands off the panel */
-    0 1px 0 #1d1e21,
-    0 2px 0 #121315,
-    0 4px 4px rgba(0, 0, 0, 0.85),
-    0 8px 10px rgba(0, 0, 0, 0.5);
+    /* thick block standing off the panel */
+    0 1px 0 #202124,
+    0 2px 0 #18191b,
+    0 3px 0 #111214,
+    0 4px 0 #0a0a0b,
+    0 7px 6px rgba(0, 0, 0, 0.85),
+    0 13px 14px rgba(0, 0, 0, 0.5);
 }
 
-/* threaded bushing the lever comes out of */
-.power__nut {
-  display: block;
-  width: 100%;
-  height: 100%;
+.mcb[data-on='true'] {
+  --on: 1;
+}
+
+/* moulded cooling ribs at both ends */
+.mcb__vent {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  height: 4.5%;
+  border-radius: 1px;
+  background: repeating-linear-gradient(90deg, #08090a 0 1px, #3a3c40 1px 2px, #24262a 2px 3.5px);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.8);
+}
+
+.mcb__vent--top { top: 3%; }
+.mcb__vent--bottom { bottom: 3%; }
+
+/* recessed screw terminals (top: line in, bottom: load out) */
+.mcb__term {
+  position: absolute;
+  left: 28%;
+  width: 44%;
+  height: 13%;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #060607 0%, #111214 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 1),
+    0 1px 0 rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mcb__term--top { top: 10%; }
+.mcb__term--bottom { top: 77%; }
+
+/* tarnished brass terminal screw */
+.mcb__screw {
+  width: 58%;
+  aspect-ratio: 1;
   border-radius: 50%;
   background:
-    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.28) 1px 2px),
-    radial-gradient(circle at 40% 35%, #6a6d72 0%, #3c3e42 55%, #1a1b1e 100%);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.15),
-    0 0 0 1px rgba(0, 0, 0, 0.9),
-    0 2px 3px rgba(0, 0, 0, 0.8);
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 40%, rgba(16, 10, 4, 0.92) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
+    linear-gradient(0deg, rgba(0, 0, 0, 0) 40%, rgba(16, 10, 4, 0.92) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
+    radial-gradient(circle at 70% 70%, rgba(110, 50, 20, 0.6) 0%, rgba(110, 50, 20, 0) 45%),
+    radial-gradient(circle at 38% 32%, #b2925a 0%, #7a5c2c 45%, #3e2c14 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 1px 1px rgba(0, 0, 0, 0.7);
 }
 
-.power__lever {
+/* the deep slot the handle travels in */
+.mcb__slot {
   position: absolute;
-  z-index: 2;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
+  left: 22%;
+  width: 56%;
+  top: 27%;
+  height: 46%;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #040405 0%, #0b0b0c 50%, #040405 100%);
+  box-shadow:
+    inset 0 3px 4px rgba(0, 0, 0, 1),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* unlit dark-red glass LED jewel in a tarnished bezel: 13 units at (22, 30) */
+/* chunky ribbed handle: thrown DOWN = OFF, UP = ON (--on drives it later) */
+.mcb__handle {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  height: 52%;
+  top: calc(4% + (1 - var(--on)) * 40%);
+  border-radius: 2px 2px 3px 3px;
+  transition: top 90ms cubic-bezier(0.6, 0, 0.4, 1);
+  background:
+    /* finger grip ribs across the handle */
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.07) 0 1px, rgba(0, 0, 0, 0.35) 1px 2.5px, rgba(0, 0, 0, 0) 2.5px 3.5px),
+    /* worn shiny where thumbs push it */
+    radial-gradient(ellipse 60% 30% at 50% 60%, rgba(120, 110, 100, 0.22) 0%, rgba(120, 110, 100, 0) 100%),
+    linear-gradient(90deg, #0e0e0f 0%, #2a2a2c 30%, #333335 50%, #232325 72%, #0b0b0c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.8),
+    0 0 0 1px #000,
+    /* handle face stands proud of the slot */
+    0 1px 0 #141416,
+    0 2px 0 #0b0b0c,
+    0 4px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* white trip-indicator stripe printed on the handle */
+.mcb__handle::after {
+  content: '';
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 14%;
+  height: 9%;
+  border-radius: 1px;
+  background: rgba(214, 208, 190, 0.55);
+}
+
+/* unlit dark-red glass LED jewel in a tarnished bezel: 13 units at (20, 30) */
 .power__led {
   position: absolute;
   z-index: 1;
-  left: 15.5%;
+  left: 13.5%;
   width: 13%;
   top: 29.375%;
   height: 16.25%;
@@ -334,95 +417,96 @@
 }
 
 /* ==========================================================================
-   Mode selector: ribbed skirt + tarnished aluminium chicken-head pointer
+   DECODER: horizontal slide switch (OFF left / ON right)
+   Box = 100 x 84 units. Plate 64 x 26 at (18, 33); slot 52 x 8 at (24, 42);
+   thumb 20 x 24 at (24, 34), travelling 32 units = 160% of its own width.
    ========================================================================== */
-.mode {
+.decoder {
   position: relative;
   aspect-ratio: 100 / 84;
   width: min(96cqw, calc(94cqh * 100 / 84));
   flex: none;
 }
 
-/* knob: 40 units wide, centred at (50, 52). The shadow filter sits on this
-   non-rotating wrapper so it always falls downward. */
-.mode__knob {
+/* raised dark-steel escutcheon plate */
+.decoder__plate {
   position: absolute;
   z-index: 1;
-  left: 30%;
-  width: 40%;
-  top: calc((52 - 20) / 84 * 100%);
-  height: calc(40 / 84 * 100%);
-  filter:
-    drop-shadow(0 2px 1px rgba(0, 0, 0, 0.85))
-    drop-shadow(0 6px 5px rgba(0, 0, 0, 0.6))
-    drop-shadow(0 12px 10px rgba(0, 0, 0, 0.35));
+  left: 18%;
+  width: 64%;
+  top: calc(33 / 84 * 100%);
+  height: calc(26 / 84 * 100%);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.3) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 1px, rgba(0, 0, 0, 0.05) 1px 2px),
+    linear-gradient(180deg, #2c2d31 0%, #1d1e21 60%, #141518 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.7),
+    0 0 0 1px #000,
+    0 2px 0 #0e0f10,
+    0 4px 5px rgba(0, 0, 0, 0.8),
+    0 8px 12px rgba(0, 0, 0, 0.45);
 }
 
-/* ribbed base skirt */
-.mode__skirt {
+.decoder__screw {
   position: absolute;
-  inset: 0;
+  top: calc(50% - 8%);
+  width: calc(4 / 64 * 100%);
+  height: 16%;
   border-radius: 50%;
   background:
-    radial-gradient(circle, rgba(0, 0, 0, 0) 80%, rgba(0, 0, 0, 0.7) 100%),
-    linear-gradient(155deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.5) 100%),
-    repeating-conic-gradient(#5f6267 0deg 5deg, #26282b 5deg 10deg),
-    #3a3c40;
+    linear-gradient(60deg, rgba(0, 0, 0, 0) 42%, rgba(5, 5, 5, 0.95) 42% 58%, rgba(0, 0, 0, 0) 58%),
+    radial-gradient(circle at 35% 30%, #6a6d72 0%, #36383c 55%, #15161a 100%);
+  box-shadow: 0 0 0 1px #000;
+}
+
+.decoder__screw--l { left: calc(1 / 64 * 100%); }
+.decoder__screw--r { right: calc(1 / 64 * 100%); }
+
+/* the deep slot the actuator runs in */
+.decoder__slot {
+  position: absolute;
+  left: calc(6 / 64 * 100%);
+  width: calc(52 / 64 * 100%);
+  top: calc(9 / 26 * 100%);
+  height: calc(8 / 26 * 100%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #030304 0%, #0a0a0b 60%, #050506 100%);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.18),
-    0 0 0 1px #000,
-    0 1px 0 #1a1b1e,
-    0 2px 0 #0e0f11;
+    inset 0 2px 3px rgba(0, 0, 0, 1),
+    0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* pointer body: rotates to the selected mode */
-.mode__body {
+/* chunky ribbed actuator in tarnished aluminium; --slide 0 = OFF, 1 = ON */
+.decoder__thumb {
+  --slide: 0;
   position: absolute;
-  inset: 0;
-  transform: rotate(var(--mode-angle, 0deg));
-}
-
-/* the chicken head: narrow pointer up top, broad grip over the pivot */
-.mode__head {
-  position: absolute;
-  left: 28%;
-  width: 44%;
-  top: -6%;
-  height: 94%;
-  border-radius: 50% 50% 46% 46% / 72% 72% 28% 28%;
+  left: calc(6 / 64 * 100%);
+  width: calc(20 / 64 * 100%);
+  top: calc(1 / 26 * 100%);
+  height: calc(24 / 26 * 100%);
+  border-radius: 3px;
+  transform: translateX(calc(var(--slide) * 160%));
+  transition: transform 120ms cubic-bezier(0.6, 0, 0.3, 1);
   background:
-    /* grime ground into the grip */
-    radial-gradient(ellipse 50% 30% at 50% 74%, rgba(30, 29, 26, 0.35) 0%, rgba(30, 29, 26, 0) 100%),
-    /* tarnish blotches */
-    radial-gradient(ellipse 30% 18% at 35% 40%, rgba(46, 44, 38, 0.35) 0%, rgba(46, 44, 38, 0) 100%),
+    /* grime packed between the ribs */
+    linear-gradient(180deg, rgba(26, 25, 22, 0.4) 0%, rgba(26, 25, 22, 0) 25%, rgba(26, 25, 22, 0) 75%, rgba(26, 25, 22, 0.45) 100%),
+    /* vertical finger ribs */
+    repeating-linear-gradient(90deg, rgba(210, 212, 215, 0.18) 0 1px, rgba(0, 0, 0, 0.4) 1px 2.5px, rgba(0, 0, 0, 0) 2.5px 3.5px),
     /* chalky oxide flecks */
     radial-gradient(circle at 50% 50%, rgba(205, 205, 195, 0.12) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 4px 5px,
-    /* dull, tarnished cast aluminium, rounded across its width */
-    linear-gradient(90deg, #3c3e42 0%, #73767b 28%, #888b90 46%, #6c6f74 66%, #35373b 100%);
+    /* dull tarnished aluminium block */
+    linear-gradient(180deg, #7c7f84 0%, #696c71 45%, #4c4e52 100%);
   box-shadow:
-    inset 0 2px 2px rgba(220, 222, 225, 0.2),
-    inset 0 -3px 3px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(0, 0, 0, 0.85);
-}
-
-/* engraved pointer line, filled with old white paint */
-.mode__head::after {
-  content: '';
-  position: absolute;
-  left: calc(50% - 1px);
-  width: 2px;
-  top: 7%;
-  height: 34%;
-  border-radius: 1px;
-  background: rgba(214, 208, 190, 0.6);
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.7);
-}
-
-/* fixed overhead light over the whole knob (does not rotate) */
-.mode__sheen {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(ellipse 46% 16% at 46% 22%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%);
+    inset 0 1px 0 rgba(220, 222, 225, 0.25),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.9),
+    /* block thickness + shadow onto the plate */
+    0 1px 0 #3a3c40,
+    0 2px 0 #2a2b2e,
+    0 3px 0 #1a1b1d,
+    0 5px 4px rgba(0, 0, 0, 0.85),
+    0 9px 9px rgba(0, 0, 0, 0.45);
 }
