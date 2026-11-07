@@ -99,3 +99,19 @@
   font: 12px/1 monospace;
   text-transform: uppercase;
 }
+
+/*
+ * Stage: wraps the chassis without changing it. As a flex item of #root it
+ * shrink-wraps the chassis, so its box IS the chassis box, and gives the
+ * reference card a positioning context. isolation keeps the card (z-index 0,
+ * earlier in the DOM) painted behind the radio.
+ */
+.stage {
+  position: relative;
+  flex: none;
+  isolation: isolate;
+}
+
+.stage > .chassis {
+  z-index: 1; /* the radio always sits on top of anything tucked behind it */
+}

@@ -340,6 +340,17 @@
     0 1px 1px rgba(0, 0, 0, 0.9);
 }
 
+/* latched (REF while the card is out): held part-way down */
+.utility__cap[data-latched='true']:not([data-pressed='true']):not(:active) {
+  transform: translateY(1px) scale(0.97);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.75),
+    0 0 0 1px #000,
+    0 1px 0 #0e0f11,
+    0 2px 3px rgba(0, 0, 0, 0.85);
+}
+
 .utility__label {
   font-size: min(8cqh, 13cqw);
 }
