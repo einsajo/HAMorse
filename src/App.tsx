@@ -1,6 +1,7 @@
 import './App.css'
 import LCDDisplay from './components/LCDDisplay'
 import TuningDial from './components/TuningDial'
+import TelegraphDesk from './components/TelegraphDesk'
 
 export default function App() {
   return (
@@ -10,9 +11,7 @@ export default function App() {
       </section>
       <LCDDisplay />
       <TuningDial />
-      <section className="panel panel--telegraph" aria-label="Telegraph Desk">
-        Telegraph Desk
-      </section>
+      <TelegraphDesk />
     </main>
   )
 }
