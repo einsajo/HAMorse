@@ -49,6 +49,10 @@ interface DragState {
 export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  // The friction keyframes only run once the card has been used, so the
+  // close animation doesn't play (and flash the card) on first load.
+  const armedRef = useRef(false)
+  if (open) armedRef.current = true
 
   const setDrag = (px: number) => cardRef.current?.style.setProperty('--drag', `${px}px`)
 
@@ -91,9 +95,13 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
       delete e.currentTarget.dataset.dragging
       const moved = Math.hypot(e.clientX - d.startX, e.clientY - d.startY)
       const towardRadio = d.wide ? -d.offset : d.offset
-      setDrag(0)
-      if (e.type === 'pointercancel') return
-      if (moved < TAP_SLOP || towardRadio > CLOSE_DISTANCE) onClose()
+      if (e.type !== 'pointercancel' && (moved < TAP_SLOP || towardRadio > CLOSE_DISTANCE)) {
+        // keep the drag offset so the close animation starts where the finger let go;
+        // it is cleared once the card is tucked away (onAnimationEnd)
+        onClose()
+      } else {
+        setDrag(0) // not far enough: ease back out (--drag is transitioned)
+      }
     },
     [onClose],
   )
@@ -103,7 +111,11 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
       ref={cardRef}
       className="refcard"
       data-open={open}
+      data-armed={armedRef.current}
       aria-hidden={!open}
+      onAnimationEnd={() => {
+        if (!open) setDrag(0)
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

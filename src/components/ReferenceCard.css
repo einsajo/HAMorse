@@ -7,11 +7,24 @@
    always paints over it. Only the card moves; the chassis never does.
    ========================================================================== */
 
+/* Registered so they can be animated / transitioned smoothly */
+@property --p {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --drag {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 .refcard {
   --tuck: 14px; /* how much stays hidden behind the radio when open */
   --hide: 18px; /* extra depth when closed, so its shadow can't peek out */
-  --drag: 0px; /* live finger offset while dragging it back */
   --ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+  --p: 0; /* slide progress: 0 = tucked away, 1 = fully out */
 
   position: absolute;
   z-index: 0;
@@ -21,8 +34,13 @@
   -webkit-user-select: none;
   user-select: none;
   cursor: grab;
-  transition: transform 460ms var(--ease);
+  /* --drag eases back when a drag is released without closing */
+  transition: --drag 240ms var(--ease);
   will-change: transform;
+}
+
+.refcard[data-open='true'] {
+  --p: 1;
 }
 
 .refcard[data-dragging='true'] {
@@ -35,22 +53,20 @@
 }
 
 /* --- Portrait (mobile): slides UP out of the top edge -------------------
-   Free space above the radio = (100dvh - chassis height) / 2; 100% = chassis height. */
+   Free space above the radio = (100dvh - chassis height) / 2; 100% = chassis height.
+   Position = closed + p * (open - closed), where closed = +hide and open = -100% + tuck. */
 .refcard {
   left: 4%;
   right: 4%;
   top: 0;
   height: min(calc((100vh - 100%) / 2 - 10px + var(--tuck)), 100% - var(--hide));
   height: min(calc((100dvh - 100%) / 2 - 10px + var(--tuck)), 100% - var(--hide));
-  transform: translateY(var(--hide));
-}
-
-.refcard[data-open='true'] {
-  transform: translateY(calc(-100% + var(--tuck) + var(--drag)));
+  transform: translateY(calc(var(--hide) + var(--p) * (var(--tuck) - var(--hide) - 100%) + var(--drag)));
 }
 
 /* --- Wide (desktop / landscape): slides OUT to the right ----------------
-   Free space beside the radio = (100vw - chassis width) / 2; 100% = chassis width. */
+   Free space beside the radio = (100vw - chassis width) / 2; 100% = chassis width.
+   closed = -hide, open = 100% - tuck. */
 @media (min-aspect-ratio: 3/4) {
   .refcard {
     left: auto;
@@ -58,11 +74,97 @@
     top: 6%;
     height: 88%;
     width: min(calc((100vw - 100%) / 2 - 12px + var(--tuck)), 100% - var(--hide), 30rem);
-    transform: translateX(calc(var(--hide) * -1));
+    transform: translateX(calc(var(--hide) * -1 + var(--p) * (100% - var(--tuck) + var(--hide)) + var(--drag)));
   }
+}
 
-  .refcard[data-open='true'] {
-    transform: translateX(calc(100% - var(--tuck) + var(--drag)));
+/* --- Mechanical friction ------------------------------------------------
+   The card is dragged across the chassis' rear lip: it starts moving, catches
+   at ~40%, strains there for a beat, then breaks free and snaps to ~60% before
+   gliding the rest of the way. Animating the registered --p (not transform)
+   lets the same keyframes drive both the portrait (Y) and wide (X) layouts.
+   Only runs after the first REF press (data-armed), so nothing plays on load. */
+.refcard[data-armed='true'][data-open='true'] {
+  animation: refcard-out 1.05s both;
+}
+
+.refcard[data-armed='true'][data-open='false'] {
+  animation: refcard-in 0.95s both;
+}
+
+@keyframes refcard-out {
+  0% {
+    --p: 0;
+    animation-timing-function: cubic-bezier(0.3, 0.55, 0.45, 1);
+  }
+  36% {
+    /* catches on the chassis lip */
+    --p: 0.4;
+    animation-timing-function: ease-in-out;
+  }
+  42% {
+    --p: 0.412; /* strains forward... */
+    animation-timing-function: ease-in-out;
+  }
+  47% {
+    --p: 0.403; /* ...and springs back */
+    animation-timing-function: ease-in;
+  }
+  52% {
+    --p: 0.41;
+    animation-timing-function: cubic-bezier(0.05, 0.9, 0.2, 1);
+  }
+  56% {
+    /* breaks free: snaps from ~40% to ~60% in a few frames */
+    --p: 0.62;
+    animation-timing-function: cubic-bezier(0.2, 0.75, 0.3, 1);
+  }
+  90% {
+    --p: 1.012; /* tiny overshoot as it slaps out */
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    --p: 1;
+  }
+}
+
+@keyframes refcard-in {
+  0% {
+    --p: 1;
+    animation-timing-function: cubic-bezier(0.3, 0.55, 0.45, 1);
+  }
+  34% {
+    /* snags on the lip going back in */
+    --p: 0.6;
+    animation-timing-function: ease-in-out;
+  }
+  40% {
+    --p: 0.588;
+    animation-timing-function: ease-in-out;
+  }
+  45% {
+    --p: 0.597;
+    animation-timing-function: ease-in;
+  }
+  50% {
+    --p: 0.59;
+    animation-timing-function: cubic-bezier(0.05, 0.9, 0.2, 1);
+  }
+  54% {
+    /* gives way: jumps from ~60% to ~40% */
+    --p: 0.38;
+    animation-timing-function: cubic-bezier(0.25, 0.7, 0.35, 1);
+  }
+  100% {
+    --p: 0;
+  }
+}
+
+/* Respect reduced-motion: no stutter, just a quick move */
+@media (prefers-reduced-motion: reduce) {
+  .refcard[data-armed='true'][data-open='true'],
+  .refcard[data-armed='true'][data-open='false'] {
+    animation-duration: 1ms;
   }
 }
 
