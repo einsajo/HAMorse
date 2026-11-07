@@ -9,8 +9,15 @@ import MetalPlate from './MetalPlate'
 export default function TuningDial() {
   return (
     <section className="tuning" aria-label="Tuning Panel">
-      <MetalPlate className="plate--serial tuning__plate" label="Serial number SER: 1984-K1R0">
-        <span className="plate__serial">SER: 1984-K1R0</span>
+      <MetalPlate
+        className="plate--sop tuning__plate tuning__sop"
+        label="Operating instructions: 1. Rotate VFO to seek signal. 2. Use DIT/DAH paddles to TX. 3. Monitor LCD buffer. Warning: no emissions on dead bands."
+      >
+        <span className="sop__title">OPERATING INSTRUCTIONS:</span>
+        <span className="sop__step">1. ROTATE VFO TO SEEK SIGNAL.</span>
+        <span className="sop__step">2. USE DIT/DAH PADDLES TO TX.</span>
+        <span className="sop__step">3. MONITOR LCD BUFFER.</span>
+        <span className="sop__warn">WARNING: NO EMISSIONS ON DEAD BANDS.</span>
       </MetalPlate>
 
       <div className="vfo" role="presentation">
@@ -28,10 +35,15 @@ export default function TuningDial() {
         </div>
       </div>
 
-      <MetalPlate className="plate--brand tuning__plate" label="MorseHam MK-I">
-        <span className="plate__brand">MorseHam</span>
-        <span className="plate__model">MK-I</span>
-      </MetalPlate>
+      <div className="tuning__stack">
+        <MetalPlate className="plate--brand" label="HAMorse HM-13">
+          <span className="plate__brand">HAMorse</span>
+          <span className="plate__model">HM-13</span>
+        </MetalPlate>
+        <MetalPlate className="plate--serial" label="Serial number SER: 1984-K1R0">
+          <span className="plate__serial">SER: 1984-K1R0</span>
+        </MetalPlate>
+      </div>
     </section>
   )
 }

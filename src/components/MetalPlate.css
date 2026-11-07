@@ -1,46 +1,57 @@
 /* ==========================================================================
-   Stamped aluminium plate + Phillips-head screws
+   Aged, corroded copper plate + tarnished brass screws
    ========================================================================== */
 
 .plate {
+  /* patina splotch positions; varied per plate so they don't look copy-pasted */
+  --p1: 14% 22%;
+  --p2: 86% 78%;
+  --p3: 72% 12%;
+  --p4: 28% 92%;
+
   position: relative;
   container-type: inline-size;
   pointer-events: none; /* decorative: never steal touches from the VFO */
   /* no padding here: cqi units inside resolve against this plate's width */
   border-radius: 3px;
 
-  /* aged, dulled aluminium with horizontal brushing */
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.12) 100%),
-    linear-gradient(100deg, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.12) 42%, rgba(255, 255, 255, 0) 60%),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0.05) 1px 2px),
-    linear-gradient(180deg, #8d9197 0%, #72767c 55%, #5c6066 100%);
+    /* heavy verdigris blooms (#2E473B / #1A2B22) */
+    radial-gradient(ellipse 34% 42% at var(--p1), rgba(46, 71, 59, 0.85) 0%, rgba(46, 71, 59, 0.45) 45%, rgba(46, 71, 59, 0) 72%),
+    radial-gradient(ellipse 30% 36% at var(--p2), rgba(26, 43, 34, 0.85) 0%, rgba(26, 43, 34, 0.4) 50%, rgba(26, 43, 34, 0) 75%),
+    radial-gradient(circle at var(--p3), rgba(46, 71, 59, 0.6) 0%, rgba(46, 71, 59, 0) 22%),
+    radial-gradient(ellipse 26% 18% at var(--p4), rgba(46, 71, 59, 0.65) 0%, rgba(46, 71, 59, 0) 70%),
+    /* fine pitting speckle */
+    /* (co-prime tile sizes stop the pits from reading as a grid) */
+    radial-gradient(circle at 40% 60%, rgba(26, 43, 34, 0.28) 0 0.8px, rgba(0, 0, 0, 0) 1.4px) 0 0 / 13px 17px,
+    radial-gradient(circle at 70% 25%, rgba(20, 12, 6, 0.22) 0 0.8px, rgba(0, 0, 0, 0) 1.4px) 3px 5px / 19px 11px,
+    radial-gradient(circle at 20% 80%, rgba(46, 71, 59, 0.22) 0 1px, rgba(0, 0, 0, 0) 1.6px) 7px 2px / 23px 29px,
+    /* patina creeping in from the edges */
+    radial-gradient(ellipse 75% 80% at 50% 50%, rgba(26, 43, 34, 0) 55%, rgba(26, 43, 34, 0.55) 100%),
+    /* dark tarnish blotch */
+    radial-gradient(ellipse 40% 30% at 55% 48%, rgba(20, 12, 6, 0.28) 0%, rgba(20, 12, 6, 0) 70%),
+    /* dull top-lit sheen (no mirror shine) */
+    linear-gradient(180deg, rgba(255, 190, 130, 0.12) 0%, rgba(255, 190, 130, 0) 30%, rgba(0, 0, 0, 0.18) 100%),
+    /* worn rolling grain */
+    repeating-linear-gradient(92deg, rgba(255, 180, 120, 0.04) 0 1px, rgba(0, 0, 0, 0.05) 1px 3px),
+    /* oxidised copper / bronze base (#8B572A -> #5C3A21) */
+    linear-gradient(160deg, #8b572a 0%, #744827 45%, #5c3a21 100%);
 
   box-shadow:
-    /* sheared edge: bright top, dark bottom */
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
-    inset 1px 0 0 rgba(255, 255, 255, 0.15),
-    inset -1px 0 0 rgba(0, 0, 0, 0.3),
-    /* plate thickness and shadow on the chassis */
-    0 0 0 1px rgba(0, 0, 0, 0.75),
+    /* worn sheared edge */
+    inset 0 1px 0 rgba(255, 180, 120, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    inset 1px 0 0 rgba(255, 180, 120, 0.1),
+    inset -1px 0 0 rgba(0, 0, 0, 0.35),
+    /* plate thickness + shadow onto the gunmetal */
+    0 0 0 1px rgba(20, 12, 6, 0.85),
     0 2px 2px rgba(0, 0, 0, 0.8),
-    0 4px 8px rgba(0, 0, 0, 0.55);
+    0 4px 8px rgba(0, 0, 0, 0.55),
+    /* faint verdigris stain bleeding onto the chassis */
+    0 0 6px 1px rgba(46, 71, 59, 0.18);
 }
 
-/* pressed border bead, stamped in with the text */
-.plate::before {
-  content: '';
-  position: absolute;
-  inset: 4.5cqi 9cqi;
-  border-radius: 2px;
-  border: 1px solid rgba(40, 42, 46, 0.55);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-/* --- Stamped (debossed) text ------------------------------------------ */
+/* --- Stamped (debossed) text: brand + serial plates -------------------- */
 .plate__stamp {
   position: relative;
   display: flex;
@@ -53,60 +64,117 @@
   line-height: 1;
   white-space: nowrap;
   text-transform: uppercase;
-  color: #2f3236;
+  color: #2a180c;
   text-shadow:
     /* deep upper wall of the stamped groove */
-    0 -1px 0 rgba(0, 0, 0, 0.75),
+    0 -1px 0 rgba(0, 0, 0, 0.8),
     0 -1px 1px rgba(0, 0, 0, 0.5),
-    /* light catching the lower lip */
-    0 1px 0 rgba(255, 255, 255, 0.35);
+    /* worn copper lip catching the light */
+    0 1px 0 rgba(230, 160, 100, 0.3);
 }
 
-/* --- Phillips-head screws ---------------------------------------------- */
+/* --- Screws: tarnished brass with rust bloom --------------------------- */
 .plate__screw {
   --screw-size: max(6px, 7cqi);
   position: absolute;
+  z-index: 1;
   width: var(--screw-size);
   height: var(--screw-size);
   border-radius: 50%;
   transform: rotate(var(--screw-angle, 0deg));
 
   background:
-    /* cross slots */
-    linear-gradient(90deg, rgba(0, 0, 0, 0) 40%, rgba(10, 10, 12, 0.9) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
-    linear-gradient(0deg, rgba(0, 0, 0, 0) 40%, rgba(10, 10, 12, 0.9) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
-    /* domed steel head lit from the upper left */
-    radial-gradient(circle at 35% 30%, #d4d7db 0%, #8e9298 35%, #4a4d52 75%, #2a2c30 100%);
+    /* cross slots, packed with grime */
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 40%, rgba(18, 10, 4, 0.92) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
+    linear-gradient(0deg, rgba(0, 0, 0, 0) 40%, rgba(18, 10, 4, 0.92) 40% 60%, rgba(0, 0, 0, 0) 60%) center / 70% 70% no-repeat,
+    /* rust blooms */
+    radial-gradient(circle at 70% 70%, rgba(122, 48, 18, 0.75) 0%, rgba(122, 48, 18, 0) 45%),
+    radial-gradient(circle at 25% 75%, rgba(90, 36, 14, 0.6) 0%, rgba(90, 36, 14, 0) 35%),
+    /* domed aged-brass head lit from the upper left */
+    radial-gradient(circle at 35% 30%, #c4a066 0%, #8a6630 35%, #5a3f1c 72%, #2e1f0e 100%);
 
   box-shadow:
-    /* dome shading */
-    inset 0 -1px 1px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    /* countersink ring + drop shadow onto the plate */
-    0 0 0 1px rgba(0, 0, 0, 0.55),
-    0 1px 1px rgba(0, 0, 0, 0.7),
-    0 1px 0 1px rgba(255, 255, 255, 0.12);
+    inset 0 -1px 1px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 220, 160, 0.3),
+    /* countersink ring + drop shadow onto the copper */
+    0 0 0 1px rgba(20, 10, 4, 0.7),
+    0 1px 1px rgba(0, 0, 0, 0.75),
+    0 1px 0 1px rgba(255, 180, 120, 0.1);
 }
 
-/* corner positions: centred offset so the rotation doesn't shift them */
 .plate__screw--tl { top: 2.6cqi; left: 2.6cqi; }
 .plate__screw--tr { top: 2.6cqi; right: 2.6cqi; }
 .plate__screw--bl { bottom: 2.6cqi; left: 2.6cqi; }
 .plate__screw--br { bottom: 2.6cqi; right: 2.6cqi; }
 
-/* --- Variants ---------------------------------------------------------- */
-.plate--serial .plate__stamp {
-  font-size: 8.4cqi;
-  letter-spacing: 0.04em;
+/* --- Brand + serial (right-hand stack) ---------------------------------- */
+.plate--brand {
+  --p1: 80% 20%;
+  --p2: 12% 85%;
+  --p3: 35% 10%;
+  --p4: 70% 95%;
 }
 
 .plate--brand .plate__brand {
-  font-size: 10.5cqi;
-  letter-spacing: 0.02em;
-  text-transform: none; /* keep the "MorseHam" casing */
+  font-size: 11cqi;
+  letter-spacing: 0.06em;
+  text-transform: none; /* keep the "HAMorse" casing */
 }
 
 .plate--brand .plate__model {
   font-size: 8.4cqi;
   letter-spacing: 0.2em;
+}
+
+.plate--serial {
+  --p1: 60% 80%;
+  --p2: 8% 15%;
+  --p3: 92% 40%;
+  --p4: 40% 5%;
+}
+
+.plate--serial .plate__stamp {
+  font-size: 8.4cqi;
+  letter-spacing: 0.04em;
+}
+
+/* --- SOP plate: printed industrial instructions ------------------------- */
+.plate--sop {
+  --p1: 20% 12%;
+  --p2: 85% 88%;
+  --p3: 88% 30%;
+  --p4: 15% 70%;
+  container-type: size; /* height is set by the layout, so text can size to both axes */
+}
+
+.plate--sop .plate__stamp {
+  height: 100%;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.4cqh;
+  padding: 12cqi 11cqi;
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
+  font-stretch: condensed;
+  font-weight: 700;
+  font-size: min(7.2cqi, 5.6cqh);
+  line-height: 1.18;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  text-align: left;
+  /* very dark, etched print */
+  color: #120b06;
+  text-shadow:
+    0 0 1px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(230, 160, 100, 0.22);
+}
+
+.plate--sop .sop__title {
+  font-size: 1.08em;
+  letter-spacing: 0.04em;
+  margin-bottom: 1cqh;
+}
+
+.plate--sop .sop__warn {
+  margin-top: 1.6cqh;
+  color: #1a0a04;
 }
