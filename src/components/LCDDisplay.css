@@ -1,0 +1,161 @@
+/* ==========================================================================
+   Amber LCD: Display Panel
+   ========================================================================== */
+
+.lcd {
+  --lcd-amber: #ffb000;
+  --lcd-silt: #3a2800; /* unlit liquid crystal */
+  --lcd-ink: #050505; /* lit liquid crystal (viscous pitch, not pure black) */
+  --lcd-font: 'VT323', 'Share Tech Mono', 'OCR A Std', 'OCR A Extended',
+    'Lucida Console', 'DejaVu Sans Mono', 'Courier New', ui-monospace, monospace;
+
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+/* --- Inset bezel: the hole milled into the gunmetal --------------------- */
+.lcd__bezel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  padding: 3.2%;
+  border-radius: 6px;
+
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 1px, rgba(0, 0, 0, 0.04) 1px 2px),
+    linear-gradient(150deg, #121316 0%, #1c1d21 55%, #26282c 100%);
+
+  box-shadow:
+    /* shadow cast by the chassis lip on the top/left walls */
+    inset 5px 5px 10px rgba(0, 0, 0, 0.95),
+    inset 2px 2px 2px rgba(0, 0, 0, 1),
+    /* light catching the bottom/right edges */
+    inset -2px -2px 2px rgba(255, 255, 255, 0.1),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.22),
+    /* chamfer on the chassis around the cut-out */
+    0 -1px 0 rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* --- Amber glass ------------------------------------------------------- */
+.lcd__glass {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  padding: 3% 5%;
+  border: 2px solid #070707; /* rubber gasket */
+  border-radius: 3px;
+
+  background:
+    /* glass glare */
+    linear-gradient(172deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 28%, rgba(255, 255, 255, 0) 45%),
+    /* 1px horizontal scanlines */
+    repeating-linear-gradient(0deg, rgba(58, 40, 0, 0.18) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    /* faint vertical pixel columns -> pixel grid */
+    repeating-linear-gradient(90deg, rgba(58, 40, 0, 0.07) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    /* unlit-crystal silt pooling unevenly behind the glass */
+    radial-gradient(ellipse 45% 60% at 18% 78%, rgba(58, 40, 0, 0.16), rgba(58, 40, 0, 0) 70%),
+    radial-gradient(ellipse 40% 50% at 82% 22%, rgba(58, 40, 0, 0.1), rgba(58, 40, 0, 0) 70%),
+    /* uneven backlight: hot centre, darker corners */
+    radial-gradient(ellipse 85% 90% at 50% 45%, #ffc23a 0%, var(--lcd-amber) 55%, #c98a00 100%);
+
+  box-shadow:
+    inset 0 0 15px rgba(0, 0, 0, 0.8),
+    inset 0 3px 6px rgba(0, 0, 0, 0.55);
+}
+
+/* --- Rows -------------------------------------------------------------- */
+.lcd__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  font-family: var(--lcd-font);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lcd__row--freq {
+  flex: 1.25;
+  justify-content: flex-end;
+  align-items: baseline;
+  padding-top: 4cqh;
+  gap: 3cqw;
+  font-size: 44cqh;
+  letter-spacing: 0.06em;
+}
+
+.lcd__row--buffer {
+  flex: 1;
+  justify-content: flex-start;
+  font-size: min(16cqh, 5.4cqw);
+  letter-spacing: 0.08em;
+}
+
+.lcd__divider {
+  flex: none;
+  height: 1px;
+  margin: 1cqh 0;
+  background: rgba(58, 40, 0, 0.35);
+  box-shadow: 0 1px 0 rgba(255, 220, 140, 0.35);
+}
+
+.lcd__unit {
+  font-size: 0.36em;
+  letter-spacing: 0.1em;
+}
+
+/* Ghost and ink share one grid cell so the ghost sits exactly behind the ink */
+.lcd__stack {
+  display: inline-grid;
+}
+
+.lcd__stack > * {
+  grid-area: 1 / 1;
+}
+
+/* --- Unlit bleed (#3A2800) --------------------------------------------- */
+.lcd__ghost {
+  color: rgba(58, 40, 0, 0.2);
+  text-shadow: 0 0 1px rgba(58, 40, 0, 0.25);
+  justify-self: end;
+}
+
+.lcd__ghost--matrix {
+  justify-self: stretch;
+  align-self: center;
+  width: 100%;
+  height: 1.05em;
+  /* one dim cell per character position */
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(58, 40, 0, 0.12) 0 calc(1ch + 0.02em),
+    rgba(0, 0, 0, 0) calc(1ch + 0.02em) calc(1ch + 0.08em)
+  );
+  border-radius: 1px;
+}
+
+.lcd__row--buffer .lcd__stack {
+  width: 100%;
+}
+
+/* --- Lit liquid crystal (#050505) -------------------------------------- */
+.lcd__ink {
+  position: relative;
+  color: var(--lcd-ink);
+  opacity: 0.88;
+  text-shadow:
+    /* crystal shadow cast onto the backlight behind the glass */
+    1px 1px 0 rgba(58, 40, 0, 0.45),
+    2px 2px 2px rgba(58, 40, 0, 0.3),
+    /* soft viscous edge */
+    0 0 1px rgba(5, 5, 5, 0.6);
+}
