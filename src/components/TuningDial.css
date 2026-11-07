@@ -156,6 +156,39 @@
     0 0 18px 4px rgba(0, 0, 0, 0.55);
 }
 
+/* Pressed / grabbed: the heavy knob is pushed DOWN into its collar. Its top
+   face drops, the visible side wall shrinks and the cast shadow tightens.
+   Same layer count as the rest state, so box-shadow interpolates. */
+.vfo__mount {
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.vfo:active .vfo__mount,
+.vfo[data-pressed='true'] .vfo__mount {
+  transform: translateY(-1.2%);
+  transition-duration: 45ms;
+  box-shadow:
+    0 1px 0 #2b2d31,
+    0 1px 0 #212226,
+    0 2px 0 #18191c,
+    0 2px 0 #121315,
+    0 3px 0 #0c0c0e,
+    0 3px 0 #070708,
+    0 3px 0 #070708,
+    0 4px 2px rgba(0, 0, 0, 0.95),
+    0 6px 6px rgba(0, 0, 0, 0.85),
+    0 10px 12px rgba(0, 0, 0, 0.7),
+    0 16px 22px rgba(0, 0, 0, 0.5),
+    0 24px 34px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 12px 3px rgba(0, 0, 0, 0.6);
+}
+
+.vfo:active .vfo__knob,
+.vfo[data-pressed='true'] .vfo__knob {
+  filter: brightness(0.92); /* sitting lower in the collar, it catches less light */
+}
+
 /* --- Knob: knurled outer grip ----------------------------------------- */
 .vfo__knob {
   position: absolute;

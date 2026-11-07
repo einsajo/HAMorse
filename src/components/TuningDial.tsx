@@ -1,5 +1,6 @@
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
+import { usePress } from '../hooks/usePress'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 const CX = 66
@@ -83,6 +84,8 @@ function FrequencyScale() {
  * shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
+  // grab feedback: the heavy knob seats down into its collar while held
+  const { pressed, handlers } = usePress()
   return (
     <section className="tuning" aria-label="Tuning Panel">
       <MetalPlate
@@ -96,7 +99,7 @@ export default function TuningDial() {
         <span className="sop__warn">WARNING: NO EMISSIONS ON DEAD BANDS.</span>
       </MetalPlate>
 
-      <div className="vfo" role="presentation">
+      <div className="vfo" role="presentation" data-pressed={pressed} {...handlers}>
         <FrequencyScale />
         <div className="vfo__well">
           <div className="vfo__mount">

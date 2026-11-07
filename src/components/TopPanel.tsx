@@ -16,60 +16,40 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 const deg = (d: number) => (d * Math.PI) / 180
 
 /* ==========================================================================
-   Left: MAIN POWER bat-lever toggle + unlit LED jewel (box = 100 x 80 units)
+   Left: MAIN POWER, a heavy-duty MCB (miniature circuit breaker) whose
+   handle throws vertically, plus an unlit LED jewel.  Box = 100 x 80 units.
    ========================================================================== */
+const POWER_ON = false // static for now: handle thrown DOWN = OFF
+
 function PowerSwitch() {
   return (
-    <div className="power" aria-label="Main power switch, off" role="img">
+    <div className="power" aria-label={`Main power breaker, ${POWER_ON ? 'on' : 'off'}`} role="img">
       <svg className="tp-print" viewBox="0 0 100 80" aria-hidden="true">
         <defs>
           <InkWear id="tp-wear-power" />
         </defs>
         <g className="tp-ink" filter="url(#tp-wear-power)">
-          <text x="58" y="9" className="tp-label">ON</text>
-          <text x="58" y="78" className="tp-label">OFF</text>
-          <text x="22" y="52" className="tp-label tp-label--small">PWR</text>
+          <text x="90" y="31" className="tp-label tp-label--small">ON</text>
+          <text x="90" y="55" className="tp-label tp-label--small">OFF</text>
+          <text x="20" y="52" className="tp-label tp-label--small">PWR</text>
         </g>
       </svg>
 
       <span className="power__led" aria-hidden="true" />
 
-      <span className="power__ring" aria-hidden="true">
-        <span className="power__nut" />
-      </span>
-
-      {/* bat lever, thrown DOWN (= OFF); drawn above the bushing */}
-      <svg className="power__lever" viewBox="0 0 100 80" aria-hidden="true">
-        <defs>
-          <linearGradient id="tp-bat" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0" stopColor="#2b2d31" />
-            <stop offset="0.28" stopColor="#8d9095" />
-            <stop offset="0.42" stopColor="#a4a7ab" />
-            <stop offset="0.62" stopColor="#6c6f74" />
-            <stop offset="1" stopColor="#222326" />
-          </linearGradient>
-          <radialGradient id="tp-bat-tip" cx="0.42" cy="0.38" r="0.65">
-            <stop offset="0" stopColor="#a9acb0" />
-            <stop offset="0.45" stopColor="#74777c" />
-            <stop offset="1" stopColor="#26282b" />
-          </radialGradient>
-          <filter id="tp-bat-shadow" x="-60%" y="-30%" width="220%" height="180%">
-            <feDropShadow dx="1.6" dy="3.2" stdDeviation="1.6" floodColor="#000" floodOpacity="0.85" />
-            <feDropShadow dx="0.4" dy="0.8" stdDeviation="0.4" floodColor="#000" floodOpacity="0.9" />
-          </filter>
-        </defs>
-        <g filter="url(#tp-bat-shadow)">
-          {/* tapered shaft from the pivot (58, 34) down to the tip */}
-          <path d="M55.4 34 L60.6 34 L62.6 62 L53.4 62 Z" fill="url(#tp-bat)" />
-          {/* oxidised grime line down one side */}
-          <path d="M55.9 35 L56.6 35 L54.6 61 L53.9 61 Z" fill="rgba(20,19,16,0.45)" />
-          {/* rounded bat tip */}
-          <ellipse cx="58" cy="63" rx="5.4" ry="4.8" fill="url(#tp-bat-tip)" />
-          <ellipse cx="58" cy="63" rx="5.4" ry="4.8" fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="0.5" />
-          {/* pivot boss */}
-          <circle cx="58" cy="34" r="4" fill="url(#tp-bat-tip)" stroke="rgba(0,0,0,0.7)" strokeWidth="0.5" />
-        </g>
-      </svg>
+      <div className="mcb" data-on={POWER_ON} aria-hidden="true">
+        <span className="mcb__vent mcb__vent--top" />
+        <span className="mcb__term mcb__term--top">
+          <span className="mcb__screw" />
+        </span>
+        <span className="mcb__slot">
+          <span className="mcb__handle" />
+        </span>
+        <span className="mcb__term mcb__term--bottom">
+          <span className="mcb__screw" />
+        </span>
+        <span className="mcb__vent mcb__vent--bottom" />
+      </div>
     </div>
   )
 }
@@ -187,60 +167,35 @@ function SMeter() {
 }
 
 /* ==========================================================================
-   Right: AM / FM / CW chicken-head mode selector (box = 100 x 84 units)
+   Right: DECODER horizontal slide switch (OFF left / ON right). Box = 100 x 84.
    ========================================================================== */
-const KNOB = { x: 50, y: 52 }
-const MODES = [
-  { label: 'AM', a: -50 },
-  { label: 'FM', a: 0 },
-  { label: 'CW', a: 50 },
-]
-const MODE_SELECTED = 'CW'
+const DECODER_ON = false // static for now
 
-function ModeSelector() {
-  const at = (a: number, r: number) => ({
-    x: r2(KNOB.x + r * Math.sin(deg(a))),
-    y: r2(KNOB.y - r * Math.cos(deg(a))),
-  })
-  const pointer = MODES.find((m) => m.label === MODE_SELECTED)!.a
-
+function DecoderSwitch() {
   return (
-    <div className="mode" role="img" aria-label={`Mode selector set to ${MODE_SELECTED}`}>
+    <div className="decoder" role="img" aria-label={`Decoder switch, ${DECODER_ON ? 'on' : 'off'}`}>
       <svg className="tp-print" viewBox="0 0 100 84" aria-hidden="true">
         <defs>
-          <InkWear id="tp-wear-mode" />
+          <InkWear id="tp-wear-dec" />
         </defs>
-        <g className="tp-ink" filter="url(#tp-wear-mode)">
-          {MODES.map((m) => {
-            const t0 = at(m.a, 22.5)
-            const t1 = at(m.a, 25.5)
-            const l = at(m.a, 31)
-            return (
-              <g key={m.label}>
-                <path className="tp-tick" d={`M${t0.x} ${t0.y}L${t1.x} ${t1.y}`} />
-                <text x={l.x} y={l.y} className="tp-label" dominantBaseline="central">
-                  {m.label}
-                </text>
-              </g>
-            )
-          })}
-          <text x="50" y="81" className="tp-label tp-label--small">MODE</text>
+        <g className="tp-ink" filter="url(#tp-wear-dec)">
+          <text x="50" y="22" className="tp-label">DECODER</text>
+          <text x="8" y="49" className="tp-label tp-label--small">OFF</text>
+          <text x="92" y="49" className="tp-label tp-label--small">ON</text>
         </g>
       </svg>
 
-      {/* filter on the non-rotating wrapper keeps the shadow falling downward */}
-      <div className="mode__knob" aria-hidden="true">
-        <span className="mode__skirt" />
-        <span className="mode__body" style={{ '--mode-angle': `${pointer}deg` } as CSSProperties}>
-          <span className="mode__head" />
-        </span>
-        <span className="mode__sheen" />
+      <div className="decoder__plate" aria-hidden="true">
+        <span className="decoder__screw decoder__screw--l" />
+        <span className="decoder__screw decoder__screw--r" />
+        <span className="decoder__slot" />
+        <span className="decoder__thumb" style={{ '--slide': DECODER_ON ? 1 : 0 } as CSSProperties} />
       </div>
     </div>
   )
 }
 
-/** Top Panel: MAIN POWER toggle | S-meter | mode selector (static hardware only). */
+/** Top Panel: MCB power breaker | S-meter | DECODER slide switch (static hardware only). */
 export default function TopPanel() {
   return (
     <section className="top" aria-label="Top Panel">
@@ -250,8 +205,8 @@ export default function TopPanel() {
       <div className="top__col top__col--meter">
         <SMeter />
       </div>
-      <div className="top__col top__col--mode">
-        <ModeSelector />
+      <div className="top__col top__col--decoder">
+        <DecoderSwitch />
       </div>
     </section>
   )

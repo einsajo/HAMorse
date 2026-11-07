@@ -8,8 +8,9 @@
 
    Keyer geometry, in keyer-width units (cqw), mirrored about 50cqw:
      pivot block  2 .. 9     lever (arm + thumb-piece)  3 .. 40     post  45 .. 55
-   Pressing pushes a lever DOWN into the desk (Z axis): its hover shadows
-   collapse to a tight, flush contact shadow and it compresses slightly.
+   Pressing pivots a lever like a see-saw: the rear stays pinned at its hinge
+   while the thumb-piece end rotates DOWN into the desk (rotateY under a shared
+   perspective). Its hover shadows collapse to a tight, flush contact shadow.
    ========================================================================== */
 
 .desk {
@@ -55,6 +56,10 @@
    ========================================================================== */
 .keyer {
   --hit: 56cqh; /* finger-sized touch area: the full height of the thumb-piece */
+  --tilt: 16deg; /* how far a pressed lever pivots down into the desk */
+  /* shared 3D viewpoint, centred on the keyer, for the levers' see-saw pivot */
+  perspective: 300px;
+  perspective-origin: 50% 45%;
   position: absolute;
   inset: 0;
 }
@@ -108,8 +113,8 @@
   transition: transform 110ms ease-out;
 }
 
-.lever--dit { left: 3cqw; }
-.lever--dah { right: 3cqw; }
+.lever--dit { left: 3cqw; transform-origin: 0% 50%; } /* rear hinge = outer (left) edge */
+.lever--dah { right: 3cqw; transform-origin: 100% 50%; } /* rear hinge = outer (right) edge */
 
 
 /*
@@ -138,7 +143,6 @@
 .lever:active,
 .lever[data-pressed='true'] {
   transition-duration: 35ms;
-  transform: translateY(2px) scale(0.98);
   /* pushed flush: almost no side wall left in view (same layer count, so it animates) */
   --arm-wall: 0 1px 0 #46484c, 0 1px 0 #37393c, 0 1px 0 #282a2c, 0 1px 0 #282a2c;
   --pad-wall: 0 1px 0 #0d0c0a, 0 1px 0 #080706, 0 1px 0 #080706, 0 1px 0 #040403, 0 1px 0 #040403;
@@ -149,6 +153,39 @@
     0 2px 2px -1px rgba(0, 0, 0, 0.35),
     0 2px 3px -2px rgba(0, 0, 0, 0.2),
     0 2px 4px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* See-saw pivot: the rear stays pinned under its pivot block while the
+   thumb-piece end rotates down into the desk (Z axis). rotateY moves +x points
+   to -z (away from the viewer) for DIT, mirrored for DAH. */
+.lever--dit:active,
+.lever--dit[data-pressed='true'] { transform: rotateY(var(--tilt)); }
+
+.lever--dah:active,
+.lever--dah[data-pressed='true'] { transform: rotateY(calc(var(--tilt) * -1)); }
+
+/* depth shading: the further down the lever dips, the less light it catches */
+.lever__arm::after,
+.lever__pad::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease-out;
+}
+
+.lever--dit .lever__arm::after { background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.42) 100%); }
+.lever--dah .lever__arm::after { background: linear-gradient(270deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.42) 100%); }
+.lever__pad::after { background: rgba(0, 0, 0, 0.38); }
+
+.lever:active .lever__arm::after,
+.lever:active .lever__pad::after,
+.lever[data-pressed='true'] .lever__arm::after,
+.lever[data-pressed='true'] .lever__pad::after {
+  opacity: 1;
+  transition-duration: 35ms;
 }
 
 /* the press is fast (a heavy thumb), the release springs back slightly slower */
@@ -372,31 +409,22 @@
 }
 
 /* ==========================================================================
-   TX SEND
+   Right column: TX ARM guard (top) + TX SEND (bottom)
+   Same layout and footprint as REF / CLR, so the desk is symmetrical.
    ========================================================================== */
 .desk__col--tx {
   display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tx {
-  --t: min(54cqh, 80cqw);
-  display: flex;
   flex-direction: column;
+  justify-content: space-evenly;
   align-items: center;
-  gap: 3cqh;
-}
-
-.tx__label {
-  font-size: min(9cqh, 14cqw);
 }
 
 /* heavy stepped steel housing with a faded red index ring */
 .tx__housing {
   position: relative;
-  width: var(--t);
-  height: var(--t);
+  /* exactly the REF / CLR footprint */
+  width: var(--b);
+  height: var(--b);
   padding: 15%;
   border-radius: 50%;
   background:
@@ -462,4 +490,132 @@
     0 0 0 1px #000,
     0 0 0 2px rgba(60, 10, 8, 0.6),
     0 1px 1px rgba(0, 0, 0, 0.9);
+}
+
+/* ==========================================================================
+   TX ARM guarded safety switch
+   ========================================================================== */
+.guard__plate {
+  position: relative;
+  width: var(--b);
+  height: var(--b);
+  border-radius: 3px;
+  /* faded yellow/black hazard border around a dark steel centre */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0.3) 100%),
+    radial-gradient(ellipse 30% 20% at 80% 85%, rgba(30, 24, 14, 0.5) 0%, rgba(30, 24, 14, 0) 100%),
+    repeating-linear-gradient(45deg, rgba(176, 142, 44, 0.62) 0 3px, rgba(18, 18, 16, 0.92) 3px 6px),
+    #1a1b1d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.7),
+    0 0 0 1px #000,
+    0 2px 0 #0e0f10,
+    0 4px 5px rgba(0, 0, 0, 0.85),
+    0 8px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* dark steel centre panel inside the hazard border */
+.guard__plate::before {
+  content: '';
+  position: absolute;
+  inset: 14%;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #26272b 0%, #1a1b1e 60%, #121316 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.85);
+}
+
+.guard__screw {
+  position: absolute;
+  z-index: 1;
+  width: 11%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    linear-gradient(35deg, rgba(0, 0, 0, 0) 42%, rgba(5, 5, 5, 0.95) 42% 58%, rgba(0, 0, 0, 0) 58%),
+    radial-gradient(circle at 35% 30%, #6a6d72 0%, #36383c 55%, #15161a 100%);
+  box-shadow: 0 0 0 1px #000;
+}
+
+.guard__screw--a { left: 2%; top: 2%; }
+.guard__screw--b { right: 2%; bottom: 2%; }
+
+/* recess the little toggle sits in */
+.guard__well {
+  position: absolute;
+  z-index: 1;
+  left: 30%;
+  width: 40%;
+  top: 30%;
+  height: 40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #050506 0%, #101113 70%, #1a1b1e 100%);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.95);
+}
+
+/* small bat toggle under the cover (pointing down = safe) */
+.guard__toggle {
+  position: absolute;
+  left: 36%;
+  width: 28%;
+  top: 30%;
+  height: 62%;
+  border-radius: 40% 40% 50% 50% / 20% 20% 40% 40%;
+  background: linear-gradient(90deg, #2a2c30 0%, #8a8d92 40%, #5c5f64 70%, #202124 100%);
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.85);
+}
+
+/* hinged, faded-red translucent cover (closed); the toggle shows through it */
+.guard__cover {
+  position: absolute;
+  z-index: 2;
+  left: 18%;
+  right: 18%;
+  top: 16%;
+  bottom: 14%;
+  border-radius: 3px 3px 5px 5px;
+  background:
+    /* overhead light skimming the curved plastic */
+    radial-gradient(ellipse 60% 18% at 50% 26%, rgba(255, 210, 200, 0.28) 0%, rgba(255, 210, 200, 0) 100%),
+    /* side walls of the hood seen from above */
+    linear-gradient(90deg, rgba(40, 4, 2, 0.55) 0%, rgba(40, 4, 2, 0) 18%, rgba(40, 4, 2, 0) 82%, rgba(40, 4, 2, 0.6) 100%),
+    /* scuffs */
+    linear-gradient(115deg, rgba(0, 0, 0, 0) 58%, rgba(255, 220, 210, 0.12) 60%, rgba(0, 0, 0, 0) 62%),
+    /* sun-faded translucent red plastic */
+    linear-gradient(180deg, rgba(168, 34, 26, 0.74) 0%, rgba(132, 20, 14, 0.78) 60%, rgba(96, 12, 8, 0.86) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 200, 190, 0.3),
+    inset 0 -3px 3px rgba(40, 4, 2, 0.6),
+    0 0 0 1px rgba(30, 3, 2, 0.9),
+    /* hood standing proud of the plate */
+    0 2px 0 #4a0806,
+    0 3px 0 #2c0504,
+    0 5px 5px rgba(0, 0, 0, 0.7);
+}
+
+/* lifting lip at the front of the cover */
+.guard__cover::after {
+  content: '';
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: -9%;
+  height: 12%;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(180deg, #8a1610 0%, #5a0c08 100%);
+  box-shadow: 0 0 0 1px rgba(30, 3, 2, 0.9), 0 2px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* steel hinge barrel along the top edge */
+.guard__hinge {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: -10%;
+  height: 16%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #8a8d92 0%, #55585c 45%, #26282b 100%);
+  box-shadow: 0 0 0 1px #000, 0 2px 2px rgba(0, 0, 0, 0.75);
 }
