@@ -7,9 +7,9 @@
    Each column is a CSS size container, so its hardware scales as one piece.
 
    Keyer geometry, in keyer-width units (cqw), mirrored about 50cqw:
-     pivot block     2 .. 9      lever (arm + thumb-piece) 3 .. 40 (contact to 40.4)
-     post contact   42.8 .. 45   post               45 .. 55
-   Pressing slides a lever 2.4cqw inward, so its tip strikes the post contact.
+     pivot block  2 .. 9     lever (arm + thumb-piece)  3 .. 40     post  45 .. 55
+   Pressing pushes a lever DOWN into the desk (Z axis): its hover shadows
+   collapse to a tight, flush contact shadow and it compresses slightly.
    ========================================================================== */
 
 .desk {
@@ -55,7 +55,6 @@
    ========================================================================== */
 .keyer {
   --hit: 56cqh; /* finger-sized touch area: the full height of the thumb-piece */
-  --travel: 2.4cqw; /* = gap between lever tip (40.4) and post contact (42.8) */
   position: absolute;
   inset: 0;
 }
@@ -71,9 +70,10 @@
   background:
     radial-gradient(ellipse 30% 50% at 20% 60%, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 100%),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, rgba(0, 0, 0, 0.05) 1px 2px),
-    linear-gradient(180deg, #1d1e21 0%, #141518 60%, #0e0f11 100%);
+    /* mid-tone gunmetal: light enough for the levers' shadows to read on it */
+    linear-gradient(180deg, #34363b 0%, #2a2c30 55%, #212226 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
     inset 0 -2px 3px rgba(0, 0, 0, 0.75),
     0 0 0 1px #000,
     0 3px 5px rgba(0, 0, 0, 0.8),
@@ -105,17 +105,12 @@
   top: calc(45cqh - var(--hit) / 2);
   height: var(--hit);
   width: 37cqw;
-  transition: transform 45ms ease-out;
+  transition: transform 110ms ease-out;
 }
 
 .lever--dit { left: 3cqw; }
 .lever--dah { right: 3cqw; }
 
-.lever--dit:active,
-.lever--dit[data-pressed='true'] { transform: translateX(var(--travel)); }
-
-.lever--dah:active,
-.lever--dah[data-pressed='true'] { transform: translateX(calc(var(--travel) * -1)); }
 
 /*
  * Shared "hovering half an inch above the plate" shadow stack:
@@ -123,6 +118,9 @@
  * and progressively wider, softer shadows stretching downward.
  */
 .lever {
+  /* visible side walls: the thickness you see because the part stands proud */
+  --arm-wall: 0 1px 0 #55585c, 0 2px 0 #46484c, 0 3px 0 #37393c, 0 4px 0 #282a2c;
+  --pad-wall: 0 1px 0 #1a1714, 0 2px 0 #13110f, 0 3px 0 #0d0c0a, 0 4px 0 #080706, 0 5px 0 #040403;
   --hover-shadow:
     0 0 1px 1px rgba(0, 0, 0, 0.75),
     0 2px 3px rgba(0, 0, 0, 0.6),
@@ -130,6 +128,41 @@
     0 18px 12px -4px rgba(0, 0, 0, 0.5),
     0 30px 26px -8px rgba(0, 0, 0, 0.38),
     0 44px 40px -14px rgba(0, 0, 0, 0.25);
+}
+
+/*
+ * Pressed: the lever is pushed DOWN onto the base plate. No sideways travel.
+ * The hover shadows collapse to a tight, flush contact shadow (same number of
+ * layers, so box-shadow interpolates smoothly), and the part compresses.
+ */
+.lever:active,
+.lever[data-pressed='true'] {
+  transition-duration: 35ms;
+  transform: translateY(2px) scale(0.98);
+  /* pushed flush: almost no side wall left in view (same layer count, so it animates) */
+  --arm-wall: 0 1px 0 #46484c, 0 1px 0 #37393c, 0 1px 0 #282a2c, 0 1px 0 #282a2c;
+  --pad-wall: 0 1px 0 #0d0c0a, 0 1px 0 #080706, 0 1px 0 #080706, 0 1px 0 #040403, 0 1px 0 #040403;
+  --hover-shadow:
+    0 0 1px 1px rgba(0, 0, 0, 0.85),
+    0 1px 1px rgba(0, 0, 0, 0.8),
+    0 1px 2px 0 rgba(0, 0, 0, 0.55),
+    0 2px 2px -1px rgba(0, 0, 0, 0.35),
+    0 2px 3px -2px rgba(0, 0, 0, 0.2),
+    0 2px 4px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* the press is fast (a heavy thumb), the release springs back slightly slower */
+.lever__arm,
+.lever__pad {
+  transition: box-shadow 110ms ease-out, filter 110ms ease-out;
+}
+
+.lever:active .lever__arm,
+.lever:active .lever__pad,
+.lever[data-pressed='true'] .lever__arm,
+.lever[data-pressed='true'] .lever__pad {
+  transition-duration: 35ms;
+  filter: brightness(0.93); /* sitting lower, it catches a little less light */
 }
 
 /* flat, thick bar of brushed, tarnished aluminium */
@@ -159,31 +192,10 @@
     inset 0 1px 0 rgba(220, 222, 225, 0.22),
     inset 0 -1px 0 rgba(0, 0, 0, 0.55),
     inset 1px 0 0 rgba(0, 0, 0, 0.3),
-    /* bar thickness: flat side wall */
-    0 1px 0 #55585c,
-    0 2px 0 #46484c,
-    0 3px 0 #37393c,
-    0 4px 0 #282a2c,
+    /* bar thickness: flat side wall (compresses when pressed) */
+    var(--arm-wall),
     var(--hover-shadow);
 }
-
-/* tarnished silver contact on the inner face of the thumb-piece */
-.lever__contact {
-  --c: min(9cqh, 3.6cqw);
-  position: absolute;
-  z-index: 2;
-  top: calc(50% - var(--c) / 2);
-  width: var(--c);
-  height: var(--c);
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #999999 0%, #7a7a7a 45%, #555555 100%);
-  box-shadow:
-    inset 0 -1px 1px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 0, 0, 0.85);
-}
-
-.lever--dit .lever__contact { right: -0.4cqw; }
-.lever--dah .lever__contact { left: -0.4cqw; }
 
 /* wide, vertical thumb-piece: heavily worn, textured black bakelite */
 .lever__pad {
@@ -212,12 +224,8 @@
     inset 0 -2px 2px rgba(0, 0, 0, 0.85),
     inset 1px 0 1px rgba(255, 240, 220, 0.06),
     0 0 0 1px #000,
-    /* thick piece: deep side wall */
-    0 1px 0 #1a1714,
-    0 2px 0 #13110f,
-    0 3px 0 #0d0c0a,
-    0 4px 0 #080706,
-    0 5px 0 #040403,
+    /* thick piece: deep side wall (compresses when pressed) */
+    var(--pad-wall),
     var(--hover-shadow);
 }
 
@@ -246,7 +254,7 @@
 .keyer__pivot--dit { left: 2cqw; }
 .keyer__pivot--dah { right: 2cqw; }
 
-/* --- Heavy central contact post ----------------------------------------- */
+/* --- Heavy central post: solid, clean metal (no contact dots) ----------- */
 .keyer__post {
   position: absolute;
   z-index: 3;
@@ -270,22 +278,6 @@
     0 18px 22px rgba(0, 0, 0, 0.65),
     0 30px 36px rgba(0, 0, 0, 0.45);
 }
-
-/* silver contact points on each face of the post */
-.keyer__post-contact {
-  --c: min(10cqh, 4.4cqw);
-  position: absolute;
-  top: calc(50% - var(--c) / 2);
-  width: var(--c);
-  height: var(--c);
-  border-radius: 50%;
-  /* tarnished silver, not bright white */
-  background: radial-gradient(circle at 40% 35%, #999999 0%, #777777 45%, #555555 100%);
-  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.keyer__post-contact--dit { left: calc(var(--c) / -2); }
-.keyer__post-contact--dah { right: calc(var(--c) / -2); }
 
 .keyer__labels {
   position: absolute;

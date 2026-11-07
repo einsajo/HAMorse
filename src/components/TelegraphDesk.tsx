@@ -7,7 +7,7 @@ interface LeverProps {
   side: 'dit' | 'dah'
 }
 
-/** One horizontal brass lever with a circular finger pad at its tip. */
+/** One horizontal lever: flat aluminium arm + bakelite thumb-piece. Presses DOWN into the desk. */
 function Lever({ side }: LeverProps) {
   const { pressed, handlers } = usePress()
   return (
@@ -20,7 +20,6 @@ function Lever({ side }: LeverProps) {
       {...handlers}
     >
       <span className="lever__arm" aria-hidden="true" />
-      <span className="lever__contact" aria-hidden="true" />
       <span className="lever__pad" aria-hidden="true" />
     </div>
   )
@@ -43,11 +42,8 @@ function Keyer() {
       <span className="keyer__pivot keyer__pivot--dit" aria-hidden="true" />
       <span className="keyer__pivot keyer__pivot--dah" aria-hidden="true" />
 
-      {/* central contact post the levers strike */}
-      <span className="keyer__post" aria-hidden="true">
-        <span className="keyer__post-contact keyer__post-contact--dit" />
-        <span className="keyer__post-contact keyer__post-contact--dah" />
-      </span>
+      {/* central post: solid, clean metal */}
+      <span className="keyer__post" aria-hidden="true" />
 
       <div className="keyer__labels silk" aria-hidden="true">
         <span>DIT</span>
