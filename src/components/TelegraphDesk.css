@@ -1,263 +1,438 @@
 /* ==========================================================================
-   Telegraph Desk: iambic paddle key (static hardware)
+   Telegraph Desk
+     left:   REF / CLR tactile push switches
+     centre: horizontal iambic "squeeze" keyer
+     right:  TX SEND push button
 
-   Everything inside .key is laid out in the key's own container units
-   (cqw / cqh), so the hardware scales as one piece. Key-space x positions:
-     hinge block   4 .. 96 cqw      channel  15 .. 85 cqw
-     DIT paddle   16 .. 47 cqw      DAH paddle  53 .. 84 cqw
-     springs / thumb screws centred at 10 cqw and 90 cqw
+   Each column is a CSS size container, so its hardware scales as one piece.
+
+   Keyer geometry, in keyer-width units (cqw), mirrored about 50cqw:
+     pivot block     2 .. 9      lever (arm + pad)   3 .. 40 (tip rivet to 40.4)
+     post contact   42.8 .. 45   post               45 .. 55
+   Pressing slides a lever 2.4cqw inward, so its tip strikes the post contact.
    ========================================================================== */
 
 .desk {
   min-width: 0;
   min-height: 0;
   display: grid;
-  /* REF/CLR (future) | paddle key | TX (future) */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.6fr) minmax(0, 1fr);
+  column-gap: 2%;
 }
 
-.desk__slot {
-  min-width: 0;
-}
-
-.key {
+.desk__col {
   position: relative;
   min-width: 0;
   min-height: 0;
   container-type: size;
 }
 
-/* --- Recessed hinge block --------------------------------------------- */
-.key__base {
-  position: absolute;
-  z-index: 3;
-  left: 4cqw;
-  right: 4cqw;
-  top: 4cqh;
-  height: 26cqh;
-  border-radius: 3px;
-
-  /* blackened steel, dull and dirty */
-  background:
-    radial-gradient(ellipse 30% 60% at 20% 70%, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 1px, rgba(0, 0, 0, 0.05) 1px 2px),
-    linear-gradient(180deg, #26272b 0%, #18191c 55%, #0e0e10 100%);
-
-  box-shadow:
-    /* worn top edge, dark lower edge */
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.8),
-    /* block thickness + shadow onto the chassis */
-    0 0 0 1px #000,
-    0 2px 0 #0a0a0b,
-    0 4px 6px rgba(0, 0, 0, 0.85),
-    0 10px 16px rgba(0, 0, 0, 0.55);
+/* Worn, faded silkscreen ink printed on the gunmetal */
+.silk {
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  padding-left: 0.22em; /* balances the trailing letter-spacing */
+  color: rgba(222, 216, 198, 0.5);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-/* the slot milled into the block, which the paddles' knuckles sit in */
-.key__channel {
-  position: absolute;
-  left: 11cqw;
-  width: 70cqw;
-  top: 26%;
-  height: 50%;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #050506 0%, #0c0c0e 60%, #121315 100%);
-  box-shadow:
-    inset 0 3px 4px rgba(0, 0, 0, 1),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-    0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-/* horizontal pivot pin running through the channel */
-.key__pin {
-  position: absolute;
-  z-index: 1;
-  left: 1cqw;
-  right: 1cqw;
-  top: 36%;
-  height: 28%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #5e6166 0%, #3a3c40 35%, #1c1d20 75%, #0a0a0b 100%);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
-}
-
-/* rear ends of the paddles, wrapped around the pin */
-.key__knuckle {
-  position: absolute;
-  z-index: 2;
-  top: 10%;
-  height: 80%;
-  width: 27cqw;
-  border-radius: 2px;
-  background:
-    linear-gradient(90deg, rgba(20, 20, 18, 0.6) 0%, rgba(0, 0, 0, 0) 12%, rgba(0, 0, 0, 0) 88%, rgba(20, 20, 18, 0.6) 100%),
-    linear-gradient(180deg, #6c6e72 0%, #55575b 40%, #34363a 80%, #1e1f22 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.8),
-    0 2px 3px rgba(0, 0, 0, 0.8);
-}
-
-.key__knuckle--left { left: 3cqw; }
-.key__knuckle--right { left: 40cqw; }
-
-/* --- Knurled tension thumb screws on the block ends -------------------- */
-.key__thumbscrew {
-  --size: min(14cqh, 7cqw);
-  position: absolute;
-  z-index: 4;
-  top: calc(17cqh - var(--size) / 2);
-  width: var(--size);
-  height: var(--size);
-  border-radius: 50%;
-  background:
-    /* slotted centre */
-    linear-gradient(0deg, rgba(0, 0, 0, 0) 44%, rgba(6, 6, 6, 0.95) 44% 56%, rgba(0, 0, 0, 0) 56%) center / 46% 46% no-repeat,
-    radial-gradient(circle, #5a5c60 0%, #3c3e42 30%, rgba(0, 0, 0, 0) 31%),
-    /* knurled rim */
-    repeating-conic-gradient(#6a6c70 0deg 8deg, #1a1b1d 8deg 16deg);
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
-    inset 0 1px 1px rgba(255, 255, 255, 0.12),
-    0 0 0 1px #000,
-    0 2px 2px rgba(0, 0, 0, 0.9),
-    0 4px 6px rgba(0, 0, 0, 0.6);
-}
-
-.key__thumbscrew--left { left: calc(10cqw - var(--size) / 2); }
-.key__thumbscrew--right { left: calc(90cqw - var(--size) / 2); }
-
-/* --- Coiled tension springs beside each paddle's base ------------------ */
-.key__spring {
-  position: absolute;
-  z-index: 1;
-  top: 26cqh;
-  height: 28cqh;
-  width: 3.6cqw;
-  border-radius: 999px / 3px;
-  background:
-    /* cylindrical shading across the coil */
-    linear-gradient(90deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.75) 100%),
-    /* tightly wound coils, dulled steel with dirt between turns */
-    repeating-linear-gradient(
-      172deg,
-      #7d7f83 0 1px,
-      #45474b 1px 2px,
-      #141516 2px 3px
-    );
-  box-shadow:
-    0 0 0 0.5px rgba(0, 0, 0, 0.8),
-    0 3px 4px rgba(0, 0, 0, 0.75);
-}
-
-.key__spring--left { left: calc(10cqw - 1.8cqw); }
-.key__spring--right { left: calc(90cqw - 1.8cqw); }
-
-/* --- Paddles ----------------------------------------------------------- */
-.key__paddles {
-  position: absolute;
-  z-index: 2;
-  left: 16cqw;
-  right: 16cqw;
-  top: 16cqh; /* rear ends tuck under the hinge block */
-  bottom: 17cqh;
-  display: flex;
-  gap: 6cqw;
-}
-
-.paddle {
-  position: relative;
-  flex: 1;
-  min-width: 0;
+/* Shared "pressable" behaviour: pointer state (data-pressed) + :active fallback */
+.lever,
+.utility__cap,
+.tx__lens {
   touch-action: manipulation; /* zero mobile tap delay */
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
 }
 
-.paddle__lever {
+/* ==========================================================================
+   Keyer
+   ========================================================================== */
+.keyer {
+  --pad: min(30cqh, 15cqw);
+  --hit: 46cqh; /* finger-sized touch area, taller than the pad itself */
+  --travel: 2.4cqw; /* = gap between lever tip (40.4) and post contact (42.8) */
   position: absolute;
   inset: 0;
-  border-radius: 3px 3px 7px 7px;
-
-  /* heavy machined aluminium that lost its shine decades ago: matte, tarnished */
-  background:
-    /* grime ground into the rear end where it meets the hinge */
-    linear-gradient(180deg, rgba(22, 21, 18, 0.65) 0%, rgba(22, 21, 18, 0.25) 16%, rgba(22, 21, 18, 0) 30%),
-    /* oxidised, darkened edges */
-    linear-gradient(90deg, rgba(30, 29, 26, 0.55) 0%, rgba(30, 29, 26, 0) 14%, rgba(30, 29, 26, 0) 86%, rgba(30, 29, 26, 0.6) 100%),
-    /* mottled tarnish */
-    radial-gradient(ellipse 40% 22% at 30% 46%, rgba(52, 50, 44, 0.35) 0%, rgba(52, 50, 44, 0) 100%),
-    radial-gradient(ellipse 35% 25% at 72% 70%, rgba(48, 46, 40, 0.3) 0%, rgba(48, 46, 40, 0) 100%),
-    /* chalky white oxide speckle */
-    radial-gradient(circle at 40% 50%, rgba(200, 200, 190, 0.09) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 0 0 / 5px 7px,
-    radial-gradient(circle at 60% 30%, rgba(20, 19, 16, 0.25) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 2px 3px / 9px 11px,
-    /* dull milling marks along the lever */
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, rgba(0, 0, 0, 0.04) 1px 3px),
-    /* matte base: #7A7C80 -> #4A4C50, no specular highlight */
-    linear-gradient(180deg, #7a7c80 0%, #66686c 45%, #4a4c50 100%);
-
-  box-shadow:
-    /* tired, rounded-over machined edges */
-    inset 0 1px 0 rgba(200, 200, 195, 0.14),
-    inset 0 -2px 2px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(28, 27, 24, 0.55),
-    inset 0 0 5px 1px rgba(36, 34, 30, 0.45),
-    /* lever thickness (side wall) */
-    0 1px 0 #3c3e42,
-    0 2px 0 #2e3033,
-    0 3px 0 #222326,
-    0 4px 0 #17181a,
-    /* heavy drop: hovering well above the chassis */
-    0 6px 4px rgba(0, 0, 0, 0.9),
-    0 12px 12px rgba(0, 0, 0, 0.7),
-    0 20px 24px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(0, 0, 0, 0.85);
 }
 
-/* recessed finger pad at the front of each lever: worn cross-hatch with dirt in the grooves */
-.paddle__pad {
+/* dark machined base plate the keyer is bolted to */
+.keyer__plate {
   position: absolute;
-  left: 14%;
-  right: 14%;
-  bottom: 9%;
-  height: 40%;
-  border-radius: 3px 3px 6px 6px;
+  left: 0;
+  right: 0;
+  top: 12cqh;
+  bottom: 22cqh;
+  border-radius: 6px;
   background:
-    /* finger-worn centre: hatch polished down */
-    radial-gradient(ellipse 60% 50% at 50% 55%, rgba(110, 112, 114, 0.35) 0%, rgba(110, 112, 114, 0) 100%),
-    repeating-linear-gradient(45deg, rgba(24, 23, 20, 0.55) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
-    repeating-linear-gradient(-45deg, rgba(24, 23, 20, 0.55) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
-    linear-gradient(180deg, #5c5e62 0%, #505256 100%);
+    radial-gradient(ellipse 30% 50% at 20% 60%, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, rgba(0, 0, 0, 0.05) 1px 2px),
+    linear-gradient(180deg, #1d1e21 0%, #141518 60%, #0e0f11 100%);
   box-shadow:
-    /* pocket milled into the lever */
-    inset 0 2px 3px rgba(0, 0, 0, 0.7),
-    inset 0 -1px 0 rgba(200, 200, 195, 0.1),
-    0 1px 0 rgba(200, 200, 195, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.75),
+    0 0 0 1px #000,
+    0 3px 5px rgba(0, 0, 0, 0.8),
+    0 8px 14px rgba(0, 0, 0, 0.5);
 }
 
-/* --- Worn silkscreen labels under the paddles -------------------------- */
-.key__labels {
+.keyer__screw {
+  --s: min(7cqh, 3.6cqw);
   position: absolute;
-  left: 16cqw;
-  right: 16cqw;
-  bottom: 2cqh;
-  height: 11cqh;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background:
+    linear-gradient(35deg, rgba(0, 0, 0, 0) 42%, rgba(5, 5, 5, 0.95) 42% 58%, rgba(0, 0, 0, 0) 58%),
+    radial-gradient(circle at 35% 30%, #5d6065 0%, #33353a 50%, #15161a 100%);
+  box-shadow: 0 0 0 1px #000, 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+.keyer__screw--tl { left: 2.5cqw; top: 8%; }
+.keyer__screw--tr { right: 2.5cqw; top: 8%; }
+.keyer__screw--bl { left: 2.5cqw; bottom: 8%; }
+.keyer__screw--br { right: 2.5cqw; bottom: 8%; }
+
+/* --- Lever (arm + contact + finger pad), DIT on the left --------------- */
+.lever {
+  position: absolute;
+  z-index: 2;
+  /* vertical centre of the plate: (12 + 78) / 2 = 45cqh */
+  top: calc(45cqh - var(--hit) / 2);
+  height: var(--hit);
+  width: 37cqw;
+  transition: transform 45ms ease-out;
+}
+
+.lever--dit { left: 3cqw; }
+.lever--dah { right: 3cqw; }
+
+.lever--dit:active,
+.lever--dit[data-pressed='true'] { transform: translateX(var(--travel)); }
+
+.lever--dah:active,
+.lever--dah[data-pressed='true'] { transform: translateX(calc(var(--travel) * -1)); }
+
+/* the thick brass arm */
+.lever__arm {
+  position: absolute;
+  top: calc(50% - 7cqh);
+  height: 14cqh;
+  left: 0;
+  right: 0;
+  border-radius: 999px;
+
+  background:
+    /* dark oxidation blotches */
+    radial-gradient(ellipse 18% 70% at 30% 40%, rgba(46, 34, 14, 0.55) 0%, rgba(46, 34, 14, 0) 100%),
+    radial-gradient(ellipse 12% 80% at 78% 60%, rgba(52, 58, 34, 0.4) 0%, rgba(52, 58, 34, 0) 100%),
+    radial-gradient(ellipse 25% 60% at 55% 70%, rgba(30, 22, 10, 0.45) 0%, rgba(30, 22, 10, 0) 100%),
+    /* tarnish speckle */
+    radial-gradient(circle at 50% 50%, rgba(30, 22, 10, 0.35) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 0 0 / 5px 4px,
+    /* dull, oxidised cylindrical shading (#C5A059 base) */
+    linear-gradient(180deg, #b8955a 0%, #c5a059 22%, #a3823f 45%, #7a5f2c 70%, #4a3818 100%);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 170, 0.25),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(30, 20, 6, 0.85),
+    /* hovering high above the plate */
+    0 6px 5px rgba(0, 0, 0, 0.85),
+    0 14px 14px rgba(0, 0, 0, 0.6),
+    0 24px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* silver contact rivet at the inner tip of the arm */
+.lever__contact {
+  --c: min(9cqh, 4cqw);
+  position: absolute;
+  top: calc(50% - var(--c) / 2);
+  width: var(--c);
+  height: var(--c);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #e3e5e8 0%, #9a9da2 45%, #4a4c50 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8);
+}
+
+.lever--dit .lever__contact { right: -0.4cqw; }
+.lever--dah .lever__contact { left: -0.4cqw; }
+
+/* circular finger pad near the tip */
+.lever__pad {
+  position: absolute;
+  top: calc(50% - var(--pad) / 2);
+  width: var(--pad);
+  height: var(--pad);
+  border-radius: 50%;
+
+  background:
+    /* thumb-worn centre: oxidation polished off */
+    radial-gradient(circle at 50% 52%, rgba(214, 180, 108, 0.45) 0%, rgba(214, 180, 108, 0) 32%),
+    /* concentric spun rings */
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 230, 170, 0.04) 0 1px, rgba(0, 0, 0, 0.06) 1px 2px),
+    /* dark oxidation creeping in from the rim */
+    radial-gradient(circle at 50% 50%, rgba(36, 26, 10, 0) 52%, rgba(36, 26, 10, 0.65) 86%, rgba(24, 16, 6, 0.85) 100%),
+    radial-gradient(ellipse 30% 22% at 28% 70%, rgba(52, 58, 34, 0.5) 0%, rgba(52, 58, 34, 0) 100%),
+    radial-gradient(ellipse 26% 20% at 74% 26%, rgba(46, 34, 14, 0.5) 0%, rgba(46, 34, 14, 0) 100%),
+    radial-gradient(circle at 50% 50%, rgba(30, 22, 10, 0.3) 0 0.6px, rgba(0, 0, 0, 0) 1.1px) 0 0 / 4px 5px,
+    /* domed, dull brass lit from above */
+    radial-gradient(circle at 46% 30%, #d0ad68 0%, #c5a059 30%, #96763a 62%, #5c4520 100%);
+
+  box-shadow:
+    /* rolled rim */
+    inset 0 2px 1px rgba(255, 230, 170, 0.28),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(30, 20, 6, 0.9),
+    /* pad thickness */
+    0 2px 0 #5a431c,
+    0 3px 0 #3d2d12,
+    0 4px 0 #261c0a,
+    /* heavy drop: floating well above the plate */
+    0 8px 6px rgba(0, 0, 0, 0.85),
+    0 16px 16px rgba(0, 0, 0, 0.6),
+    0 26px 28px rgba(0, 0, 0, 0.45);
+}
+
+.lever--dit .lever__pad { right: 3.5cqw; }
+.lever--dah .lever__pad { left: 3.5cqw; }
+
+/* --- Fixed rear pivot blocks ------------------------------------------- */
+.keyer__pivot {
+  position: absolute;
+  z-index: 3;
+  top: calc(45cqh - 15cqh);
+  height: 30cqh;
+  width: 7cqw;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 50% 50%, #4a4c50 0%, #2a2b2f 22%, rgba(0, 0, 0, 0) 24%),
+    linear-gradient(90deg, #121315 0%, #26272b 40%, #1a1b1e 70%, #0b0b0c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.8),
+    0 0 0 1px #000,
+    0 5px 6px rgba(0, 0, 0, 0.85),
+    0 12px 16px rgba(0, 0, 0, 0.5);
+}
+
+.keyer__pivot--dit { left: 2cqw; }
+.keyer__pivot--dah { right: 2cqw; }
+
+/* --- Heavy central contact post ----------------------------------------- */
+.keyer__post {
+  position: absolute;
+  z-index: 3;
+  left: 45cqw;
+  width: 10cqw;
+  top: calc(45cqh - 27cqh);
+  height: 54cqh;
+  border-radius: 4px;
+  background:
+    /* machined top face with a chamfer */
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 12%, rgba(0, 0, 0, 0) 85%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(90deg, #0c0c0e 0%, #2b2d31 30%, #3a3c41 50%, #22242a 72%, #0a0a0b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 1px #000,
+    /* side wall + heavy cast shadow: the tallest object on the desk */
+    0 2px 0 #121315,
+    0 4px 0 #0b0b0c,
+    0 8px 8px rgba(0, 0, 0, 0.9),
+    0 18px 22px rgba(0, 0, 0, 0.65),
+    0 30px 36px rgba(0, 0, 0, 0.45);
+}
+
+/* silver contact points on each face of the post */
+.keyer__post-contact {
+  --c: min(10cqh, 4.4cqw);
+  position: absolute;
+  top: calc(50% - var(--c) / 2);
+  width: var(--c);
+  height: var(--c);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #eef0f2 0%, #a3a6ab 45%, #505257 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.keyer__post-contact--dit { left: calc(var(--c) / -2); }
+.keyer__post-contact--dah { right: calc(var(--c) / -2); }
+
+.keyer__labels {
+  position: absolute;
+  left: 3cqw;
+  right: 3cqw;
+  bottom: 3cqh;
+  height: 14cqh;
   display: flex;
-  gap: 6cqw;
-  pointer-events: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10cqw;
+  font-size: min(10cqh, 5.5cqw);
 }
 
-.key__labels > span {
-  flex: 1;
+/* ==========================================================================
+   REF / CLR tactile push switches
+   ========================================================================== */
+.desk__col--utils {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.utility {
+  --b: min(29cqh, 52cqw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2cqh;
+}
+
+/* recessed collar the switch sits in */
+.utility__housing {
+  width: var(--b);
+  height: var(--b);
+  padding: 13%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #08090a 0%, #121315 60%, #1c1d21 100%);
+  box-shadow:
+    inset 2px 3px 5px rgba(0, 0, 0, 0.95),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.1),
+    0 -1px 0 rgba(0, 0, 0, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* aged dark cap with a shallow concave top */
+.utility__cap {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 55%, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 55%),
+    radial-gradient(circle at 50% 30%, #3e4045 0%, #2a2c30 45%, #17181b 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.7),
+    0 0 0 1px #000,
+    /* travel: cap body standing proud of the collar */
+    0 2px 0 #0e0f11,
+    0 3px 0 #08090a,
+    0 5px 5px rgba(0, 0, 0, 0.85);
+  transition: transform 40ms ease-out, box-shadow 40ms ease-out;
+}
+
+.utility__cap:active,
+.utility__cap[data-pressed='true'] {
+  transform: translateY(2px) scale(0.95);
+  background:
+    radial-gradient(circle at 50% 55%, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 60%),
+    radial-gradient(circle at 50% 30%, #34363b 0%, #222428 45%, #121315 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.8),
+    0 0 0 1px #000,
+    0 1px 1px rgba(0, 0, 0, 0.9);
+}
+
+.utility__label {
+  font-size: min(8cqh, 13cqw);
+}
+
+/* ==========================================================================
+   TX SEND
+   ========================================================================== */
+.desk__col--tx {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
-  font-weight: 700;
-  font-size: min(9cqh, 5cqw);
-  letter-spacing: 0.3em;
-  padding-left: 0.3em; /* balance the trailing letter-spacing */
-  color: rgba(222, 216, 198, 0.5);
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.tx {
+  --t: min(54cqh, 80cqw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3cqh;
+}
+
+.tx__label {
+  font-size: min(9cqh, 14cqw);
+}
+
+/* heavy stepped steel housing with a faded red index ring */
+.tx__housing {
+  position: relative;
+  width: var(--t);
+  height: var(--t);
+  padding: 15%;
+  border-radius: 50%;
+  background:
+    /* faded red painted ring */
+    radial-gradient(circle, rgba(0, 0, 0, 0) 61%, rgba(140, 28, 22, 0.55) 62.5%, rgba(140, 28, 22, 0.55) 66%, rgba(0, 0, 0, 0) 67.5%),
+    /* knurled outer bezel */
+    radial-gradient(circle, rgba(0, 0, 0, 0) 84%, rgba(0, 0, 0, 0.6) 100%),
+    repeating-conic-gradient(#3a3c41 0deg 3deg, #141518 3deg 6deg),
+    #1c1d20;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.8),
+    0 0 0 1px #000,
+    /* housing protrudes from the chassis */
+    0 2px 0 #121315,
+    0 4px 0 #0a0a0b,
+    0 8px 8px rgba(0, 0, 0, 0.85),
+    0 16px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* deep socket inside the housing */
+.tx__housing::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #050506 0%, #0c0c0e 70%, #17181b 100%);
+  box-shadow:
+    inset 0 3px 5px rgba(0, 0, 0, 1),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.1);
+}
+
+/* deeply inset dark-red glass lens */
+.tx__lens {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    /* soft reflection of the overhead light on the glass */
+    radial-gradient(ellipse 50% 20% at 48% 24%, rgba(255, 220, 220, 0.32) 0%, rgba(255, 220, 220, 0) 100%),
+    /* faceted glass: faint concentric rings */
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 80, 80, 0.04) 0 1px, rgba(0, 0, 0, 0.08) 1px 3px),
+    /* unlit dark-red glass, deeper at the rim */
+    radial-gradient(circle at 50% 42%, #7a1410 0%, #4a0907 40%, #250303 75%, #120101 100%);
+  box-shadow:
+    /* glass sits deep: heavy inner shadow from the socket wall */
+    inset 0 3px 6px rgba(0, 0, 0, 0.9),
+    inset 0 -2px 3px rgba(255, 60, 50, 0.12),
+    0 0 0 1px #000,
+    0 0 0 2px rgba(60, 10, 8, 0.6),
+    0 2px 2px rgba(0, 0, 0, 0.8);
+  transition: transform 45ms ease-out, box-shadow 45ms ease-out, filter 45ms ease-out;
+}
+
+.tx__lens:active,
+.tx__lens[data-pressed='true'] {
+  transform: translateY(2px) scale(0.94);
+  filter: brightness(0.82);
+  box-shadow:
+    inset 0 4px 8px rgba(0, 0, 0, 0.95),
+    inset 0 -1px 2px rgba(255, 60, 50, 0.08),
+    0 0 0 1px #000,
+    0 0 0 2px rgba(60, 10, 8, 0.6),
+    0 1px 1px rgba(0, 0, 0, 0.9);
 }
