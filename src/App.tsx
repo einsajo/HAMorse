@@ -4,6 +4,7 @@ import LCDDisplay from './components/LCDDisplay'
 import TuningDial from './components/TuningDial'
 import TelegraphDesk from './components/TelegraphDesk'
 import ReferenceCard from './components/ReferenceCard'
+import TopPanel from './components/TopPanel'
 
 export default function App() {
   const [isRefCardOpen, setIsRefCardOpen] = useState(false)
@@ -17,9 +18,7 @@ export default function App() {
       <ReferenceCard open={isRefCardOpen} onClose={closeRefCard} />
 
       <main className="chassis">
-        <section className="panel panel--top" aria-label="Top Panel">
-          Top Panel
-        </section>
+        <TopPanel />
         <LCDDisplay />
         <TuningDial />
         <TelegraphDesk isRefCardOpen={isRefCardOpen} onRefToggle={toggleRefCard} />
