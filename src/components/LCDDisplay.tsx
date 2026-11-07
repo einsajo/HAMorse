@@ -1,4 +1,5 @@
 import './LCDDisplay.css'
+import DustCanvas from './DustCanvas'
 
 /**
  * Amber LCD display panel.
@@ -30,6 +31,9 @@ export default function LCDDisplay() {
               <span className="lcd__ink">READY / DIT-DAH BUFFER...</span>
             </span>
           </div>
+
+          {/* wipeable grime on the glass, above the text, below the bezel shadow */}
+          <DustCanvas />
         </div>
       </div>
     </section>
