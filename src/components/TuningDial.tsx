@@ -1,4 +1,5 @@
 import './TuningDial.css'
+import MetalPlate from './MetalPlate'
 
 /**
  * VFO tuning dial: static physical UI only.
@@ -8,6 +9,10 @@ import './TuningDial.css'
 export default function TuningDial() {
   return (
     <section className="tuning" aria-label="Tuning Panel">
+      <MetalPlate className="plate--serial tuning__plate" label="Serial number SER: 1984-K1R0">
+        <span className="plate__serial">SER: 1984-K1R0</span>
+      </MetalPlate>
+
       <div className="vfo" role="presentation">
         <div className="vfo__well">
           <div className="vfo__mount">
@@ -22,6 +27,11 @@ export default function TuningDial() {
           </div>
         </div>
       </div>
+
+      <MetalPlate className="plate--brand tuning__plate" label="MorseHam MK-I">
+        <span className="plate__brand">MorseHam</span>
+        <span className="plate__model">MK-I</span>
+      </MetalPlate>
     </section>
   )
 }
