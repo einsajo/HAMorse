@@ -2,11 +2,16 @@
    Tuning Panel: VFO rotary dial (static UI)
 
    Layer order (bottom -> top):
+     .vfo__scale   silk-screened frequency scale printed on the chassis (fixed)
      .vfo__well    collar milled into the chassis (fixed)
-     .vfo__mount   carries the heavy drop shadow (fixed)
-     .vfo__knob    knurled grip + face + indicator + dimple (WILL ROTATE)
+     .vfo__mount   knob side wall + heavy drop shadow (fixed)
+     .vfo__knob    knurled grip + face + finger dimple (WILL ROTATE)
      .vfo__sheen   specular lighting on top (fixed, so highlights stay put
                    when the knob turns, like a real light source)
+
+   Geometry: the .vfo box is 132 x 116 units (same as the scale's SVG viewBox).
+   The knob is a 100-unit circle centred at (66, 66), which leaves room for the
+   scale arc above it and to either side.
    ========================================================================== */
 
 /* plate | dial | plate: separate grid columns, so the plates can never overlap the dial */
@@ -17,7 +22,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   justify-items: center;
-  column-gap: 3cqw;
+  column-gap: 2cqw;
   container-type: size;
 }
 
@@ -50,46 +55,105 @@
 .vfo {
   position: relative;
   z-index: 1; /* dial sits above the plates; its hit area is never covered */
-  width: min(94cqh, 50cqw);
-  aspect-ratio: 1;
+  height: min(94cqh, 50cqw);
+  aspect-ratio: 132 / 116;
   flex: none;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
+/* --- Silk-screened frequency scale (on the chassis, under the knob) ---- */
+.vfo__scale {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vfo__ink {
+  /* worn, faded off-white silkscreen ink (see the erosion filter in the TSX) */
+  fill: rgba(222, 216, 198, 0.62);
+  stroke: rgba(222, 216, 198, 0.62);
+}
+
+.vfo__tick {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-width: 0.7;
+}
+
+.vfo__tick--major {
+  stroke-width: 1.1;
+}
+
+.vfo__num {
+  stroke: none;
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 6.4px; /* SVG user units */
+  letter-spacing: 0.02em;
+}
+
+.vfo__unit {
+  stroke: none;
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 4px;
+  letter-spacing: 0.25em;
+}
+
 /* --- Collar recessed into the gunmetal --------------------------------- */
 .vfo__well {
   position: absolute;
-  inset: 0;
-  padding: 4%;
+  /* 100-unit knob circle at (16, 16) inside the 132 x 116 box */
+  left: calc(16 / 132 * 100%);
+  top: calc(16 / 116 * 100%);
+  width: calc(100 / 132 * 100%);
+  height: calc(100 / 116 * 100%);
+  padding: 3%;
   border-radius: 50%;
-  background:
-    radial-gradient(circle, #141518 0%, #1b1c20 70%, #222428 100%);
+  background: radial-gradient(circle, #0c0d0f 0%, #141518 70%, #1c1d21 100%);
   box-shadow:
     /* shadow from the chassis lip falls on the top/left wall */
-    inset 3px 4px 7px rgba(0, 0, 0, 0.95),
+    inset 3px 4px 7px rgba(0, 0, 0, 0.98),
     inset 1px 1px 1px rgba(0, 0, 0, 1),
     /* light catches the bottom/right wall */
-    inset -1px -2px 1px rgba(255, 255, 255, 0.12),
+    inset -1px -2px 1px rgba(255, 255, 255, 0.1),
     /* chamfered edge of the hole */
     0 -1px 0 rgba(0, 0, 0, 0.7),
-    0 1px 0 rgba(255, 255, 255, 0.1);
+    0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* --- Mount: heavy protrusion shadow ----------------------------------- */
+/* --- Mount: thick knob side wall + very heavy protrusion shadow -------- */
 .vfo__mount {
   position: relative;
   width: 100%;
   height: 100%;
   border-radius: 50%;
+  /* translate the top face up so the side wall is visible below it */
+  transform: translateY(-4%);
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.9),
-    0 2px 2px rgba(0, 0, 0, 0.9),
-    0 5px 8px rgba(0, 0, 0, 0.75),
-    0 10px 18px rgba(0, 0, 0, 0.65),
-    0 18px 32px rgba(0, 0, 0, 0.5),
-    0 26px 44px rgba(0, 0, 0, 0.35);
+    /* machined side wall: stacked solid offsets read as a thick cylinder */
+    0 1px 0 #3a3d42,
+    0 2px 0 #2b2d31,
+    0 3px 0 #212226,
+    0 4px 0 #18191c,
+    0 5px 0 #121315,
+    0 6px 0 #0c0c0e,
+    0 7px 0 #070708,
+    /* contact shadow where the skirt meets the collar */
+    0 8px 3px rgba(0, 0, 0, 0.95),
+    /* long, heavy cast shadow: much deeper than the thin copper plates */
+    0 12px 10px rgba(0, 0, 0, 0.85),
+    0 20px 22px rgba(0, 0, 0, 0.75),
+    0 32px 40px rgba(0, 0, 0, 0.6),
+    0 46px 60px rgba(0, 0, 0, 0.45),
+    /* ambient occlusion all round */
+    0 0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 18px 4px rgba(0, 0, 0, 0.55);
 }
 
 /* --- Knob: knurled outer grip ----------------------------------------- */
@@ -103,73 +167,64 @@
 
   background:
     /* rolled-over outer lip of the grip */
-    radial-gradient(circle, rgba(0, 0, 0, 0) 86%, rgba(0, 0, 0, 0.55) 97%, rgba(0, 0, 0, 0.85) 100%),
-    /* knurling: 90 soft ridges / grooves */
+    radial-gradient(circle, rgba(0, 0, 0, 0) 85%, rgba(0, 0, 0, 0.7) 96%, rgba(0, 0, 0, 0.95) 100%),
+    /* knurling: 90 hard-edged ridges / grooves, high contrast */
     repeating-conic-gradient(
       from 0deg,
-      #6a6e75 0deg,
-      #34363b 1deg,
-      #101113 2deg,
-      #34363b 3deg,
-      #6a6e75 4deg
+      #b4b9c0 0deg,
+      #5a5d63 0.6deg,
+      #141517 1.4deg,
+      #050506 2deg,
+      #141517 2.6deg,
+      #5a5d63 3.4deg,
+      #b4b9c0 4deg
     );
 }
 
-/* --- Face: machined disc inside the grip ------------------------------ */
+/* --- Face: machined steel disc inside the grip ------------------------- */
 .vfo__face {
   position: absolute;
   inset: 13%;
   border-radius: 50%;
 
   background:
-    /* lathe (turning) rings */
+    /* lathe (turning) rings, crisper */
     repeating-radial-gradient(
       circle at 50% 50%,
-      rgba(255, 255, 255, 0.035) 0 1px,
-      rgba(0, 0, 0, 0.06) 1px 2px
+      rgba(255, 255, 255, 0.06) 0 0.6px,
+      rgba(0, 0, 0, 0.12) 0.6px 1.4px,
+      rgba(255, 255, 255, 0) 1.4px 2px
     ),
-    /* inset radial depth: slightly dished machined face */
-    radial-gradient(circle at 50% 50%, #4a4d53 0%, #3a3d42 45%, #2b2d32 80%, #1f2024 100%);
+    /* dished face: rotation-invariant depth */
+    radial-gradient(circle at 50% 50%, #3d4046 0%, #26282c 40%, #141518 78%, #08090a 100%);
 
   box-shadow:
-    /* step down from face to knurl ring */
-    0 0 0 1px rgba(0, 0, 0, 0.85),
-    0 0 6px 2px rgba(0, 0, 0, 0.55),
-    /* dished-centre depth */
-    inset 0 0 10px rgba(0, 0, 0, 0.45);
+    /* hard step down from face to knurl ring */
+    0 0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 7px 2px rgba(0, 0, 0, 0.75),
+    inset 0 0 12px rgba(0, 0, 0, 0.6);
 }
 
-/* Etched indicator line (12 o'clock at rest) */
-.vfo__indicator {
-  position: absolute;
-  left: 50%;
-  top: 5%;
-  width: 3.2%;
-  height: 22%;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(180deg, #050505, #121315);
-  box-shadow:
-    inset 0 1px 1px rgba(0, 0, 0, 1),
-    0 1px 0 rgba(255, 255, 255, 0.22),
-    0 0 0 0.5px rgba(0, 0, 0, 0.6);
-}
-
-/* Finger dimple: concave cup, dark upper wall, lit lower wall */
+/* Deep concave finger dimple (the only position indicator) */
 .vfo__dimple {
   position: absolute;
-  width: 20%;
+  width: 22%;
   aspect-ratio: 1;
   left: 58%;
   top: 56%;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 58% 64%, #50545a 0%, #2c2e33 55%, #17181b 100%);
+    /* polished floor of the cup catching light on its lower wall */
+    radial-gradient(circle at 60% 68%, #7a7f87 0%, #3a3d42 30%, #141517 62%, #050506 100%);
   box-shadow:
-    inset 2px 3px 5px rgba(0, 0, 0, 0.85),
-    inset -1px -1px 2px rgba(255, 255, 255, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.1),
-    0 -1px 0 rgba(0, 0, 0, 0.5);
+    /* deep upper/left wall in shadow */
+    inset 3px 4px 6px rgba(0, 0, 0, 0.98),
+    inset 1px 2px 2px rgba(0, 0, 0, 1),
+    /* sharp lit lower/right wall */
+    inset -1px -1px 1px rgba(255, 255, 255, 0.35),
+    /* rim of the cup */
+    0 1px 0 rgba(255, 255, 255, 0.22),
+    0 -1px 0 rgba(0, 0, 0, 0.8);
 }
 
 /* --- Fixed lighting over the whole knob ------------------------------- */
@@ -180,28 +235,31 @@
   pointer-events: none;
 
   background:
-    /* specular hotspot from an upper-left light */
-    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.16) 16%, rgba(255, 255, 255, 0) 40%),
-    /* anisotropic spun-metal streaks */
+    /* sharp specular hotspot from an upper-left light */
+    radial-gradient(circle at 33% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 3%, rgba(255, 255, 255, 0.16) 10%, rgba(255, 255, 255, 0) 24%),
+    /* secondary bounce highlight, lower right */
+    radial-gradient(circle at 72% 80%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 14%),
+    /* harsh anisotropic spun-metal streaks */
     conic-gradient(
-      from 0deg,
-      rgba(255, 255, 255, 0.1),
-      rgba(255, 255, 255, 0) 12%,
-      rgba(0, 0, 0, 0.2) 25%,
-      rgba(255, 255, 255, 0) 37%,
-      rgba(255, 255, 255, 0.1) 50%,
-      rgba(255, 255, 255, 0) 62%,
-      rgba(0, 0, 0, 0.2) 75%,
-      rgba(255, 255, 255, 0) 87%,
-      rgba(255, 255, 255, 0.1)
+      from -20deg,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0) 7%,
+      rgba(0, 0, 0, 0.5) 18%,
+      rgba(0, 0, 0, 0.15) 28%,
+      rgba(255, 255, 255, 0.22) 38%,
+      rgba(255, 255, 255, 0) 45%,
+      rgba(0, 0, 0, 0.55) 62%,
+      rgba(0, 0, 0, 0.1) 75%,
+      rgba(255, 255, 255, 0.12) 88%,
+      rgba(255, 255, 255, 0.32)
     ),
-    /* top-lit / bottom-shaded body */
-    linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 42%, rgba(0, 0, 0, 0.4) 100%);
+    /* top-lit / deep-shaded body */
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 38%, rgba(0, 0, 0, 0.6) 100%);
 
   box-shadow:
-    /* rim light along the top of the knurled grip */
-    inset 0 2px 1px rgba(255, 255, 255, 0.3),
-    inset 0 -3px 4px rgba(0, 0, 0, 0.7);
+    /* bright rim light along the top of the knurled grip */
+    inset 0 2px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -4px 5px rgba(0, 0, 0, 0.85);
 }
 
 /* lit top / shaded bottom bevel on the face edge (fixed lighting) */
@@ -211,8 +269,8 @@
   inset: 13%;
   border-radius: 50%;
   box-shadow:
-    inset 0 2px 2px rgba(255, 255, 255, 0.28),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.55),
-    0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 1px 1px rgba(255, 255, 255, 0.1);
+    inset 0 2px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.8),
+    0 -1px 0 rgba(0, 0, 0, 0.8),
+    0 1px 1px rgba(255, 255, 255, 0.16);
 }
