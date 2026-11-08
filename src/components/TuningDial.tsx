@@ -1,11 +1,14 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
+import { FREQ_MAX, FREQ_MIN, formatFrequency, useRadio } from '../context/RadioContext'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 const CX = 66
 const CY = 66
-const F_MIN = 88
-const F_MAX = 108
+const F_MIN = FREQ_MIN
+const F_MAX = FREQ_MAX
 const TICK_IN = 52.5
 const TICK_MINOR_OUT = 56
 const TICK_MAJOR_OUT = 58.5
@@ -77,12 +80,157 @@ function FrequencyScale() {
   )
 }
 
+/* --- VFO mechanics ---------------------------------------------------------
+   The knob's travel is 180 degrees, hard-stopped at both ends, matching the
+   printed scale: 9 o'clock (-90deg) = 88.00 MHz ... 3 o'clock (+90deg) = 108.00.
+   The frequency in RadioContext is the single source of truth; the knob's
+   visual angle is always derived from it, so the two can never disagree. */
+const ANGLE_MIN = -90
+const ANGLE_MAX = 90
+
+const clampAngle = (deg: number) => Math.min(ANGLE_MAX, Math.max(ANGLE_MIN, deg))
+
+const freqToAngle = (mhz: number) =>
+  ANGLE_MIN + ((mhz - FREQ_MIN) / (FREQ_MAX - FREQ_MIN)) * (ANGLE_MAX - ANGLE_MIN)
+
+const angleToFreq = (deg: number) =>
+  FREQ_MIN + ((clampAngle(deg) - ANGLE_MIN) / (ANGLE_MAX - ANGLE_MIN)) * (FREQ_MAX - FREQ_MIN)
+
+/** Pointer bearing around the knob centre: 0deg = 12 o'clock, clockwise positive */
+const bearing = (x: number, y: number, cx: number, cy: number) =>
+  (Math.atan2(x - cx, cy - y) * 180) / Math.PI
+
+/** Wrap a bearing difference into -180..180, so crossing 6 o'clock doesn't jump */
+const wrap = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180
+
+/** Ignore the pointer this close to the centre, where the bearing is unstable */
+const DEAD_ZONE = 0.18 // fraction of the knob radius
+
+/** Keyboard tuning steps, in MHz */
+const KEY_STEP: Record<string, number> = {
+  ArrowUp: 0.05,
+  ArrowRight: 0.05,
+  ArrowDown: -0.05,
+  ArrowLeft: -0.05,
+  PageUp: 1,
+  PageDown: -1,
+}
+
+interface DragState {
+  id: number
+  cx: number
+  cy: number
+  minR: number
+  /** last pointer bearing; null while the pointer sits in the dead zone */
+  last: number | null
+  /** unrounded knob angle, accumulated from pointer movement */
+  angle: number
+}
+
 /**
- * VFO tuning dial: static physical UI only.
- * Rotation logic will later set --vfo-angle on `.vfo__knob`; the side wall and
- * shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
+ * Drag-to-rotate. pointerdown on the knob, then window-level pointermove /
+ * pointerup, so the drag keeps working when the finger slides off the knob.
+ * Rotation follows the change in the pointer's bearing around the knob centre,
+ * and is clamped to the hard stops. The knob turns whether or not the power is
+ * on (it's a mechanical dial); the LCD simply stays dark until the MCB is on.
+ */
+function useVfoDrag(frequency: number, setFrequency: (mhz: number) => void) {
+  const [dragging, setDragging] = useState(false)
+  const dragRef = useRef<DragState | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+  const freqRef = useRef(frequency)
+
+  useEffect(() => {
+    freqRef.current = frequency
+  }, [frequency])
+
+  // unmounting mid-drag must not leave window listeners behind
+  useEffect(() => () => stopRef.current?.(), [])
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      if (e.button !== 0 || dragRef.current) return
+      e.preventDefault()
+      const r = e.currentTarget.getBoundingClientRect()
+      const cx = r.left + r.width / 2
+      const cy = r.top + r.height / 2
+      const minR = (Math.min(r.width, r.height) / 2) * DEAD_ZONE
+      const outside = Math.hypot(e.clientX - cx, e.clientY - cy) >= minR
+      dragRef.current = {
+        id: e.pointerId,
+        cx,
+        cy,
+        minR,
+        last: outside ? bearing(e.clientX, e.clientY, cx, cy) : null,
+        angle: freqToAngle(freqRef.current),
+      }
+
+      const onMove = (ev: PointerEvent) => {
+        const d = dragRef.current
+        if (!d || ev.pointerId !== d.id) return
+        if (Math.hypot(ev.clientX - d.cx, ev.clientY - d.cy) < d.minR) {
+          d.last = null // re-anchor once the pointer leaves the dead zone
+          return
+        }
+        const b = bearing(ev.clientX, ev.clientY, d.cx, d.cy)
+        if (d.last !== null) {
+          const next = clampAngle(d.angle + wrap(b - d.last))
+          if (next !== d.angle) {
+            d.angle = next
+            setFrequency(angleToFreq(next))
+          }
+        }
+        d.last = b
+      }
+
+      const stop = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onEnd)
+        window.removeEventListener('pointercancel', onEnd)
+        dragRef.current = null
+        stopRef.current = null
+        setDragging(false)
+      }
+
+      const onEnd = (ev: PointerEvent) => {
+        if (ev.pointerId === dragRef.current?.id) stop()
+      }
+
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onEnd)
+      window.addEventListener('pointercancel', onEnd)
+      stopRef.current = stop
+      setDragging(true)
+    },
+    [setFrequency],
+  )
+
+  return { dragging, onPointerDown }
+}
+
+/**
+ * VFO tuning dial, wired to the global frequency (RadioContext).
+ * Drag (or arrow keys) to tune: --vfo-angle rotates `.vfo__knob`; the side wall
+ * and shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
+  const { frequency, setFrequency } = useRadio()
+  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency)
+  const angle = freqToAngle(frequency)
+
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLElement>) => {
+      let next: number | null = null
+      if (e.key in KEY_STEP) next = frequency + KEY_STEP[e.key]
+      else if (e.key === 'Home') next = FREQ_MIN
+      else if (e.key === 'End') next = FREQ_MAX
+      if (next === null) return
+      e.preventDefault()
+      setFrequency(next)
+    },
+    [frequency, setFrequency],
+  )
+
   return (
     <section className="tuning" aria-label="Tuning Panel">
       <MetalPlate
@@ -96,10 +244,24 @@ export default function TuningDial() {
         <span className="sop__warn">WARNING: AVOID INTERRUPTING BROADCASTS.</span>
       </MetalPlate>
 
-      <div className="vfo" role="presentation">
+      {/* --vfo-angle is derived from the global frequency, so knob and LCD always agree */}
+      <div className="vfo" style={{ '--vfo-angle': `${angle}deg` } as CSSProperties}>
         <FrequencyScale />
         <div className="vfo__well">
-          <div className="vfo__mount">
+          <div
+            className="vfo__mount"
+            data-dragging={dragging}
+            role="slider"
+            tabIndex={0}
+            aria-label="VFO tuning dial"
+            aria-orientation="horizontal"
+            aria-valuemin={FREQ_MIN}
+            aria-valuemax={FREQ_MAX}
+            aria-valuenow={frequency}
+            aria-valuetext={`${formatFrequency(frequency)} megahertz`}
+            onPointerDown={onPointerDown}
+            onKeyDown={onKeyDown}
+          >
             <div className="vfo__knob">
               <div className="vfo__face">
                 <span className="vfo__dimple" aria-hidden="true" />
