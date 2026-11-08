@@ -1,7 +1,7 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
-import { useRadio } from '../context/RadioContext'
+import { GHOST_FREQUENCY, isTunedTo, useRadio } from '../context/RadioContext'
 
 /* Shared silkscreen-wear filter: fine noise knocks holes out of printed ink */
 function InkWear({ id }: { id: string }) {
@@ -132,10 +132,106 @@ const DB_TICKS = [19, 26, 33, 40].map((a) => {
   return { a, major, d: `M${p0.x} ${p0.y}L${p1.x} ${p1.y}` }
 })
 
-function SMeter() {
+/* --- Needle physics -------------------------------------------------------
+   A small damped-spring model of a moving-coil meter movement. The needle is
+   driven toward a target angle and is caught by hard end stops at both ends,
+   where it bounces. Angles are degrees (0 = straight up). */
+type NeedleMode = 'off' | 'static' | 'peak'
+
+const STOP_LEFT = NEEDLE_REST // zero signal: resting on the left stop
+const STOP_RIGHT = 43 // just past the +40 dB mark
+const STATIC_BASE = (S_ANGLE(3) + S_ANGLE(4)) / 2 // band noise sits around S3-S4
+const SPRING = 380 // restoring stiffness (1/s^2)
+const DAMPING = 22 // coil damping (1/s): slightly under-damped, so it twitches
+const BOUNCE = 0.6 // energy kept when the needle hits an end stop (visible peg bounce)
+
+function useNeedle(mode: NeedleMode) {
+  const ref = useRef<SVGGElement>(null)
+  const sim = useRef({ angle: STOP_LEFT, vel: 0, target: STOP_LEFT, nextFlutter: 0 })
+
+  useEffect(() => {
+    const s = sim.current
+    const write = () => ref.current?.style.setProperty('--needle-angle', `${s.angle.toFixed(2)}deg`)
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      s.angle = mode === 'off' ? STOP_LEFT : mode === 'peak' ? STOP_RIGHT : STATIC_BASE
+      s.vel = 0
+      write()
+      return
+    }
+
+    let raf = 0
+    let last = performance.now()
+    let restFor = 0
+    s.nextFlutter = 0
+
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+
+      // what the coil is being driven toward
+      if (mode === 'off') {
+        s.target = STOP_LEFT - 16 // spring returns it hard onto the zero stop
+      } else if (mode === 'peak') {
+        // drive far past the stop, so it arrives at speed, slams in and rebounds
+        s.target = STOP_RIGHT + 38 + (Math.random() - 0.5) * 4
+      } else if (now >= s.nextFlutter) {
+        // static: random flutter around S3-S4, with the occasional bigger flick
+        const flick = Math.random() < 0.12
+        s.target = STATIC_BASE + (Math.random() * 2 - 1) * (flick ? 13 : 6.5)
+        s.nextFlutter = now + 60 + Math.random() * 170
+      }
+
+      // semi-implicit Euler, sub-stepped for stability
+      const steps = 4
+      const h = dt / steps
+      for (let i = 0; i < steps; i++) {
+        s.vel += (SPRING * (s.target - s.angle) - DAMPING * s.vel) * h
+        s.angle += s.vel * h
+        if (s.angle > STOP_RIGHT) {
+          s.angle = STOP_RIGHT
+          if (s.vel > 0) s.vel = -s.vel * BOUNCE
+        } else if (s.angle < STOP_LEFT) {
+          s.angle = STOP_LEFT
+          if (s.vel < 0) s.vel = -s.vel * BOUNCE
+        }
+      }
+      write()
+
+      // resting against a stop (power off, or pinned): park the loop
+      const atStop = s.angle === STOP_LEFT || s.angle === STOP_RIGHT
+      restFor = mode !== 'static' && atStop && Math.abs(s.vel) < 2 ? restFor + dt : 0
+      if (restFor > 0.4) {
+        s.vel = 0
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [mode])
+
+  return { ref, angle: sim.current.angle }
+}
+
+interface SMeterProps {
+  isPowerOn: boolean
+  frequency: number
+}
+
+const METER_LABEL: Record<NeedleMode, string> = {
+  off: 'S-meter, no signal',
+  static: 'S-meter, static around S3',
+  peak: 'S-meter, signal pinned at plus 40 dB',
+}
+
+function SMeter({ isPowerOn, frequency }: SMeterProps) {
+  const mode: NeedleMode = !isPowerOn ? 'off' : isTunedTo(frequency, GHOST_FREQUENCY) ? 'peak' : 'static'
+  const needle = useNeedle(mode)
   const needleTip = polar(0, ARC_R + 4)
   return (
-    <div className="meter" role="img" aria-label="S-meter, no signal">
+    <div className="meter" role="img" aria-label={METER_LABEL[mode]} data-mode={mode}>
       <span className="meter__screw meter__screw--l" aria-hidden="true" />
       <span className="meter__screw meter__screw--r" aria-hidden="true" />
 
@@ -183,8 +279,12 @@ function SMeter() {
             <text x="120" y="66" className="meter__brand" textAnchor="middle">SIGNAL</text>
           </g>
 
-          {/* thin physical needle, resting at zero (left stop) */}
-          <g className="meter__needle" style={{ '--needle-angle': `${NEEDLE_REST}deg` } as CSSProperties}>
+          {/* thin physical needle; --needle-angle is written every frame by useNeedle */}
+          <g
+            ref={needle.ref}
+            className="meter__needle"
+            style={{ '--needle-angle': `${needle.angle.toFixed(2)}deg` } as CSSProperties}
+          >
             <line
               x1={PIVOT.x}
               y1={PIVOT.y}
@@ -245,10 +345,11 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
 
 /**
  * Top Panel: MCB power breaker | S-meter | DECODER slide switch.
- * Both switches read and write the global radio state (RadioContext).
+ * Both switches read and write the global radio state (RadioContext); the
+ * S-meter needle reacts to power and to the tuned frequency.
  */
 export default function TopPanel() {
-  const { isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
+  const { frequency, isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
 
   return (
     <section className="top" aria-label="Top Panel">
@@ -256,7 +357,7 @@ export default function TopPanel() {
         <PowerSwitch on={isPowerOn} onToggle={togglePower} />
       </div>
       <div className="top__col top__col--meter">
-        <SMeter />
+        <SMeter isPowerOn={isPowerOn} frequency={frequency} />
       </div>
       <div className="top__col top__col--decoder">
         <DecoderSwitch on={isDecoderOn} onToggle={toggleDecoder} />

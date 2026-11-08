@@ -5,6 +5,13 @@ import type { ReactNode } from 'react'
 export const FREQ_MIN = 88.0
 export const FREQ_MAX = 108.0
 export const FREQ_DEFAULT = 104.4
+/** The haunted station: the S-meter pins here and the tuning dial has a detent */
+export const GHOST_FREQUENCY = 104.4
+
+/** True when `mhz` is exactly `target` at the radio's 0.01 MHz resolution */
+export function isTunedTo(mhz: number, target: number): boolean {
+  return Math.abs(mhz - target) < 0.005
+}
 
 /** Clamp to the 88.00 - 108.00 MHz band and snap to the 0.01 MHz display step. */
 export function clampFrequency(mhz: number): number {
