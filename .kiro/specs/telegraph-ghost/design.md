@@ -22,13 +22,14 @@ Realism comes from three things applied consistently everywhere:
 main.tsx
 └── App                      (REF card open/closed state)
     └── RadioProvider        (global radio state, src/context/RadioContext.tsx)
-        └── .stage           (shrink-wraps the chassis; positioning context)
-            ├── ReferenceCard       z-index 0, BEHIND the chassis
-            └── .chassis            z-index 1, 3:4, never moves
-                ├── TopPanel        MCB power | S-meter | DECODER slide
-                ├── LCDDisplay      amber LCD + stain + DustCanvas
-                ├── TuningDial      SOP plate | VFO | badge + serial plates
-                └── TelegraphDesk   REF/CLR | squeeze keyer | TX ARM / TX SEND
+        └── MorseDecoderProvider  (one shared decoder, src/hooks/useMorseDecoder.ts)
+            └── .stage           (shrink-wraps the chassis; positioning context)
+                ├── ReferenceCard       z-index 0, BEHIND the chassis
+                └── .chassis            z-index 1, 3:4, never moves
+                    ├── TopPanel        MCB power | S-meter | DECODER slide
+                    ├── LCDDisplay      amber LCD + stain + DustCanvas  (reads the decoder)
+                    ├── TuningDial      SOP plate | VFO | badge + serial plates
+                    └── TelegraphDesk   REF/CLR | squeeze keyer | TX ARM / TX SEND  (writes the decoder)
 ```
 
 - **Layout:** the chassis is a 4-row grid (`16fr 26fr 30fr 28fr`). Each panel
@@ -55,7 +56,35 @@ main.tsx
 - **Local UI state** that nothing else needs stays local: REF card open state
   (`App`), press states (`usePress`), drag state (`useVfoDrag`).
 
-### 2.2 Interaction rules
+### 2.2 Morse decoder (`useMorseDecoder`)
+
+The paddles (TelegraphDesk) write and the LCD reads, and they are siblings, so
+a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`.
+
+| Field | Meaning |
+|---|---|
+| `currentSymbol` | Dits/dahs of the letter being keyed, e.g. `.-` |
+| `decodedMessage` | Decoded text (last 160 characters kept) |
+| `handleTap('.' \| '-')` | Append a tap and restart both timers; ignored unless power ON and DECODER ON |
+| `clear()` | Wipe everything (CLR) |
+| `isActive` | Power ON and DECODER ON |
+
+- **Timers:** every tap clears both timers and restarts them. After 600ms
+  (`SYMBOL_TIMEOUT_MS`) the symbol is looked up in `MORSE_DICTIONARY` and its
+  character, or `?`, is appended. After 1400ms (`WORD_TIMEOUT_MS`) one space is
+  appended (never leading, never doubled). A symbol longer than 7 elements is
+  committed as `?` before the next tap.
+- **Refs + state:** the symbol is kept in a ref as well as state, so timers
+  always read the latest value; timer handles live in refs and are cleared on
+  unmount (an effect with `[]` deps that reads the refs directly).
+- **Switching off:** DECODER OFF drops the half-keyed symbol and stops the
+  timers (the message is kept, but hidden). Power OFF wipes the buffer.
+- **LCD overflow:** the buffer viewport is `display: flex; justify-content:
+  flex-end; overflow: hidden` with a `flex: 1 0 auto` child. Short text fills
+  the row left-aligned; longer text overflows to the *left*, so the newest
+  characters stay at the right edge.
+
+### 2.3 Interaction rules
 
 - **Switches act on pointer-down**, like real hardware, not on click/release.
   Primary button / touch / pen only.
@@ -209,7 +238,7 @@ not motion.
 | `.kiro/steering/{tech,visual,mobile}.md` | Stack, visual and mobile constraints applied to every session |
 | `.kiro/specs/telegraph-ghost/` | This spec: requirements, design, tasks |
 | `.kiro/powers/morse-validator/` | Power (`plugin.json`, skill, script) that validates any Morse table against ITU Morse |
-| `.kiro/hooks/validate-morse.json` | `PostFileSave` hooks that run the validator when the agent saves the decoder dictionary or the reference card |
+| `.kiro/hooks/validate-morse.json` | `PostFileSave` hook that runs the validator (`--strict`) when the agent saves `src/utils/morseDictionary.ts`, the single source for the decoder and the reference card |
 
 ## 6. Testing strategy
 

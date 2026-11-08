@@ -91,8 +91,10 @@
 ## 3. Core Mechanics & Audio
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
 - **Static:** Generate continuous background white noise routed through a bandpass filter.
-- **Morse Paddles:** Pressing DIT or DAH instantly triggers a 700Hz `OscillatorNode`. The app records the inputs to a buffer.
-- **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD. When it is OFF, the LCD text area remains blank.
+- **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are only decoded when the radio is powered and the DECODER is ON.
+- **Timing:** Gaps are measured from the last tap: 600ms of silence ends a letter, 1400ms ends a word (one space, never leading or doubled).
+- **Dictionary:** `src/utils/morseDictionary.ts` is the single source of truth (ITU A-Z, 0-9, plus the CQ / QRT Q-codes). The decoder and the reference card both read it, and the `morse-validator` power checks it on every save.
+- **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD, followed by the live dits/dahs of the letter being keyed and a blinking cursor. Unknown codes show as `?`. Once the text is wider than the glass, the oldest characters are hidden on the left so the newest are always visible. When it is OFF, the LCD text area remains blank and the half-keyed letter is dropped. `CLR` clears the buffer; power OFF wipes it.
 - **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00). The radio powers on at a dead 88.50 MHz, so the player has to search for the station.
 - **S-Meter:** The needle tracks the received audio level.
 

@@ -1,6 +1,6 @@
 ---
 name: validate-morse
-description: Check that a Morse code table maps every letter A-Z and digit 0-9 to the correct ITU dit/dah sequence, with no duplicates or ambiguous codes. Use after creating or editing src/utils/morseDictionary.ts, the reference card table in src/components/ReferenceCard.tsx, or any other Morse lookup table.
+description: Check that a Morse code table maps every letter A-Z and digit 0-9 to the correct ITU dit/dah sequence, with no duplicates or ambiguous codes. Use after creating or editing src/utils/morseDictionary.ts or any other Morse lookup table.
 ---
 
 # Validate a Morse code table
@@ -12,12 +12,13 @@ decoding, so every table must be checked against the international standard
 
 ## When to use
 
-- After creating or editing `src/utils/morseDictionary.ts` (the decoder's table).
-- After editing the printed table in `src/components/ReferenceCard.tsx`.
+- After creating or editing `src/utils/morseDictionary.ts`. It is the single
+  source of truth: the decoder looks codes up in it and the reference card
+  prints its table from it, so checking it checks both.
 - Whenever the user asks whether a Morse mapping is correct or complete.
 
 The `validate-morse` agent hook (`.kiro/hooks/validate-morse.json`) also runs
-this automatically when the agent saves either file.
+this automatically (with `--strict`) when the agent saves the dictionary.
 
 ## How to run
 
@@ -27,10 +28,10 @@ Run from the project root (the script finds the nearest `package.json` itself):
 # the decoder dictionary (default target)
 node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs
 
-# any other file, e.g. the reference card
-node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --file src/components/ReferenceCard.tsx
+# any other file
+node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --file path/to/table.ts
 
-# require the dictionary to exist (use in CI once Phase 2 lands)
+# require the dictionary to exist (what the hook runs)
 node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict
 
 # machine-readable output
@@ -49,7 +50,8 @@ node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.m
 | Typographic `·` / `–` used instead of `.` / `-` | warning (accepted; canonical form preferred) |
 | Extra keys such as punctuation | allowed |
 
-Both table shapes in this repo are understood: object entries (`A: '.-'`,
+Three table shapes are understood: decoder entries (`'.-': 'A'`, code to
+character, as used by `morseDictionary.ts`), object entries (`A: '.-'`,
 `'1': '.----'`) and tuple entries (`['A', '.-']`).
 
 ## Exit codes

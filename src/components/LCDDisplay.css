@@ -209,6 +209,54 @@
 
 .lcd__row--buffer .lcd__stack {
   width: 100%;
+  min-width: 0;
+  /* one column that may shrink below its content, so long text can't widen the glass */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* --- Decoder buffer ------------------------------------------------------
+   The viewport is a flex row aligned to the END. Its single child grows to
+   fill the row (short text stays left-aligned) but never shrinks below its
+   content, so once the text is wider than the glass the overflow lands on the
+   LEFT and the newest characters stay visible at the right edge. */
+.lcd__buffer {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lcd__buffer-text {
+  flex: 1 0 auto;
+  white-space: pre; /* keep word spaces, never wrap */
+}
+
+/* dits/dahs still being keyed: a touch fainter than committed characters */
+.lcd__symbol {
+  opacity: 0.72;
+  letter-spacing: 0.02em;
+}
+
+/* blinking block cursor */
+.lcd__cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.82em;
+  margin-left: 0.08em;
+  vertical-align: -0.06em;
+  background: currentColor;
+  animation: lcd-cursor 1.06s steps(1, end) infinite;
+}
+
+@keyframes lcd-cursor {
+  0%, 55% { opacity: 0.85; }
+  56%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcd__cursor {
+    animation: none;
+  }
 }
 
 /* --- Lit liquid crystal (#050505) -------------------------------------- */

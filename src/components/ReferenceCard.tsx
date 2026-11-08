@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import './ReferenceCard.css'
+import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -14,20 +15,11 @@ const CLOSE_DISTANCE = 40
 /** Movement below this (px) counts as a tap */
 const TAP_SLOP = 6
 
-const MORSE: [string, string][] = [
-  ['A', '·–'], ['B', '–···'], ['C', '–·–·'], ['D', '–··'], ['E', '·'], ['F', '··–·'],
-  ['G', '––·'], ['H', '····'], ['I', '··'], ['J', '·–––'], ['K', '–·–'], ['L', '·–··'],
-  ['M', '––'], ['N', '–·'], ['O', '–––'], ['P', '·––·'], ['Q', '––·–'], ['R', '·–·'],
-  ['S', '···'], ['T', '–'], ['U', '··–'], ['V', '···–'], ['W', '·––'], ['X', '–··–'],
-  ['Y', '–·––'], ['Z', '––··'],
-  ['1', '·––––'], ['2', '··–––'], ['3', '···––'], ['4', '····–'], ['5', '·····'],
-  ['6', '–····'], ['7', '––···'], ['8', '–––··'], ['9', '––––·'], ['0', '–––––'],
-]
+/* Printed from the same dictionary the decoder uses, so the card can never
+   disagree with what the radio actually decodes. */
+const MORSE: [string, string][] = MORSE_TABLE_ORDER.map((ch) => [ch, toTypographic(CHAR_TO_MORSE[ch])])
 
-const Q_CODES: [string, string][] = [
-  ['CQ', 'Calling any station'],
-  ['QRT', 'Stop transmission'],
-]
+const QCODE_ROWS: [string, string][] = Object.entries(Q_CODES).map(([code, q]) => [code, q.meaning])
 
 interface ReferenceCardProps {
   open: boolean
@@ -137,7 +129,7 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
         </dl>
 
         <dl className="refcard__q">
-          {Q_CODES.map(([code, meaning]) => (
+          {QCODE_ROWS.map(([code, meaning]) => (
             <div key={code} className="refcard__qrow">
               <dt>{code}:</dt>
               <dd>{meaning}</dd>
