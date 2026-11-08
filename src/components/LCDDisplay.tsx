@@ -32,7 +32,10 @@ export default function LCDDisplay() {
             </span>
           </div>
 
-          {/* wipeable grime on the glass, above the text, below the bezel shadow */}
+          {/* permanent, un-wipeable stain/fog baked into the old glass */}
+          <span className="lcd__stain" aria-hidden="true" />
+
+          {/* wipeable grime on the glass, above the stain, below the bezel shadow */}
           <DustCanvas />
         </div>
       </div>

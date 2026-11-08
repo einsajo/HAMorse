@@ -1,6 +1,5 @@
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
-import { usePress } from '../hooks/usePress'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 const CX = 66
@@ -84,22 +83,20 @@ function FrequencyScale() {
  * shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
-  // grab feedback: the heavy knob seats down into its collar while held
-  const { pressed, handlers } = usePress()
   return (
     <section className="tuning" aria-label="Tuning Panel">
       <MetalPlate
         className="plate--sop tuning__plate tuning__sop"
-        label="Operating instructions: 1. Rotate VFO to seek signal. 2. Use DIT/DAH paddles to TX. 3. Monitor LCD buffer. Warning: no emissions on dead bands."
+        label="Operating instructions: 1. Rotate VFO for tuning. 2. Use Morse TX (decoder available). 3. Reference card included. Warning: avoid interrupting broadcasts."
       >
         <span className="sop__title">OPERATING INSTRUCTIONS:</span>
-        <span className="sop__step">1. ROTATE VFO TO SEEK SIGNAL.</span>
-        <span className="sop__step">2. USE DIT/DAH PADDLES TO TX.</span>
-        <span className="sop__step">3. MONITOR LCD BUFFER.</span>
-        <span className="sop__warn">WARNING: NO EMISSIONS ON DEAD BANDS.</span>
+        <span className="sop__step">1. ROTATE VFO FOR TUNING.</span>
+        <span className="sop__step">2. USE MORSE TX (DECODER AVAIL).</span>
+        <span className="sop__step">3. REF CARD INCLUDED.</span>
+        <span className="sop__warn">WARNING: AVOID INTERRUPTING BROADCASTS.</span>
       </MetalPlate>
 
-      <div className="vfo" role="presentation" data-pressed={pressed} {...handlers}>
+      <div className="vfo" role="presentation">
         <FrequencyScale />
         <div className="vfo__well">
           <div className="vfo__mount">
