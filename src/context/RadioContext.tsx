@@ -4,7 +4,12 @@ import type { ReactNode } from 'react'
 /* --- Band limits ---------------------------------------------------------- */
 export const FREQ_MIN = 88.0
 export const FREQ_MAX = 108.0
-export const FREQ_DEFAULT = 104.4
+/**
+ * Power-on frequency: a dead spot near the bottom of the band, well clear of
+ * the ghost station's capture zone, so the player has to physically search
+ * the dial to find the signal. Always passed through clampFrequency().
+ */
+export const FREQ_DEFAULT = 88.5
 /** The haunted station: the S-meter pins here and the tuning dial has a detent */
 export const GHOST_FREQUENCY = 104.4
 
@@ -18,6 +23,10 @@ export function clampFrequency(mhz: number): number {
   if (!Number.isFinite(mhz)) return FREQ_DEFAULT
   const clamped = Math.min(FREQ_MAX, Math.max(FREQ_MIN, mhz))
   return Math.round(clamped * 100) / 100
+}
+
+if (import.meta.env.DEV && clampFrequency(FREQ_DEFAULT) !== FREQ_DEFAULT) {
+  console.warn(`FREQ_DEFAULT ${FREQ_DEFAULT} is outside ${FREQ_MIN}-${FREQ_MAX} MHz; it will be clamped.`)
 }
 
 /** Always two decimal places, e.g. 104.40 */
