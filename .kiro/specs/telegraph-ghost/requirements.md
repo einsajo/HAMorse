@@ -20,31 +20,42 @@
   - A pressed-steel bezel around a deeply recessed glass window, with heavy inset shadows and glass glare.
   - Aged cream/paper dial with a faint amber backlight bleed from below, matching the LCD.
   - An arched printed scale: black S1 to S9 (labelled 1, 3, 5, 7, 9) and a red `+20` / `+40` band.
-  - A thin, physical red needle that rests at zero on the left stop. It is driven by `--needle-angle` and twitches programmatically with audio volume later.
+  - A thin, physical red needle driven by a damped-spring model with bouncing end stops (`--needle-angle`):
+    - **Power OFF:** rests at zero on the left stop.
+    - **Power ON:** flutters randomly around S3-S4 (band noise).
+    - **Tuned exactly to 104.40 MHz:** slams to the +40 dB stop, bounces, then stays pinned. Tuning away drops it back to static.
+    - Later (Phase 3): tracks the received audio level.
 - **Right (Decoder Switch):** A horizontal slide switch labelled `DECODER` above it, with `OFF` on the left and `ON` on the right.
   - A ribbed, tarnished-aluminium actuator **slides horizontally** in a deep slot on a raised steel plate between the two states (`--slide`: 0 = OFF, 1 = ON).
 
 ### 2b. Display Panel (The Amber LCD)
-- A wide, deeply inset amber screen (`#FFB000`, `box-shadow: inset 0 0 15px rgba(0,0,0,0.8)`) in a recessed bezel.
+- A wide, deeply inset amber screen (`#FFB000` family, dimmed to `#D99600`; `box-shadow: inset 0 0 15px rgba(0,0,0,0.8)`) in a recessed bezel.
 - **Glass:** 1px scanlines, a pixel grid, and an unlit `#3A2800` crystal ghost layer. Text is a viscous `#050505` pitch.
 - **Normal Mode:** The top half shows the frequency. The bottom half shows the text buffer (English translations of user inputs and AI replies).
 - **Interactive Dust:** A translucent grime canvas sits on the glass, under the bezel shadow. Swiping wipes it away with soft-edged `destination-out` strokes (`touch-action: none`).
+- **Power state:** With the MCB OFF the backlight is dead (dark glass, no text); the bezel, stain and dust stay visible. Switching ON plays a brief dying-bulb warm-up flicker. The backlight is a dimmed, aging amber (`#D99600`).
+- **Frequency:** Shows the live global frequency, always formatted to two decimals and right-aligned over the `888.88` segment ghost.
+- **Permanent stain:** An un-wipeable fog/stain layer sits between the text and the dust canvas, so wiping reveals stained glass, never a clean screen.
 - **No LCD reference mode.** The REF button does NOT change the LCD (see Section 2e).
 
 ### 2c. Tuning Panel (3 columns: SOP Plate | VFO | Plate Stack)
 - **Plate material:** Every plate is aged, corroded copper (`#8B572A` / `#5C3A21`) with verdigris patina (`#2E473B` / `#1A2B22`), fastened with four tarnished brass / rusted screws. There is no inner border; the text sits directly on the metal. All plates use `pointer-events: none`, so they never block the dial.
 - **Left (SOP Manual):** A single tall copper plate matching the dial's height, printed in small, dark, etched sans-serif:
   - `OPERATING INSTRUCTIONS:`
-  - `1. ROTATE VFO TO SEEK SIGNAL.`
-  - `2. USE DIT/DAH PADDLES TO TX.`
-  - `3. MONITOR LCD BUFFER.`
-  - `WARNING: NO EMISSIONS ON DEAD BANDS.`
+  - `1. ROTATE VFO FOR TUNING.`
+  - `2. USE MORSE TX (DECODER AVAIL).`
+  - `3. REF CARD INCLUDED.`
+  - `WARNING: AVOID INTERRUPTING BROADCASTS.`
 - **Right (Stacked Plates):** Two small stamped copper plates stacked vertically: the `HAMorse` / `HM-13` brand badge on top, with the serial plate `SER: 1984-K1R0` directly underneath.
 - **Center (VFO Knob):** A massive, heavy machined-steel rotary dial.
   - High-contrast knurled grip, a dished face with a soft, stretched overhead reflection, and a deep concave finger dimple (no etched indicator line).
   - A thick side wall and a heavy multi-layer drop shadow make it protrude far above the chassis.
-  - **Downward press:** While pressed/grabbed, the knob seats DOWN into its collar: the face drops, the side wall shrinks and the cast shadow tightens.
-  - The dial container uses `touch-action: none`. Rotation is driven by `--vfo-angle`, with lighting on non-rotating layers.
+  - **Rotary encoder, not a button:** the knob never moves on the Z axis.
+  - **Drag to tune:** pointer drag around the knob centre rotates it through 180 degrees with hard stops: 9 o'clock (-90 degrees) = 88.00 MHz, 3 o'clock (+90 degrees) = 108.00 MHz (9 degrees per MHz). The knob turns with the power off; the frequency is only visible once the MCB is ON.
+  - **Exact indicator:** the finger dimple sits at 12 o'clock on the face, so it points exactly at the printed tick for the current frequency.
+  - **Magnetic detent:** dragging within 0.20 MHz of a station (104.40) snaps the frequency onto it; escaping takes 0.32 MHz of travel (stickiness).
+  - **Keyboard:** arrows +/-0.05 MHz, PageUp/PageDown +/-1 MHz, Home/End jump to the band edges. Exposed as an ARIA slider.
+  - The dial container uses `touch-action: none`. Rotation is driven by `--vfo-angle` (derived from the global frequency), with lighting on non-rotating layers.
 - **Frequency Scale:** A worn, faded white silkscreen scale printed on the chassis around the upper half of the knob: ticks every 1 MHz from 88 (9 o'clock) to 108 (3 o'clock), labelled every 4 MHz.
 
 ### 2d. Telegraph Desk (3 columns: Utility | Squeeze Keyer | TX)
@@ -82,7 +93,7 @@
 - **Static:** Generate continuous background white noise routed through a bandpass filter.
 - **Morse Paddles:** Pressing DIT or DAH instantly triggers a 700Hz `OscillatorNode`. The app records the inputs to a buffer.
 - **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD. When it is OFF, the LCD text area remains blank.
-- **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00).
+- **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00). The radio powers on at a dead 88.50 MHz, so the player has to search for the station.
 - **S-Meter:** The needle tracks the received audio level.
 
 ## 4. The Haunt Sequence (The Track 4 UI Scare)

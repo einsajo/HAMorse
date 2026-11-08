@@ -1,0 +1,129 @@
+# Implementation Plan: The Telegraph Ghost
+
+Spec: [requirements.md](./requirements.md) · [design.md](./design.md)
+
+Requirement references point at sections of `requirements.md`
+(e.g. `2c` = Tuning Panel, `3` = Core Mechanics & Audio, `4` = Haunt Sequence).
+Tasks marked `*` are optional polish.
+
+Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
+
+## Phase 1: Hardware skeleton, VFO and UI polish (done)
+
+- [x] 1. Build the 3:4 chassis and global layout
+  - Pitch-black void, no scrolling, 3:4 chassis sized by `min(100vw, 75dvh)`
+  - Aged gunmetal: weathering stack, ambient sweep, edge bevels
+  - _Requirements: 1_
+
+- [x] 2. Build the Top Panel hardware
+  - [x] 2.1 MCB power breaker with a vertical 50ms snap and a lit PWR jewel
+  - [x] 2.2 Analog S-meter: recessed glass, cream dial, printed S1–S9 / +20 / +40 scale
+  - [x] 2.3 DECODER horizontal slide switch with a 65ms detent snap
+  - _Requirements: 2a_
+
+- [x] 3. Build the amber LCD
+  - [x] 3.1 Inset bezel, scanlines, pixel grid, `888.88` segment ghost, local VT323 font
+  - [x] 3.2 Wipeable dust canvas (`destination-out`)
+  - [x] 3.3 Permanent glass stain under the dust; backlight dimmed to `#D99600`
+  - [x] 3.4 Power OFF = dead glass; power ON = warm-up flicker and live frequency
+  - _Requirements: 2b_
+
+- [x] 4. Build the Tuning Panel
+  - [x] 4.1 Corroded copper plates: tall SOP plate (left), HAMorse badge over serial plate (right)
+  - [x] 4.2 Machined-steel VFO knob with a printed 88–108 silkscreen scale
+  - [x] 4.3 Drag-to-rotate tuning with hard stops at 88.00 / 108.00 and keyboard tuning
+  - [x] 4.4 Magnetic detent at 104.40 (0.20 MHz capture, 0.32 MHz escape)
+  - [x] 4.5 Dimple aligned to the printed scale (0.0° error); scale centred on the lifted knob face
+  - _Requirements: 2c, 3_
+
+- [x] 5. Build the Telegraph Desk hardware
+  - [x] 5.1 Horizontal iambic squeeze keyer with a see-saw Z-axis pivot
+  - [x] 5.2 REF / CLR tactile switches; TX SEND (same size) under the TX ARM guarded toggle
+  - _Requirements: 2d_
+
+- [x] 6. Build the reference card
+  - Slides out from behind the stationary chassis (up on portrait, right on wide screens)
+  - Friction keyframes; tap or drag back to close
+  - _Requirements: 2e_
+
+- [x] 7. Global state
+  - `RadioContext` with frequency / power / decoder; default 88.50 MHz
+  - _Requirements: 2a, 2b, 3_
+
+- [x] 8. S-meter needle physics
+  - Off = rest stop; on = flutter around S3–S4; exactly 104.40 = pinned with a bounce
+  - _Requirements: 2a, 4_
+
+- [ ] 9. Verify on the real React runtime
+  - [ ] 9.1 `npm install && npm run build` with no TypeScript or Vite errors
+  - [ ] 9.2 Run `npm run dev` on a real Android phone: drag tuning, detent, dust wipe, card, paddles
+  - [ ] 9.3 Deploy to a public URL (required for submission)
+  - _Requirements: 1_
+
+## Phase 2: Morse code engine
+
+- [ ] 10. Morse dictionary
+  - [ ] 10.1 Create `src/utils/morseDictionary.ts` (A–Z, 0–9 using `.` and `-`; `MORSE_CODE` plus the reverse lookup)
+  - [ ] 10.2 `morse-validator` passes: `node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict`
+  - [ ] 10.3 Make the reference card read its table from the dictionary (one source of truth)
+  - _Requirements: 2e, 3_
+
+- [ ] 11. Paddle input to symbols
+  - [ ] 11.1 Lift paddle press state into the engine (DIT = `.`, DAH = `-`)
+  - [ ] 11.2 Iambic squeeze: holding both alternates `.-.-`, with a configurable WPM element timing
+  - [ ] 11.3 Gap timing: 3 units ends a letter, 7 units ends a word
+  - _Requirements: 2d, 3_
+
+- [ ] 12. Decoder and LCD buffer
+  - [ ] 12.1 Decode symbols to text with the dictionary; unknown sequences shown as `?`
+  - [ ] 12.2 DECODER ON shows the decoded text in the LCD buffer row; OFF leaves it blank
+  - [ ] 12.3 CLR clears the buffer; TX SEND submits the buffer
+  - _Requirements: 2b, 2d, 3_
+
+- [ ] 13.* Unit tests for timing and decoding (letter / word gaps, squeeze alternation)
+
+## Phase 3: Web Audio integration
+
+- [ ] 14. Audio engine
+  - [ ] 14.1 Create one `AudioContext`, kept suspended until the MCB is thrown ON (mobile autoplay policy)
+  - [ ] 14.2 Power OFF suspends or ramps down all output
+  - _Requirements: 3_
+
+- [ ] 15. Band static
+  - [ ] 15.1 Looping white-noise `AudioBufferSource` through a bandpass filter
+  - [ ] 15.2 Static level and colour vary with distance from 104.40 as the VFO turns
+  - _Requirements: 3_
+
+- [ ] 16. Sidetone
+  - [ ] 16.1 700 Hz `OscillatorNode` keyed by the paddles with 5ms attack/release envelopes (no clicks)
+  - _Requirements: 3_
+
+- [ ] 17. S-meter follows real audio
+  - [ ] 17.1 An `AnalyserNode` level drives the needle target; the 104.40 peg behaviour is kept
+  - _Requirements: 2a, 3_
+
+## Phase 4: The 104.40 MHz haunt sequence
+
+- [ ] 18. Ghost reply
+  - [ ] 18.1 At exactly 104.40 MHz, TX SEND triggers a reply: a scripted fallback by default, AI optional
+  - [ ] 18.2 The reply plays as incoming Morse audio and decodes onto the LCD
+  - _Requirements: 4_
+
+- [ ] 19. Liquid Crystal Bleed (final reply line)
+  - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
+  - [ ] 19.2 Viscous black SVG/CSS fluid leaks down from a cracked LCD over the chassis
+  - [ ] 19.3 The serial plate text scrambles to `SER: D34D-S0UL`
+  - [ ] 19.4 The S-meter needle violently pins to the red maximum
+  - _Requirements: 4_
+
+- [ ] 20. The breaker trips
+  - [ ] 20.1 Incoming Morse speeds up and pitch-shifts erratically
+  - [ ] 20.2 The MCB snaps itself OFF; audio cuts to dead silence; everything resets
+  - _Requirements: 4_
+
+## Phase 5: Submission
+
+- [ ] 21. Submission package
+  - [ ] 21.1 3-minute demo video: the haunt within the first 40 seconds, then the tactile details, then the Kiro workflow
+  - [ ] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
+  - [ ] 21.3 Final check: public repo includes `.kiro/`, live URL works on phone and desktop

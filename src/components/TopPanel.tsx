@@ -258,7 +258,7 @@ function SMeter({ isPowerOn, frequency }: SMeterProps) {
             ))}
 
             {S_TICKS.filter((t) => t.major).map((t) => {
-              const p = polar(t.a, ARC_R + 21)
+              const p = polar(t.a, ARC_R + 23)
               return (
                 <text key={t.s} x={p.x} y={p.y} className="meter__num" textAnchor="middle" dominantBaseline="central">
                   {t.s}
@@ -266,7 +266,7 @@ function SMeter({ isPowerOn, frequency }: SMeterProps) {
               )
             })}
             {[20, 40].map((db) => {
-              const p = polar(DB_ANGLE[db], ARC_R + 22)
+              const p = polar(DB_ANGLE[db], ARC_R + 25)
               return (
                 <text key={db} x={p.x} y={p.y} className="meter__num meter__num--red" textAnchor="middle" dominantBaseline="central">
                   +{db}
