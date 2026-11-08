@@ -1,15 +1,26 @@
 import './TelegraphDesk.css'
 import { usePress } from '../hooks/usePress'
+import { useMorseDecoder } from '../hooks/useMorseDecoder'
+import type { MorseTap } from '../hooks/useMorseDecoder'
 
 /* --- Iambic squeeze keyer ------------------------------------------------ */
 
 interface LeverProps {
   side: 'dit' | 'dah'
+  /** fired the instant the lever is pushed down */
+  onTap: (type: MorseTap) => void
 }
 
-/** One horizontal lever: flat aluminium arm + bakelite thumb-piece. Presses DOWN into the desk. */
-function Lever({ side }: LeverProps) {
-  const { pressed, handlers } = usePress()
+const SYMBOL: Record<LeverProps['side'], MorseTap> = { dit: '.', dah: '-' }
+
+/**
+ * One horizontal lever: flat aluminium arm + bakelite thumb-piece. Presses DOWN
+ * into the desk, and keys a dit (".") or dah ("-") the moment it is pressed.
+ * The lever always moves (it is mechanical); the decoder decides whether the
+ * tap is translated.
+ */
+function Lever({ side, onTap }: LeverProps) {
+  const { pressed, handlers } = usePress({ onPress: () => onTap(SYMBOL[side]) })
   return (
     <div
       className={`lever lever--${side}`}
@@ -25,7 +36,7 @@ function Lever({ side }: LeverProps) {
   )
 }
 
-function Keyer() {
+function Keyer({ onTap }: { onTap: (type: MorseTap) => void }) {
   return (
     <div className="keyer">
       <div className="keyer__plate" aria-hidden="true">
@@ -35,8 +46,8 @@ function Keyer() {
         <span className="keyer__screw keyer__screw--br" />
       </div>
 
-      <Lever side="dit" />
-      <Lever side="dah" />
+      <Lever side="dit" onTap={onTap} />
+      <Lever side="dah" onTap={onTap} />
 
       {/* rear pivot blocks (fixed; the levers slide under them) */}
       <span className="keyer__pivot keyer__pivot--dit" aria-hidden="true" />
@@ -142,18 +153,21 @@ interface TelegraphDeskProps {
 
 /**
  * Telegraph Desk: REF/CLR switches | horizontal iambic squeeze keyer | TX ARM guard / TX SEND.
- * REF toggles the reference card; other press states are visual only for now.
+ * REF toggles the reference card; DIT / DAH key the Morse decoder; CLR clears it.
  */
 export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
+  // DIT / DAH feed the shared decoder; CLR wipes its buffer
+  const { handleTap, clear } = useMorseDecoder()
+
   return (
     <section className="desk" aria-label="Telegraph Desk">
       <div className="desk__col desk__col--utils">
         <UtilityButton label="REF" onPress={onRefToggle} latched={isRefCardOpen} />
-        <UtilityButton label="CLR" />
+        <UtilityButton label="CLR" onPress={clear} />
       </div>
 
       <div className="desk__col desk__col--keyer">
-        <Keyer />
+        <Keyer onTap={handleTap} />
       </div>
 
       <div className="desk__col desk__col--tx">

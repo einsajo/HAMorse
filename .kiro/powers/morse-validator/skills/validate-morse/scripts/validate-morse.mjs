@@ -9,9 +9,10 @@
  *   node validate-morse.mjs --strict             # a missing file is an error
  *   node validate-morse.mjs --json               # machine-readable report
  *
- * Understands both table shapes used in this repo:
+ * Understands the table shapes used in this repo:
  *   object entries   A: '.-',   '1': '.----'
  *   tuple entries    ['A', '.-']
+ *   decoder entries  '.-': 'A'      (code -> character, as in src/utils/morseDictionary.ts)
  * Dits/dahs must be `.` and `-`. Typographic variants (· • and – — _) are
  * accepted but reported as warnings, so the reference card can be checked too.
  *
@@ -85,6 +86,9 @@ export function extractEntries(src) {
   for (const re of [objectRe, tupleRe]) {
     for (const m of text.matchAll(re)) entries.push({ key: m[2], raw: m[4], line: lineOf(m.index) })
   }
+  // reverse (decoder) form:   '.-': 'A'   (code -> character)
+  const reverseRe = /(['"`])([.\-·•∙⋅–—−_]*)\1\s*:\s*(['"`])([A-Za-z0-9])\3/g
+  for (const m of text.matchAll(reverseRe)) entries.push({ key: m[4], raw: m[2], line: lineOf(m.index) })
   return entries.sort((a, b) => a.line - b.line)
 }
 
@@ -173,7 +177,7 @@ function main() {
 
   const entries = extractEntries(readFileSync(file, 'utf8'))
   if (entries.length === 0) {
-    const msg = `${shown}: no Morse entries found (expected  A: '.-'  or  ['A', '.-'])`
+    const msg = `${shown}: no Morse entries found (expected  A: '.-'   ['A', '.-']   or  '.-': 'A')`
     report({ ok: false, errors: [msg] })
     if (!opts.json) console.error(`✗ validate-morse: ${msg}`)
     return 2

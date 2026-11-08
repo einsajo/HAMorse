@@ -62,22 +62,23 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 ## Phase 2: Morse code engine
 
-- [ ] 10. Morse dictionary
-  - [ ] 10.1 Create `src/utils/morseDictionary.ts` (A–Z, 0–9 using `.` and `-`; `MORSE_CODE` plus the reverse lookup)
-  - [ ] 10.2 `morse-validator` passes: `node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict`
-  - [ ] 10.3 Make the reference card read its table from the dictionary (one source of truth)
+- [x] 10. Morse dictionary
+  - [x] 10.1 Create `src/utils/morseDictionary.ts`: `MORSE_DICTIONARY` (code to character, A–Z and 0–9, `.` and `-`), `CHAR_TO_MORSE`, `Q_CODES` (CQ, QRT)
+  - [x] 10.2 `morse-validator` passes: `node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict` (36/36); the validator now also reads the code-to-character form
+  - [x] 10.3 The reference card prints its Morse and Q-code tables from the dictionary (one source of truth)
   - _Requirements: 2e, 3_
 
 - [ ] 11. Paddle input to symbols
-  - [ ] 11.1 Lift paddle press state into the engine (DIT = `.`, DAH = `-`)
+  - [x] 11.1 DIT / DAH presses call `handleTap('.')` / `handleTap('-')` on the shared decoder (`useMorseDecoder`)
   - [ ] 11.2 Iambic squeeze: holding both alternates `.-.-`, with a configurable WPM element timing
-  - [ ] 11.3 Gap timing: 3 units ends a letter, 7 units ends a word
+  - [x] 11.3 Gap timing from the last tap: 600ms ends a letter, 1400ms ends a word (touch-friendly; configurable on `MorseDecoderProvider`)
   - _Requirements: 2d, 3_
 
 - [ ] 12. Decoder and LCD buffer
-  - [ ] 12.1 Decode symbols to text with the dictionary; unknown sequences shown as `?`
-  - [ ] 12.2 DECODER ON shows the decoded text in the LCD buffer row; OFF leaves it blank
-  - [ ] 12.3 CLR clears the buffer; TX SEND submits the buffer
+  - [x] 12.1 Decode symbols with the dictionary; unknown or over-long sequences become `?`
+  - [x] 12.2 DECODER ON shows the decoded text plus the live dits/dahs and a cursor in the LCD buffer row (newest text pinned right, overflow hidden left); OFF leaves it blank and ignores taps
+  - [x] 12.3 CLR clears the buffer; power OFF wipes it
+  - [ ] 12.4 TX SEND submits the buffer (Phase 4 trigger)
   - _Requirements: 2b, 2d, 3_
 
 - [ ] 13.* Unit tests for timing and decoding (letter / word gaps, squeeze alternation)
