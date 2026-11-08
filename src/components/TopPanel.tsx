@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
+import { useRadio } from '../context/RadioContext'
 
 /* Shared silkscreen-wear filter: fine noise knocks holes out of printed ink */
 function InkWear({ id }: { id: string }) {
@@ -244,13 +245,10 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
 
 /**
  * Top Panel: MCB power breaker | S-meter | DECODER slide switch.
- * Switch state is local for now; it will be lifted when audio / decoding is wired up.
+ * Both switches read and write the global radio state (RadioContext).
  */
 export default function TopPanel() {
-  const [isPowerOn, setIsPowerOn] = useState(false)
-  const [isDecoderOn, setIsDecoderOn] = useState(false)
-  const togglePower = useCallback(() => setIsPowerOn((v) => !v), [])
-  const toggleDecoder = useCallback(() => setIsDecoderOn((v) => !v), [])
+  const { isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
 
   return (
     <section className="top" aria-label="Top Panel">

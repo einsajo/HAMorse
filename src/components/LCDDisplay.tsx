@@ -1,16 +1,21 @@
 import './LCDDisplay.css'
 import DustCanvas from './DustCanvas'
+import { formatFrequency, useRadio } from '../context/RadioContext'
 
 /**
  * Amber LCD display panel.
- * Placeholder content only: frequency and buffer get wired up later.
+ * Power OFF: backlight dead (dark glass), no text; the bezel, stain and dust stay.
+ * Power ON: amber backlight with the live frequency (always two decimals).
  *
  * Each text row is drawn twice in the same grid cell: an "unlit" ghost layer of
  * every segment (dim #3A2800 silt), with the lit liquid-crystal text on top.
  */
 export default function LCDDisplay() {
+  const { frequency, isPowerOn } = useRadio()
+  const freqText = formatFrequency(frequency)
+
   return (
-    <section className="lcd" aria-label="Display Panel">
+    <section className="lcd" aria-label="Display Panel" data-power={isPowerOn ? 'on' : 'off'}>
       <div className="lcd__bezel">
         <div className="lcd__glass">
           <div className="lcd__row lcd__row--freq">
@@ -18,7 +23,9 @@ export default function LCDDisplay() {
               <span className="lcd__ghost" aria-hidden="true">
                 888.88
               </span>
-              <span className="lcd__ink">104.40</span>
+              <span className="lcd__ink" aria-live="polite" aria-label={`${freqText} megahertz`}>
+                {freqText}
+              </span>
             </span>
             <span className="lcd__unit lcd__ink">MHz</span>
           </div>
