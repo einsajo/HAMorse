@@ -180,6 +180,12 @@
   grid-area: 1 / 1;
 }
 
+/* Frequency digits are right-aligned over the 888.88 segment ghost, like a real
+   LCD: below 100 MHz the leading digit is simply left unlit (" 96.00"). */
+.lcd__row--freq .lcd__stack > .lcd__ink {
+  justify-self: end;
+}
+
 /* --- Unlit bleed (#3A2800) --------------------------------------------- */
 .lcd__ghost {
   color: rgba(58, 40, 0, 0.2);

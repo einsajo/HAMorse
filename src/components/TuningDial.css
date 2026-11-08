@@ -277,3 +277,20 @@
     0 -1px 0 rgba(0, 0, 0, 0.8),
     0 1px 1px rgba(255, 255, 255, 0.16);
 }
+
+/* --- Drag-to-tune affordance -------------------------------------------- */
+.vfo__mount {
+  cursor: grab;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vfo__mount[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.vfo__mount:focus-visible {
+  /* outline (not box-shadow) so the knob's side wall and cast shadow stay intact */
+  outline: 1px solid rgba(222, 216, 198, 0.45);
+  outline-offset: 4px;
+}
