@@ -113,7 +113,7 @@
   top: calc(16 / 116 * 100%);
   width: calc(100 / 132 * 100%);
   height: calc(100 / 116 * 100%);
-  padding: 3%;
+  padding: 3%; /* WELL_PADDING in TuningDial.tsx depends on this */
   border-radius: 50%;
   background: radial-gradient(circle, #0c0d0f 0%, #141518 70%, #1c1d21 100%);
   box-shadow:
@@ -134,7 +134,7 @@
   height: 100%;
   border-radius: 50%;
   /* translate the top face up so the side wall is visible below it */
-  transform: translateY(-4%);
+  transform: translateY(-4%); /* KNOB_LIFT in TuningDial.tsx depends on this */
   box-shadow:
     /* machined side wall: stacked solid offsets read as a thick cylinder */
     0 1px 0 #3a3d42,
@@ -205,14 +205,22 @@
     inset 0 0 12px rgba(0, 0, 0, 0.6);
 }
 
-/* Deep concave finger dimple (the only position indicator) */
+/*
+ * Deep concave finger dimple: the knob's only position indicator.
+ * It sits at 12 o'clock on the face, so its bearing from the knob centre IS
+ * --vfo-angle: 88.00 = -90deg (9 o'clock) ... 108.00 = +90deg (3 o'clock),
+ * pointing straight at the printed scale. It counter-rotates around its own
+ * centre, so its baked-in shading (dark upper-left wall, lit lower-right wall)
+ * stays true to the fixed overhead light whatever angle the knob is at.
+ */
 .vfo__dimple {
   position: absolute;
   width: 22%;
   aspect-ratio: 1;
-  left: 58%;
-  top: 56%;
+  left: 39%; /* (100% - 22%) / 2: horizontally centred */
+  top: 9%; /* near the rim of the face, at 12 o'clock */
   border-radius: 50%;
+  transform: rotate(calc(var(--vfo-angle, 0deg) * -1));
   background:
     /* polished floor of the cup catching light on its lower wall */
     radial-gradient(circle at 60% 68%, #7a7f87 0%, #3a3d42 30%, #141517 62%, #050506 100%);

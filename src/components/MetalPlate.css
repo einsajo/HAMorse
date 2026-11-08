@@ -122,7 +122,7 @@
 }
 
 .plate--brand .plate__model {
-  font-size: 8.4cqi;
+  font-size: 9.4cqi;
   letter-spacing: 0.2em;
 }
 
@@ -134,8 +134,11 @@
 }
 
 .plate--serial .plate__stamp {
-  font-size: 8.4cqi;
-  letter-spacing: 0.04em;
+  font-size: 9.4cqi;
+  letter-spacing: 0;
+  /* narrower side padding gives the longer line room; the extra height keeps
+     it vertically clear of the corner screws */
+  padding: 10cqi 8cqi;
 }
 
 /* --- SOP plate: printed industrial instructions ------------------------- */
@@ -151,13 +154,14 @@
   height: 100%;
   align-items: flex-start;
   justify-content: center;
-  gap: 2.4cqh;
-  padding: 12cqi 11cqi;
+  gap: 1.6cqh;
+  /* top/bottom padding clears the corner screws; text may run between them */
+  padding: 10cqi 9cqi;
   font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
   font-stretch: condensed;
   font-weight: 700;
-  font-size: min(7.2cqi, 5.6cqh);
-  line-height: 1.18;
+  font-size: min(8.2cqi, 6.1cqh);
+  line-height: 1.12;
   letter-spacing: 0.02em;
   white-space: normal;
   text-align: left;
@@ -169,12 +173,12 @@
 }
 
 .plate--sop .sop__title {
-  font-size: 1.08em;
-  letter-spacing: 0.04em;
-  margin-bottom: 1cqh;
+  font-size: 1.06em;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.6cqh;
 }
 
 .plate--sop .sop__warn {
-  margin-top: 1.6cqh;
+  margin-top: 1cqh;
   color: #1a0a04;
 }

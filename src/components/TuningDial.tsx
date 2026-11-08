@@ -5,8 +5,19 @@ import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, GHOST_FREQUENCY, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
+/*
+ * The printed scale must be concentric with the knob's *visible* top face, so
+ * the dimple points exactly at the ticks. The face is not at the well centre
+ * (66, 66): .vfo__mount lifts it by 4% of its own height to show the knob's
+ * side wall. In SVG units: the well is 100 units, minus its 3% padding (3% of
+ * the 132-unit .vfo width, each side), so the lift is 0.04 * (100 - 2 * 3.96).
+ * Keep in sync with `.vfo__well { padding: 3% }` and `.vfo__mount { translateY(-4%) }`.
+ */
+const WELL_SIZE = 100
+const WELL_PADDING = 0.03 * 132
+const KNOB_LIFT = 0.04 * (WELL_SIZE - 2 * WELL_PADDING) // = 3.68 units
 const CX = 66
-const CY = 66
+const CY = 66 - KNOB_LIFT
 const F_MIN = FREQ_MIN
 const F_MAX = FREQ_MAX
 const TICK_IN = 52.5

@@ -405,31 +405,31 @@
   fill: rgba(42, 38, 32, 0.88);
   font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
   font-weight: 700;
-  font-size: 13px; /* SVG user units */
+  font-size: 15px; /* SVG user units */
 }
 
 .meter__num--red {
   fill: rgba(160, 32, 24, 0.9);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .meter__unit {
   fill: rgba(42, 38, 32, 0.85);
   font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .meter__unit--red {
   fill: rgba(160, 32, 24, 0.85);
-  font-size: 12px;
+  font-size: 14.5px;
 }
 
 .meter__brand {
   fill: rgba(42, 38, 32, 0.55);
   font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Roboto, Arial, sans-serif;
   font-weight: 700;
-  font-size: 7.5px;
+  font-size: 9.5px;
   letter-spacing: 0.35em;
 }
 

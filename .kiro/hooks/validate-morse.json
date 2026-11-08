@@ -1,0 +1,27 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "validate-morse-dictionary",
+      "description": "When the agent saves the Morse decoder dictionary, check every A-Z / 0-9 mapping against ITU Morse (morse-validator power).",
+      "trigger": "PostFileSave",
+      "matcher": "(^|/)src/utils/morseDictionary\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --file src/utils/morseDictionary.ts"
+      },
+      "timeout": 30
+    },
+    {
+      "name": "validate-morse-reference-card",
+      "description": "When the agent saves the reference card, check the printed Morse table is still correct and complete (morse-validator power).",
+      "trigger": "PostFileSave",
+      "matcher": "(^|/)src/components/ReferenceCard\\.tsx$",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --file src/components/ReferenceCard.tsx"
+      },
+      "timeout": 30
+    }
+  ]
+}
