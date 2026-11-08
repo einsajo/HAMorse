@@ -217,3 +217,60 @@
     /* soft viscous edge */
     0 0 1px rgba(5, 5, 5, 0.6);
 }
+
+/* ==========================================================================
+   Power state (data-power on .lcd, driven by RadioContext)
+   ========================================================================== */
+
+/* OFF: the backlight is dead. No amber at all: just dark, cold glass with its
+   glare and pixel grid. Bezel, permanent stain and dust canvas stay visible. */
+.lcd[data-power='off'] .lcd__glass {
+  background:
+    /* glass glare still catches the room light */
+    linear-gradient(172deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 28%, rgba(255, 255, 255, 0) 45%),
+    /* scanlines / pixel grid faintly visible in the dead panel */
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.14) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    /* dark grey/black unlit glass, a touch lighter in the middle */
+    radial-gradient(ellipse 85% 90% at 50% 45%, #1d1d1c 0%, #141413 55%, #0a0a0a 100%);
+}
+
+/* OFF: no text, no unlit segment ghosts, no divider */
+.lcd[data-power='off'] .lcd__row,
+.lcd[data-power='off'] .lcd__divider {
+  visibility: hidden;
+}
+
+/* ON: an aging bulb warms up with a brief stutter before it settles */
+.lcd[data-power='on'] .lcd__glass {
+  animation: lcd-warmup 420ms steps(1, end) both;
+}
+
+.lcd[data-power='on'] .lcd__row,
+.lcd[data-power='on'] .lcd__divider {
+  animation: lcd-warmup-text 420ms steps(1, end) both;
+}
+
+@keyframes lcd-warmup {
+  0% { filter: brightness(0.15) saturate(0.6); }
+  12% { filter: brightness(0.75) saturate(0.9); }
+  20% { filter: brightness(0.3) saturate(0.7); }
+  34% { filter: brightness(0.9); }
+  44% { filter: brightness(0.62); }
+  60%, 100% { filter: none; }
+}
+
+@keyframes lcd-warmup-text {
+  0%, 20% { opacity: 0; }
+  34% { opacity: 0.7; }
+  44% { opacity: 0.35; }
+  60%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcd[data-power='on'] .lcd__glass,
+  .lcd[data-power='on'] .lcd__row,
+  .lcd[data-power='on'] .lcd__divider {
+    animation: none;
+  }
+}
