@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
-import { FREQ_MAX, FREQ_MIN, formatFrequency, useRadio } from '../context/RadioContext'
+import { FREQ_MAX, FREQ_MIN, GHOST_FREQUENCY, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 const CX = 66
@@ -106,6 +106,21 @@ const wrap = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180
 /** Ignore the pointer this close to the centre, where the bearing is unstable */
 const DEAD_ZONE = 0.18 // fraction of the knob radius
 
+/* --- Magnetic tuning gravity -----------------------------------------------
+   Exact decimals are hard to hit by finger on a small knob, so the dial has
+   detents at these stations. A drag that comes within SNAP_RANGE of a target
+   snaps the frequency onto it exactly. The pull has hysteresis: once captured,
+   the drag must travel SNAP_RANGE + SNAP_STICKINESS away before it pops out,
+   so leaving the station takes a slightly harder pull than entering it. */
+const TARGET_FREQUENCIES: readonly number[] = [GHOST_FREQUENCY]
+const SNAP_RANGE = 0.2 // MHz: capture zone either side of a target
+const SNAP_STICKINESS = 0.12 // MHz: extra travel needed to break free
+
+/** Short haptic "click" when the dial drops into a detent (where supported) */
+const detentClick = () => {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(12)
+}
+
 /** Keyboard tuning steps, in MHz */
 const KEY_STEP: Record<string, number> = {
   ArrowUp: 0.05,
@@ -125,16 +140,35 @@ interface DragState {
   last: number | null
   /** unrounded knob angle, accumulated from pointer movement */
   angle: number
+  /** detent the drag is currently held in, if any */
+  captured: number | null
+}
+
+/** Apply the detents: returns the frequency to publish for a raw drag position */
+function applyGravity(d: DragState, raw: number, targets: readonly number[]): number {
+  if (d.captured !== null) {
+    if (Math.abs(raw - d.captured) <= SNAP_RANGE + SNAP_STICKINESS + 1e-9) return d.captured
+    d.captured = null // pulled hard enough: pop out of the detent
+  }
+  const hit = targets.find((t) => Math.abs(raw - t) <= SNAP_RANGE + 1e-9)
+  if (hit === undefined) return raw
+  d.captured = hit
+  detentClick()
+  return hit
 }
 
 /**
  * Drag-to-rotate. pointerdown on the knob, then window-level pointermove /
  * pointerup, so the drag keeps working when the finger slides off the knob.
  * Rotation follows the change in the pointer's bearing around the knob centre,
- * and is clamped to the hard stops. The knob turns whether or not the power is
+ * is clamped to the hard stops, and is pulled into the station detents. The knob turns whether or not the power is
  * on (it's a mechanical dial); the LCD simply stays dark until the MCB is on.
  */
-function useVfoDrag(frequency: number, setFrequency: (mhz: number) => void) {
+function useVfoDrag(
+  frequency: number,
+  setFrequency: (mhz: number) => void,
+  targets: readonly number[] = TARGET_FREQUENCIES,
+) {
   const [dragging, setDragging] = useState(false)
   const dragRef = useRef<DragState | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
@@ -163,6 +197,8 @@ function useVfoDrag(frequency: number, setFrequency: (mhz: number) => void) {
         minR,
         last: outside ? bearing(e.clientX, e.clientY, cx, cy) : null,
         angle: freqToAngle(freqRef.current),
+        // starting a drag while parked on a station: it begins held in the detent
+        captured: targets.find((t) => isTunedTo(freqRef.current, t)) ?? null,
       }
 
       const onMove = (ev: PointerEvent) => {
@@ -177,7 +213,7 @@ function useVfoDrag(frequency: number, setFrequency: (mhz: number) => void) {
           const next = clampAngle(d.angle + wrap(b - d.last))
           if (next !== d.angle) {
             d.angle = next
-            setFrequency(angleToFreq(next))
+            setFrequency(applyGravity(d, angleToFreq(next), targets))
           }
         }
         d.last = b
@@ -202,7 +238,7 @@ function useVfoDrag(frequency: number, setFrequency: (mhz: number) => void) {
       stopRef.current = stop
       setDragging(true)
     },
-    [setFrequency],
+    [setFrequency, targets],
   )
 
   return { dragging, onPointerDown }
