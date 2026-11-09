@@ -2,11 +2,12 @@
  * The radio dial: what lives where on the band.
  *
  *   88.00 ──────────────────────────────────────────────────────── 108.00 MHz
- *          89.30      93.50       98.10    100.00 ═════ 102.00    104.40
- *          NEWS       SPORTS      MUSIC      HAM BAND              (ghost)
+ *          89.30      93.50       98.10    100.00 ═════ 103.50  104.40
+ *          NEWS       SPORTS      MUSIC      HAM BAND        (ghost)
  *
- *   Ham band operators: 100.20 code-practice bulletin · 100.60 Elmer (mentor)
- *   · 101.00 practice (HI / SOS) · 101.40 Bob (QSO) · 101.80 Sam (high speed)
+ *   Ham band operators, 0.70 MHz apart with open band between them:
+ *   100.30 Elmer (mentor) · 101.00 practice (HI / SOS) · 101.70 code-practice
+ *   bulletin · 102.40 Bob (QSO) · 103.10 Sam (high speed)
  *
  * Everything not listed is dead air. The ghost station is deliberately
  * indistinguishable from the broadcasters until you are on it.
@@ -36,7 +37,7 @@ export const BROADCAST_KINDS: Readonly<Record<(typeof BROADCAST_STATIONS)[number
 
 /** Amateur (ham) transmission band, inclusive: two-way Morse is allowed here */
 export const HAM_BAND_START = 100.0
-export const HAM_BAND_END = 102.0
+export const HAM_BAND_END = 103.5
 
 /** The haunted station: the S-meter pins here and the decoder opens */
 export const GHOST_FREQUENCY = 104.4
@@ -45,22 +46,27 @@ export const GHOST_FREQUENCY = 104.4
 export const TUTOR_FREQUENCY = 101.0
 
 /**
- * The operators who live on the ham band, from beginner to pro. Their
- * behaviour is in src/utils/stations.ts. 0.40 MHz apart, so each has its own
- * small detent with open band between them.
+ * The operators who live on the ham band, in dial order. Their behaviour is
+ * in src/utils/stations.ts. They sit 0.70 MHz apart, so between two of them
+ * there is a good stretch of empty band (static, nobody there) to tune
+ * through, as on a real band; the Elmer is the first one you reach tuning up
+ * from the broadcasters.
  */
 export const HAM_STATIONS = Object.freeze({
-  /** a code-practice broadcast: slow, spaced-out text to copy by ear */
-  bulletin: 100.2,
-  /** the Elmer (mentor): teaches one character at a time */
-  elmer: 100.6,
+  /** the Elmer (mentor): introduces himself, asks if you're new, then teaches */
+  elmer: 100.3,
   /** the original practice station: HI, then SOS */
   tutor: TUTOR_FREQUENCY,
+  /** a code-practice broadcast: slow, spaced-out text to copy by ear */
+  bulletin: 101.7,
   /** Bob, for a real-feeling QSO: RST, name, QTH, 73 */
-  ragchew: 101.4,
+  ragchew: 102.4,
   /** Sam, an old-timer running high-speed copy practice (5-character groups) */
-  speed: 101.8,
+  speed: 103.1,
 })
+
+/** "100.30": how operators say a frequency on the air */
+export const formatMhz = (mhz: number) => mhz.toFixed(2)
 
 export type HamStationId = keyof typeof HAM_STATIONS
 
@@ -107,8 +113,8 @@ export interface Detent {
 
 /** Broadcasters and the ghost: wide, strong detents (the ghost feels like just one more station) */
 const WIDE_DETENT = { captureMhz: 0.2, escapeMhz: 0.32 } as const
-/** Ham operators sit 0.40 apart, so their detents are small and the band stays open between them */
-const NARROW_DETENT = { captureMhz: 0.08, escapeMhz: 0.13 } as const
+/** Ham operators: small detents (0.70 apart), so most of the band between them stays open to tune through */
+const NARROW_DETENT = { captureMhz: 0.1, escapeMhz: 0.16 } as const
 
 export const DETENTS: readonly Detent[] = Object.freeze([
   ...BROADCAST_STATIONS.map((frequency) => ({ frequency, ...WIDE_DETENT })),
