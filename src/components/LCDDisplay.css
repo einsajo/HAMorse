@@ -231,6 +231,13 @@
   white-space: pre; /* keep word spaces, never wrap */
 }
 
+/* your unsent draft (DECODER ON): underlined until TX SEND sends it */
+.lcd__draft[data-unsent='true'] {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
 /* dits/dahs still being keyed: a touch fainter than committed characters */
 .lcd__symbol {
   opacity: 0.72;
@@ -335,6 +342,16 @@
 @keyframes lcd-dot-3 {
   0%, 65% { opacity: 0; }
   66%, 100% { opacity: 1; }
+}
+
+/* PRESS TX: a slow, gentle pulse (a reminder, not an alarm) */
+.lcd__annun[data-tx='ready'] .lcd__annun-msg {
+  animation: lcd-ready 1.8s ease-in-out infinite;
+}
+
+@keyframes lcd-ready {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 0.4; }
 }
 
 /* short notices (NO REPLY, INHIBIT, BUSY, NO MSG) blink to catch the eye */

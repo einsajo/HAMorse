@@ -8,7 +8,9 @@ import type { TxStatus } from '../hooks/useMorseDecoder'
  * Amber LCD display panel.
  * Power OFF: backlight dead (dark glass), no text; the bezel, stain and dust stay.
  * Power ON: amber backlight with the live frequency (always two decimals), and
- * the RX / TX annunciators in the top-left corner (TX SEND feedback).
+ * the RX / TX annunciators in the top-left corner (TX SEND feedback). With the
+ * DECODER ON, what you've keyed but not yet sent is underlined, and the
+ * annunciator says PRESS TX: nothing goes out until you've checked it.
  * Buffer row: DECODER OFF = blank (only the display: keying, decoding and
  * station replies carry on unseen). DECODER ON on a broadcaster = a faint
  * blinking "RX ONLY"; on dead air = "DEAD BAND". DECODER ON on the ham band or
@@ -50,10 +52,26 @@ const TX_SPOKEN: Record<Exclude<TxStatus, 'idle'>, string> = {
  * is sending. They are status, not decoded text, so they show with the
  * DECODER OFF too.
  */
-function Annunciator({ tx, rx }: { tx: TxStatus; rx: boolean }) {
+function Annunciator({ tx, rx, draft }: { tx: TxStatus; rx: boolean; draft: boolean }) {
   const txLit = tx === 'sending' || tx === 'inhibit' || tx === 'empty' || tx === 'no-reply'
   // while TX SEND... is up, TX owns the display; RX takes over once it clears
   const rxLit = (rx && tx !== 'sending') || tx === 'busy'
+  // DECODER ON and something keyed but unsent: a gentle prompt to check it and press TX SEND
+  if (tx === 'idle' && draft && !rx) {
+    return (
+      <span className="lcd__annun" data-tx="ready">
+        <span className="lcd__flag" data-lit="false" aria-hidden="true">
+          RX
+        </span>
+        <span className="lcd__flag" data-lit="false" aria-hidden="true">
+          TX
+        </span>
+        <span className="lcd__annun-msg lcd__ink" role="status" aria-label="Unsent: check it, then press TX SEND">
+          PRESS TX
+        </span>
+      </span>
+    )
+  }
   return (
     <span className="lcd__annun" data-tx={tx}>
       <span className="lcd__flag" data-lit={rxLit} aria-hidden="true">
@@ -78,7 +96,11 @@ function Annunciator({ tx, rx }: { tx: TxStatus; rx: boolean }) {
 
 export default function LCDDisplay() {
   const { frequency, isPowerOn } = useRadio()
-  const { currentSymbol, decodedMessage, status, isReceiving, txStatus } = useMorseDecoder()
+  const { currentSymbol, decodedMessage, draftFrom, status, isReceiving, txStatus } = useMorseDecoder()
+  // what's been sent / received, and your unsent draft after it (underlined)
+  const sentText = decodedMessage.slice(0, draftFrom)
+  const draftText = decodedMessage.slice(draftFrom)
+  const hasDraft = status === 'ready' && !isReceiving && (draftText.trim() !== '' || currentSymbol !== '')
   const freqText = formatFrequency(frequency)
 
   return (
@@ -86,7 +108,7 @@ export default function LCDDisplay() {
       <div className="lcd__bezel">
         <div className="lcd__glass">
           <div className="lcd__row lcd__row--freq">
-            <Annunciator tx={txStatus} rx={isReceiving} />
+            <Annunciator tx={txStatus} rx={isReceiving} draft={hasDraft} />
             <span className="lcd__stack">
               <span className="lcd__ghost" aria-hidden="true">
                 888.88
@@ -113,7 +135,12 @@ export default function LCDDisplay() {
                 {status === 'ready' && (
                   <span className="lcd__buffer-text">
                     <span aria-live="polite" aria-label={`Decoded: ${decodedMessage || 'nothing yet'}`}>
-                      {decodedMessage}
+                      {sentText}
+                      {draftText !== '' && (
+                        <span className="lcd__draft" data-unsent={hasDraft}>
+                          {draftText}
+                        </span>
+                      )}
                     </span>
                     <span className="lcd__symbol" aria-hidden="true">
                       {currentSymbol}

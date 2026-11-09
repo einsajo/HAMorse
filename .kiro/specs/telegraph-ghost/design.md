@@ -66,7 +66,9 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 | `currentSymbol` | Dits/dahs of the letter being keyed, e.g. `.-` |
 | `decodedMessage` | Decoded text (last 160 characters kept) |
 | `handleTap('.' \| '-')` | Append a tap and restart both timers; ignored unless power ON on a transmit frequency (the DECODER does not matter) |
-| `clear()` | Wipe everything (CLR), and reset the TX annunciator |
+| `clear()` | Wipe everything, and reset the TX annunciator (retune, power off) |
+| `clearButton()` | CLR: wipe only the unsent draft if there is one (`discardDraft()`), else `clear()` |
+| `draftFrom` | Index in `decodedMessage` where your unsent draft begins (the engine's draft anchor; moves with history trimming, set by `markSent()` on delivery and at both ends of a reply) |
 | `sendOver()` | TX SEND: `flush()` the half-keyed letter and the word now (the station hears it at once), then `station.onOver?.()` (Bob ends his over), and drive `txStatus` |
 | `txStatus` | `idle` / `sending` / `no-reply` / `inhibit` / `busy` / `empty`, for the LCD annunciator |
 | `isActive` | Power ON on the ham band or 104.40 (taps keyed and decoded) |
@@ -97,10 +99,15 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
   the row left-aligned; longer text overflows to the *left*, so the newest
   characters stay at the right edge.
 
+- **Word delivery:** `onWordEnd` pushes each finished word onto `draftWords`
+  when the DECODER is ON (it waits for TX SEND), or delivers it at once with
+  anything still queued when it's OFF. `deliver(words)` calls `markSent()`,
+  then the ghost (`CQ` anywhere) or the station's `onWord` word by word,
+  stopping at the first answer. The idle poll skips while `hasDraftNow()`.
 - **TX SEND flow:** power OFF does nothing (the Quick Start nudges); not
   `canTransmit` → `inhibit`; another station sending (live engine flag, not
   the render-lagged state) → `busy`; nothing keyed since the frequency last
-  changed hands → `empty`; else `sending`, polled every 100ms: once a reply
+  changed hands → `empty`; else `flush()`, `deliver(draftWords)`, `onOver()` if nobody answered, then `sending`, polled every 100ms: once a reply
   is under way and ≥1.2s has passed → `idle` (RX lights); no reply after
   2.8s → `no-reply`. Notices last 2.2s.
 

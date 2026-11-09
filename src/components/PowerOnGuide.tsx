@@ -107,8 +107,9 @@ export default function PowerOnGuide() {
             Tap <b>DIT (·)</b> and <b>DAH (–)</b> to key Morse (a 700&nbsp;Hz tone), then <b>TX SEND</b> to send it.
           </li>
           <li>
-            <b>DECODER ON</b> shows the Morse as text on the screen. Switch it <b>OFF</b> and the screen goes
-            blank but the radio still works: copy and send by ear.
+            <b>DECODER ON</b> shows the Morse as text: check what you keyed, then press <b>TX SEND</b> (<b>CLR</b>{' '}
+            erases a mistake). <b>OFF</b>: the screen goes blank and each word goes out when you pause, for
+            copying and sending by ear.
           </li>
           <li>
             <b>REF</b> pulls out the Morse code card. <b>CLR</b> clears the screen.

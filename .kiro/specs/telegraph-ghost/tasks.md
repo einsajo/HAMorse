@@ -79,6 +79,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 12.2 DECODER ON shows the decoded text plus the live dits/dahs and a cursor in the LCD buffer row (newest text pinned right, overflow hidden left); OFF leaves it blank and ignores taps
   - [x] 12.3 CLR clears the buffer; power OFF wipes it
   - [x] 12.4 TX SEND sends what's keyed at once and hands the frequency over; LCD RX / TX annunciators with `TX SEND...` (counting dots), NO REPLY / INHIBIT / BUSY / NO MSG
+  - [x] 12.5 DECODER ON: words wait as an underlined draft until TX SEND (`PRESS TX`), stations hold off while a draft waits, CLR wipes the draft first; DECODER OFF keeps send-on-pause
   - _Requirements: 2b, 2d, 3_
 
 - [x] 12.5 Frequency bands (`src/constants.ts`): broadcasters, ham band, ghost, dead air

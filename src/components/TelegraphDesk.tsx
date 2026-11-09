@@ -174,7 +174,7 @@ interface TelegraphDeskProps {
  */
 export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
   // DIT / DAH feed the shared decoder; CLR wipes its buffer
-  const { handleTap, clear, sendOver } = useMorseDecoder()
+  const { handleTap, clearButton, sendOver } = useMorseDecoder()
   const { isPowerOn } = useRadio()
   const { nudge } = usePowerHint()
 
@@ -186,10 +186,11 @@ export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphD
     },
     [isPowerOn, nudge, handleTap],
   )
+  // CLR: wipes your unsent draft first; pressed again (or with no draft), the screen
   const onClear = useCallback(() => {
     if (!isPowerOn) nudge()
-    clear()
-  }, [isPowerOn, nudge, clear])
+    clearButton()
+  }, [isPowerOn, nudge, clearButton])
   // TX SEND: send what you've keyed now and hand the frequency over
   const onSend = useCallback(() => {
     if (!isPowerOn) nudge()
