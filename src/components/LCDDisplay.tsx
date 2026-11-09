@@ -7,7 +7,8 @@ import { useMorseDecoder } from '../hooks/useMorseDecoder'
  * Amber LCD display panel.
  * Power OFF: backlight dead (dark glass), no text; the bezel, stain and dust stay.
  * Power ON: amber backlight with the live frequency (always two decimals).
- * Buffer row: DECODER OFF = blank. DECODER ON on a broadcaster = a faint
+ * Buffer row: DECODER OFF = blank (only the display: keying, decoding and
+ * station replies carry on unseen). DECODER ON on a broadcaster = a faint
  * blinking "RX ONLY"; on dead air = "DEAD BAND". DECODER ON on the ham band or
  * the ghost frequency = the decoded message followed by the dits/dahs being
  * keyed right now, so every tap shows immediately. When the text is wider than

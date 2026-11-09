@@ -119,7 +119,20 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 18.2 Tutor on 101.00: `HI` -> `GUD COPY. SEND SOS`, `SOS` -> `FB. 73.`
   - [x] 18.3 Ghost on 104.40: `CQ` -> ` I C U ` (slow, distorted tone); sets global `isHaunted`
   - [ ] 18.4* AI replies (optional), with the scripted replies as the fallback
+  - [x] 18.5 DECODER OFF is display-only: taps are keyed and decoded and stations still answer; only the LCD text is hidden
   - _Requirements: 3a, 4_
+
+- [x] 18a. Ham band operators, beginner to pro (`src/utils/stations.ts`)
+  - [x] 18a.1 Station interface (`onTuneIn` / `onWord` / `onIdle`), `timingForWpm` with ARRL Farnsworth spacing, per-station beat note (`playTone(ms, hz)`)
+  - [x] 18a.2 100.20 code-practice bulletin (18/8 WPM, rotating texts)
+  - [x] 18a.3 100.60 Elmer: shortest-first character lessons with reviews, spoken-Morse hints, words after all 36, progress in localStorage
+  - [x] 18a.4 101.40 Bob: CQ, RST / name / QTH exchange with echoes, 73 SK, E E
+  - [x] 18a.5 101.80 speed drill: 5-character groups, measured user WPM, QRQ / QRS 15-40 WPM
+  - [x] 18a.6 Provider wiring: tune-in, word routing, idle polling; per-station narrow detents (`DETENTS`)
+  - [x] 18a.7 Adaptive letter / word gaps so fast operators aren't capped at ~12 WPM
+  - [x] 18a.8 S-meter `keying` mode while an operator sends; band plan on the REF card; Quick Start points at the Elmer
+  - [x] 18a.9 Verified: 12 Node unit tests of the station logic; browser runs of Elmer (with DECODER OFF), a full QSO with Bob, the speed drill (fast keying, QRQ / QRS) and the bulletin
+  - _Requirements: 2a, 2c, 2e, 2f, 3, 3a, 3b_
 
 - [ ] 19. Liquid Crystal Bleed (final reply line)
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies

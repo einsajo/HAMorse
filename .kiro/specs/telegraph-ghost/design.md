@@ -65,20 +65,31 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 |---|---|
 | `currentSymbol` | Dits/dahs of the letter being keyed, e.g. `.-` |
 | `decodedMessage` | Decoded text (last 160 characters kept) |
-| `handleTap('.' \| '-')` | Append a tap and restart both timers; ignored unless power ON and DECODER ON |
+| `handleTap('.' \| '-')` | Append a tap and restart both timers; ignored unless power ON on a transmit frequency (the DECODER does not matter) |
 | `clear()` | Wipe everything (CLR) |
-| `isActive` | Power ON and DECODER ON |
+| `isActive` | Power ON on the ham band or 104.40 (taps keyed and decoded) |
+| `isReceiving` | Another station is sending; paddles locked |
+| `station` | `HamStationId` exactly on this frequency, or `null` |
+| `status` | `off` (power or DECODER OFF: LCD blank) / `rx-only` / `dead-band` / `ready` |
 
-- **Timers:** every tap clears both timers and restarts them. After 600ms
-  (`SYMBOL_TIMEOUT_MS`) the symbol is looked up in `MORSE_DICTIONARY` and its
-  character, or `?`, is appended. After 1400ms (`WORD_TIMEOUT_MS`) one space is
-  appended (never leading, never doubled). A symbol longer than 7 elements is
-  committed as `?` before the next tap.
+- **Timers:** every tap clears both timers and restarts them. After the
+  letter gap the symbol is looked up in `MORSE_DICTIONARY` and its
+  character, or `?`, is appended. After the word gap one space is appended
+  (never leading, never doubled) and `onWordEnd(message, { word, wpm })`
+  fires. A symbol longer than 7 elements is committed as `?` before the next tap.
+- **Adaptive gaps (`adaptiveTimeouts`):** an exponential average (weight 0.3)
+  of the tap interval *inside* a letter sets the letter gap to 4x that
+  average, clamped to 320–600ms (`MIN_SYMBOL_TIMEOUT_MS` / `SYMBOL_TIMEOUT_MS`);
+  the word gap is 2.4x the letter gap, at most 1400ms. Until measured, 600 / 1400.
+- **WPM:** `measureWpm(letters, firstTap→lastTap ms)` = CPM / 5, with the last
+  letter counted as 0.6 (it has no trailing gap); `null` for 1-letter words.
 - **Refs + state:** the symbol is kept in a ref as well as state, so timers
   always read the latest value; timer handles live in refs and are cleared on
   unmount (an effect with `[]` deps that reads the refs directly).
-- **Switching off:** DECODER OFF drops the half-keyed symbol and stops the
-  timers (the message is kept, but hidden). Power OFF wipes the buffer.
+- **DECODER OFF is display-only:** the engine ignores it entirely; the LCD
+  hides the buffer row when `status === 'off'`. Losing `canKey` (power OFF,
+  tuning off the band) drops the half-keyed letter; power OFF and retuning
+  wipe the buffer.
 - **LCD overflow:** the buffer viewport is `display: flex; justify-content:
   flex-end; overflow: hidden` with a `flex: 1 0 auto` child. Short text fills
   the row left-aligned; longer text overflows to the *left*, so the newest
@@ -86,31 +97,69 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 
 ### 2.2a Reply engine (`useMorseDecoder`)
 
-- **`simulateReply(message, isGhost)`** sets `isReceiving` (paddles locked),
+- **`simulateReply(message, isGhost, timing?)`** sets `isReceiving` (paddles locked),
   then walks the message with recursive `setTimeout`s: for each character it
   looks up `CHAR_TO_MORSE`, keys every element (`playTone` / `playGhostTone`),
   grows `currentSymbol` live, then appends the character to `decodedMessage`.
   Spaces are word gaps.
-- **Timing:** `REPLY_TIMING` (lead-in 700, dit 60 / dah 180, element gap 60,
-  char gap 150, word gap 420 ms) and `GHOST_TIMING` (lead-in 1600, 120 / 360,
-  120, char gap 500, word gap 1000 ms).
-- **Triggers** run in the word-timeout handler (`onWordEnd`) using the latest
-  frequency: tutor `TUTOR_FREQUENCY` 101.00 (`HI`, `SOS`), ghost 104.40
-  (`CQ`). `onReplyEnd` for the ghost sets `isHaunted` in `RadioContext`.
+  A reply always starts on a fresh word.
+- **Timing (`ReplyTiming`, `src/utils/stations.ts`):** `leadInMs`, `ditMs`,
+  `dahMs`, `elementGapMs`, then `charGapMs` / `wordGapMs` as *extra* silence
+  on top (so the real character space is element + char gap), and an
+  optional `toneHz` passed to `playTone(ms, hz)`. `REPLY_TIMING` (101.00) and
+  `GHOST_TIMING` are fixed; `timingForWpm(charWpm, effectiveWpm, leadIn, hz)`
+  builds PARIS timing (dit = 1200/WPM) with ARRL Farnsworth spacing when
+  effective < character speed. Re-exported from the hook for compatibility.
+- **Ghost** stays special-cased in the provider: `CQ` -> `GHOST_REPLY` with
+  the ghost tone; `onReplyEnd` sets `isHaunted` in `RadioContext`.
 - **Interruptions:** `clear()` (CLR, retune, power off) also stops a reply.
+
+### 2.2b Ham operators (`src/utils/stations.ts`)
+
+Pure logic (no React, no audio), so it is unit-testable. `createStations({ rng, storage })`
+returns one stateful object per `HamStationId`:
+
+```ts
+interface Station {
+  onTuneIn(): Transmission | null            // tuned in / powered up here
+  onWord(sent: { word, wpm }): Transmission | null
+  onIdle(idleMs: number): Transmission | null // polled
+}
+interface Transmission { text: string; timing: ReplyTiming }
+```
+
+- **Provider wiring:** the stations are created once per app (a ref). An
+  effect on `[frequency, isPowerOn]`, placed after the clear-on-retune effect,
+  calls `onTuneIn()`. `onWordEnd` routes the word to the station on the
+  current frequency. A 400ms interval (`IDLE_POLL_MS`), only while powered on
+  a station and not receiving, calls `onIdle(now - lastActivity)`;
+  `lastActivity` is touched by taps, word ends, reply ends, tune-ins and any
+  idle transmission. Every idle threshold (3.5s and up) is longer than the
+  word gap, so a station never interrupts a word in progress.
+- **State machines:** bulletin = text index; Elmer = `learned` count
+  (persisted under `telegraph-ghost.elmer.learned`), `target`, `isNew`,
+  `reviewsLeft`, `nudges`; Bob = stage `call → name → qth → closing` plus the
+  words of the current over (ended by K/KN/BK/AR/SK or 3.5s silence); speed
+  drill = `wpm`, `group`, `introduced`, `nudges`.
+- **Text** uses only characters in `CHAR_TO_MORSE` (unit-tested).
+- **S-meter:** `TopPanel` reads `isReceiving`; on the ham band the needle
+  switches to `keying` (S8 with fast kicks) for the transmission.
 
 ### 2.3 The dial (`src/constants.ts`)
 
 | Band | Frequencies | S-meter | Decoder | LCD status |
 |---|---|---|---|---|
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
-| `ham` | 100.00 – 102.00 inclusive (tutor at 101.00) | flutters S4–S7 | open | cursor |
+| `ham` | 100.00 – 102.00 inclusive (operators at 100.20 / 100.60 / 101.00 / 101.40 / 101.80) | flutters S4–S7; S8 while an operator sends | open | cursor |
 | `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
 
 `getBandInfo(mhz)` classifies a frequency (exact stations first, then the
-range, at 0.01 MHz resolution). All four stations share the tuning detent
-(`DETENT_FREQUENCIES`), so the ghost's detent is not a giveaway.
+range, at 0.01 MHz resolution). Every station has a tuning detent (`DETENTS`:
+frequency, `captureMhz`, `escapeMhz`). Broadcasters and the ghost share the
+wide 0.20 / 0.32 MHz detent, so the ghost's is not a giveaway; the ham
+operators get 0.08 / 0.13 MHz so their zones never overlap. `hamStationAt(mhz)`
+names the operator on an exact frequency.
 
 ### 2.4 Audio engine (`src/utils/audioEngine.ts`)
 
@@ -282,7 +331,7 @@ Stacking inside `.lcd__glass`, bottom to top:
 | Reference card | `1.05s` out / `0.95s` in | Friction keyframes: catches at ~40%, snaps to ~60% |
 | LCD warm-up | `420ms steps(1)` | Dying-bulb flicker |
 | S-meter needle | Damped spring: `SPRING 380`, `DAMPING 22`, `BOUNCE 0.6` | Twitchy, pegs and bounces |
-| VFO detent | `SNAP_RANGE 0.20`, `SNAP_STICKINESS 0.12` MHz | Magnetic capture, harder release |
+| VFO detent | per `Detent`: capture 0.20 / escape 0.32 MHz (stations, ghost), 0.08 / 0.13 (ham operators); nearest in range wins | Magnetic capture, harder release |
 
 **Reduced motion:** the long animations (reference card, LCD warm-up, S-meter
 needle) honour `prefers-reduced-motion` (skipped or set instantly). The

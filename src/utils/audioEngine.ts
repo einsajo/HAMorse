@@ -596,10 +596,20 @@ export function staticLevelFor(band: Band, isPowerOn: boolean): number {
   return isPowerOn ? STATIC_LEVELS[band] : 0
 }
 
-/** The 700 Hz sidetone for `durationMs` (5 ms attack / 5 ms release) */
-export function playTone(durationMs: number): void {
+/**
+ * The sidetone for `durationMs` (5 ms attack / 5 ms release). Your own keying
+ * is always 700 Hz; other operators come through at their own beat note
+ * (`hz`), the way every station sounds slightly different on a real receiver.
+ * The pitch is set at the key-down instant, when the tone is (near) silent.
+ */
+export function playTone(durationMs: number, hz: number = SIDETONE_HZ): void {
   if (!(durationMs > 0)) return
-  whenRunning((e) => e.sidetone.key(durationMs, e.ctx.currentTime))
+  const pitch = Number.isFinite(hz) && hz > 0 ? hz : SIDETONE_HZ
+  whenRunning((e) => {
+    const t = e.ctx.currentTime
+    e.sidetone.oscillator.frequency.setValueAtTime(pitch, t)
+    e.sidetone.key(durationMs, t)
+  })
 }
 
 /** The ghost's distorted, sagging tone for one Morse element */

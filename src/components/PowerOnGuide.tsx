@@ -100,15 +100,16 @@ export default function PowerOnGuide() {
           </li>
           <li>
             Turn the <b>VFO</b> dial to tune. Broadcast stations are receive-only; transmit on the{' '}
-            <b>HAM band, 100.00–102.00&nbsp;MHz</b>. A practice station listens on <b>101.00</b>: send{' '}
-            <b>HI</b>.
+            <b>HAM band, 100.00–102.00&nbsp;MHz</b>. Five operators live there, beginner to pro: start with
+            the <b>Elmer on 100.60</b>: copy each letter he sends and send it back. The band plan is on the{' '}
+            <b>REF</b> card.
           </li>
           <li>
             Tap <b>DIT (·)</b> and <b>DAH (–)</b> to send Morse. You'll hear a 700&nbsp;Hz tone.
           </li>
           <li>
-            <b>DECODER ON</b> shows your letters on the screen. Switch it <b>OFF</b> to train by ear and build
-            speed.
+            <b>DECODER ON</b> shows the Morse as text on the screen. Switch it <b>OFF</b> and the screen goes
+            blank but the radio still works: copy and send by ear.
           </li>
           <li>
             <b>REF</b> pulls out the Morse code card. <b>CLR</b> clears the screen.

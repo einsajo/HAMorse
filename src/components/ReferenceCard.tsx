@@ -4,6 +4,7 @@ import './ReferenceCard.css'
 import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
 import { REF_CARD_MOTION } from '../utils/cardMotion'
 import { playPaperScrape } from '../utils/audioEngine'
+import { BAND_PLAN } from '../utils/stations'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -170,10 +171,21 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
           ))}
         </dl>
 
-        <p className="refcard__note">
-          {'Dial drifts below 90MHz in the cold. '}
-          <span className="refcard__sig">- Nevlin</span>
-        </p>
+        {/* the previous owner's pencilled band plan: who lives where on the ham band */}
+        <div className="refcard__note">
+          <p className="refcard__plan-head">Ham band:</p>
+          <ul className="refcard__plan" aria-label="Ham band stations">
+            {BAND_PLAN.map(({ id, frequency, label }) => (
+              <li key={id}>
+                <b>{frequency.toFixed(2)}</b> {label}
+              </li>
+            ))}
+          </ul>
+          <p>
+            {'Dial drifts below 90 in the cold. '}
+            <span className="refcard__sig">- Nevlin</span>
+          </p>
+        </div>
       </div>
     </div>
   )
