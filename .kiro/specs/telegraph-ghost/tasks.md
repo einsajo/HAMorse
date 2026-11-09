@@ -102,7 +102,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 - [x] 16. Sidetone and mechanical sounds
   - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
-  - [x] 16.2 Synthesised clicks: MCB thunk, DECODER detent, encoder tick every 0.05 MHz, station-detent clunk
+  - [x] 16.2 Distinct Foley: breaker KA-CHUNK, slider scrape, button snap, ball-bearing VFO thud, paper scrape synced to the card animation
   - _Requirements: 3_
 
 - [ ] 17. S-meter follows real audio

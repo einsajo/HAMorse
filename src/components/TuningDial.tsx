@@ -4,7 +4,7 @@ import './TuningDial.css'
 import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
 import { DETENT_FREQUENCIES } from '../constants'
-import { playClick } from '../utils/audioEngine'
+import { playEncoderThud } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
@@ -134,16 +134,18 @@ const SNAP_STICKINESS = 0.12 // MHz: extra travel needed to break free
 
 /** Short haptic "click" when the dial drops into a detent (where supported) */
 const detentClick = () => {
-  playClick(900, 0.3) // a deeper, firmer clunk than the encoder ticks
+  playEncoderThud(true) // the bigger detent at a station: lower, firmer
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(12)
 }
 
-/* --- Rotary encoder ticks --------------------------------------------------
-   A real VFO is a detented rotary encoder: it ticks every 0.05 MHz step. A
-   fast spin can cross several steps in one frame; those collapse into one
-   tick, and ticks are rate-limited so a spin sounds like a ratchet, not noise. */
+/* --- Rotary encoder detents ------------------------------------------------
+   A heavy VFO turns on hardened steel ball bearings that drop into a detent
+   every 0.05 MHz step: a muffled thud, felt more than heard. A fast spin can
+   cross several steps in one frame; those collapse into one thud, and thuds
+   are rate-limited (each rings ~50 ms) so a spin is a smooth low rumble of
+   bearings, not a muddy buzz. */
 const ENCODER_STEP_MHZ = 0.05
-const ENCODER_TICK_MIN_GAP_MS = 14
+const ENCODER_TICK_MIN_GAP_MS = 28
 let lastEncoderTick = 0
 
 const encoderStep = (mhz: number) => Math.floor(mhz / ENCODER_STEP_MHZ + 1e-6)
@@ -152,7 +154,7 @@ function encoderTick() {
   const now = performance.now()
   if (now - lastEncoderTick < ENCODER_TICK_MIN_GAP_MS) return
   lastEncoderTick = now
-  playClick(3400, 0.12) // very soft, high-pitched
+  playEncoderThud() // low, muffled ball-bearing thud
 }
 
 /** Keyboard tuning steps, in MHz */

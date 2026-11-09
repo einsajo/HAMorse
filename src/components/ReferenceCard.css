@@ -83,13 +83,16 @@
    at ~40%, strains there for a beat, then breaks free and snaps to ~60% before
    gliding the rest of the way. Animating the registered --p (not transform)
    lets the same keyframes drive both the portrait (Y) and wide (X) layouts.
-   Only runs after the first REF press (data-armed), so nothing plays on load. */
+   Only runs after the first REF press (data-armed), so nothing plays on load.
+   KEEP IN SYNC: the stick / release / settle percentages below are mirrored in
+   src/utils/cardMotion.ts, which times the paper-scrape sound to this motion. */
 .refcard[data-armed='true'][data-open='true'] {
-  animation: refcard-out 1.05s both;
+  /* duration comes from src/utils/cardMotion.ts (shared with the paper-scrape sound) */
+  animation: refcard-out var(--refcard-out-dur, 1050ms) both;
 }
 
 .refcard[data-armed='true'][data-open='false'] {
-  animation: refcard-in 0.95s both;
+  animation: refcard-in var(--refcard-in-dur, 950ms) both;
 }
 
 @keyframes refcard-out {

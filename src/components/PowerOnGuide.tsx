@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import './PowerOnGuide.css'
 import { useRadio } from '../context/RadioContext'
 import { usePowerHint } from '../hooks/usePowerHint'
-import { playBreakerClick, unlockAudio } from '../utils/audioEngine'
+import { playBreakerThunk, unlockAudio } from '../utils/audioEngine'
 
 interface Spot {
   x: number
@@ -62,7 +62,7 @@ export default function PowerOnGuide() {
 
   const powerOn = useCallback(() => {
     unlockAudio()
-    playBreakerClick(true)
+    playBreakerThunk(true)
     setIsPowerOn(true) // the guide closes itself on power-on
   }, [setIsPowerOn])
 

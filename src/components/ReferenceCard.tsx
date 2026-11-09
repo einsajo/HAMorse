@@ -1,7 +1,9 @@
 import { useCallback, useRef } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { AnimationEvent as ReactAnimationEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import './ReferenceCard.css'
 import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
+import { REF_CARD_MOTION } from '../utils/cardMotion'
+import { playPaperScrape } from '../utils/audioEngine'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -20,6 +22,12 @@ const TAP_SLOP = 6
 const MORSE: [string, string][] = MORSE_TABLE_ORDER.map((ch) => [ch, toTypographic(CHAR_TO_MORSE[ch])])
 
 const QCODE_ROWS: [string, string][] = Object.entries(Q_CODES).map(([code, q]) => [code, q.meaning])
+
+/* animation durations come from the shared motion timeline (also used for the sound) */
+const MOTION_STYLE = {
+  '--refcard-out-dur': `${REF_CARD_MOTION.open.durationMs}ms`,
+  '--refcard-in-dur': `${REF_CARD_MOTION.close.durationMs}ms`,
+} as CSSProperties
 
 interface ReferenceCardProps {
   open: boolean
@@ -45,6 +53,29 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
   // close animation doesn't play (and flash the card) on first load.
   const armedRef = useRef(false)
   if (open) armedRef.current = true
+
+  /**
+   * Cardstock scraping through the chassis slot, locked to the friction
+   * keyframes. Triggered by the card's OWN animationstart (so it never runs on
+   * first load, and fires for REF, tap and drag alike), and offset by how far
+   * the animation has already run when the event arrives, read from the Web
+   * Animations API, so the stick / snap land on the exact visual frames.
+   */
+  const onAnimationStart = useCallback((e: ReactAnimationEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return
+    const opening = e.animationName === 'refcard-out'
+    if (!opening && e.animationName !== 'refcard-in') return
+    let elapsedMs = 0
+    const el = e.currentTarget
+    const timeline = document.timeline?.currentTime
+    if (typeof el.getAnimations === 'function' && typeof timeline === 'number') {
+      const anim = el
+        .getAnimations()
+        .find((a) => (a as Animation & { animationName?: string }).animationName === e.animationName)
+      if (anim && typeof anim.startTime === 'number') elapsedMs = Math.max(0, timeline - anim.startTime)
+    }
+    playPaperScrape(opening, elapsedMs)
+  }, [])
 
   const setDrag = (px: number) => cardRef.current?.style.setProperty('--drag', `${px}px`)
 
@@ -102,9 +133,11 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
     <div
       ref={cardRef}
       className="refcard"
+      style={MOTION_STYLE}
       data-open={open}
       data-armed={armedRef.current}
       aria-hidden={!open}
+      onAnimationStart={onAnimationStart}
       onAnimationEnd={() => {
         if (!open) setDrag(0)
       }}

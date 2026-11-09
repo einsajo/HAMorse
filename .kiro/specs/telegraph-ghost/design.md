@@ -115,9 +115,23 @@ clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
 - **Static levels** (`STATIC_LEVELS`, relative to dead air): dead 1.0,
   ham 0.5, broadcast 0.2, ghost 0.1, power off 0. Changes are smoothed
   (τ = 40ms), so tuning never zippers. Driven by `<RadioAudio/>`.
-- **Clicks** (`scheduleClick(pitch, volume)`): ~150Hz MCB thunk, 1.5–1.8kHz
-  DECODER detent, 3.4kHz soft encoder tick (rate-limited to one per 14ms),
-  900Hz station-detent clunk.
+- **Foley profiles** (mechanical, so they play whether the radio is on or off, once audio is unlocked):
+
+| Function | Used by | Sound |
+|---|---|---|
+| `playEncoderThud(heavy?)` | VFO, every 0.05 MHz (heavy = station detent) | steel ball dropping into a detent: pitch drop + dull 470 Hz knock through a lowpass, centroid ~240 Hz |
+| `playBreakerThunk(on)` | MCB | "KA" latch snap, then "CHUNK" 34ms later (165→52 Hz thump + impact), metallic ring tail (1.9–5.6 kHz partials) |
+| `playSliderScrape(on)` | DECODER | 130ms gritty bandpassed noise sweeping up (ON) or down (OFF), ending in a detent tick |
+| `playButtonSnap()` | REF, CLR, TX SEND | snap-dome flip (highpassed noise) + plunger knock + 3.2 / 4.7 kHz spring ring |
+| `playPaperScrape(opening)` | reference card | bandpassed fibrous noise following the card's friction keyframes |
+
+- **Paper scrape sync:** `src/utils/cardMotion.ts` is the single timeline for the
+  card's motion. It sets the CSS animation durations, and its stick / release /
+  settle points mirror the keyframe percentages. The scrape is triggered by the
+  card's own `animationstart` and shifted back by the time the Web Animations API
+  says the animation has already run, plus the audio output latency, so the
+  silence and the snap land on the visual catch and release.
+
 - **Testability:** the building blocks take any `BaseAudioContext`, so they are
   verified by rendering into an `OfflineAudioContext` and measuring the samples.
 
