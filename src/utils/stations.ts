@@ -49,6 +49,8 @@ export interface ReplyTiming {
   wordGapMs: number
   /** the station's beat note; omitted = the 700 Hz sidetone */
   toneHz?: number
+  /** irregular fist, 0..1: each element and gap is stretched or squeezed by up to this fraction */
+  jitter?: number
 }
 
 /** The 101.00 practice station: brisk, clean 700 Hz (60 ms dits) */
@@ -61,7 +63,7 @@ export const REPLY_TIMING: Readonly<ReplyTiming> = Object.freeze({
   wordGapMs: 420,
 })
 
-/** The thing on 104.40: agonisingly slow, distorted */
+/** The ghost's default timing (its agent normally sets its own, exchange by exchange: see ghostAgent.ghostVoice) */
 export const GHOST_TIMING: Readonly<ReplyTiming> = Object.freeze({
   leadInMs: 1600,
   ditMs: 120,

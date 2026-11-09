@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
 import { useRadio } from '../context/RadioContext'
@@ -58,9 +58,11 @@ interface SwitchProps {
 interface PowerSwitchProps extends SwitchProps {
   /** glow to draw the eye (Quick Start guide) */
   attention?: boolean
+  /** the ghost has just slammed it back ON by itself */
+  forced?: boolean
 }
 
-function PowerSwitch({ on, onToggle, attention = false }: PowerSwitchProps) {
+function PowerSwitch({ on, onToggle, attention = false, forced = false }: PowerSwitchProps) {
   const handlers = useToggleHandlers(onToggle)
   return (
     <div className="power">
@@ -83,6 +85,7 @@ function PowerSwitch({ on, onToggle, attention = false }: PowerSwitchProps) {
         className="mcb"
         data-on={on}
         data-attention={attention}
+        data-forced={forced}
         role="switch"
         aria-checked={on}
         aria-label="Main power"
@@ -412,22 +415,56 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
   )
 }
 
+/** Trapped: how long the screen stays dead before the breaker slams back ON, and how long the jolt lasts */
+export const POWER_LOCK_OFF_MS = 1000
+export const POWER_LOCK_JOLT_MS = 450
+
 /**
  * Top Panel: MCB power breaker | S-meter | DECODER slide switch.
  * Both switches read and write the global radio state (RadioContext); the
  * S-meter needle reacts to power and to the tuned frequency.
  */
 export default function TopPanel() {
-  const { frequency, isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
+  const { frequency, isPowerOn, isDecoderOn, isTrapped, togglePower, setIsPowerOn, toggleDecoder } = useRadio()
   const { isReceiving } = useMorseDecoder()
   const { attention, nudge } = usePowerHint()
+
+  /*
+   * The trap's power lock: once the ghost has you, the breaker won't stay
+   * off. It snaps down, the screen dies for a second, then the breaker
+   * slams itself back ON (with a jolt) and the screen comes back up. While
+   * that happens the breaker ignores you.
+   */
+  const [forced, setForced] = useState(false)
+  const lockTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const busy = useRef(false)
+  useEffect(() => () => lockTimers.current.forEach(clearTimeout), [])
 
   // The breaker is the ONLY control allowed to start audio (mobile autoplay policy).
   const onPower = useCallback(() => {
     unlockAudio()
+    if (busy.current) return // it's fighting you
+    if (isPowerOn && isTrapped) {
+      busy.current = true
+      playBreakerThunk(false)
+      setIsPowerOn(false)
+      lockTimers.current.push(
+        setTimeout(() => {
+          playBreakerThunk(true) // KA-CHUNK, by itself
+          setForced(true)
+          setIsPowerOn(true)
+          if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate([30, 40, 60])
+        }, POWER_LOCK_OFF_MS),
+        setTimeout(() => {
+          setForced(false)
+          busy.current = false
+        }, POWER_LOCK_OFF_MS + POWER_LOCK_JOLT_MS),
+      )
+      return
+    }
     playBreakerThunk(!isPowerOn) // KA-CHUNK
     togglePower()
-  }, [isPowerOn, togglePower])
+  }, [isPowerOn, isTrapped, setIsPowerOn, togglePower])
 
   // metal shoe scraping along the slide's track (silent until audio is unlocked).
   // It still slides with the power off; before the first power-on, show the guide.
@@ -440,7 +477,7 @@ export default function TopPanel() {
   return (
     <section className="top" aria-label="Top Panel">
       <div className="top__col top__col--power">
-        <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} />
+        <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} forced={forced} />
       </div>
       <div className="top__col top__col--meter">
         <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} />

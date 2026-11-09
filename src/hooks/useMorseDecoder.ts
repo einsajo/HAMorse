@@ -7,6 +7,9 @@ import { getBandInfo, hamStationAt } from '../constants'
 import type { Band, HamStationId } from '../constants'
 import { GHOST_TIMING, REPLY_TIMING, createStations, measureWpm } from '../utils/stations'
 import type { ReplyTiming, SentWord, Station, StationStorage, Transmission } from '../utils/stations'
+import { timingForWpm } from '../utils/stations'
+import { createGhostSession, ghostVoice } from '../utils/ghostAgent'
+import type { GhostSession } from '../utils/ghostAgent'
 
 /* --- Timing ---------------------------------------------------------------
    Gaps are measured from the most recent tap. They start deliberately longer
@@ -41,7 +44,9 @@ const ADAPT_WEIGHT = 0.3
    The timings (and every station's behaviour) live in src/utils/stations.ts. */
 export type { ReplyTiming } from '../utils/stations'
 export { REPLY_TIMING, GHOST_TIMING, TUTOR_REPLIES } from '../utils/stations'
-export const GHOST_REPLY = ' I C U '
+/** The ghost hears your whole over: it answers after K / KN / AR / SK / BK, TX SEND, or this much silence */
+export const GHOST_OVER_SILENCE_MS = 2500
+const GHOST_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
 /** How often the band is checked for a station that wants to transmit unprompted */
 export const IDLE_POLL_MS = 400
 
@@ -119,6 +124,12 @@ export interface MorseDecoderState {
    * CLR, retuning or power off.
    */
   simulateReply: (message: string, isGhost: boolean, timing?: ReplyTiming) => void
+  /**
+   * Key a reply AS IT STREAMS IN (an agent's tokens): characters are keyed as
+   * they arrive and the keying waits when it catches up. Resolves true when
+   * the whole stream has been keyed, false if it was cut off.
+   */
+  streamReply: (chunks: AsyncIterable<string>, isGhost: boolean, timing?: ReplyTiming) => Promise<boolean>
   /** Band the radio is tuned to */
   band: Band
   /** Ham operator on this exact frequency, if any */
@@ -132,6 +143,10 @@ interface DecoderOptions {
   symbolTimeoutMs?: number
   /** the slowest (initial) word gap */
   wordTimeoutMs?: number
+}
+
+async function* oneChunk(text: string): AsyncGenerator<string> {
+  yield text
 }
 
 const trimHistory = (text: string) => (text.length > MAX_MESSAGE_LENGTH ? text.slice(-MAX_MESSAGE_LENGTH) : text)
@@ -248,9 +263,18 @@ function useMorseDecoderEngine(
     if (msg !== '' && !msg.endsWith(' ')) setMessage(msg + ' ')
   }, [setMessage])
 
+  /** bumped by every new or stopped reply, so a stale stream can't keep keying */
+  const replyGen = useRef(0)
+  /** settles the running streamReply() promise (false = cut off) */
+  const replyDone = useRef<((finished: boolean) => void) | null>(null)
+
   const stopReply = useCallback(() => {
+    replyGen.current += 1
     if (replyTimer.current !== null) clearTimeout(replyTimer.current)
     replyTimer.current = null
+    const done = replyDone.current
+    replyDone.current = null
+    done?.(false)
     if (receivingRef.current) {
       receivingRef.current = false
       setIsReceiving(false)
@@ -278,68 +302,128 @@ function useMorseDecoderEngine(
     if (word) callbacksRef.current.onWordEnd?.(messageRef.current, { word, wpm })
   }, [appendSpace])
 
-  /** The auto-typer: recursive setTimeouts, one per element / gap */
-  const simulateReply = useCallback(
-    (message: string, isGhost: boolean, timing?: ReplyTiming) => {
+  /**
+   * The auto-typer, fed by a STREAM: characters are keyed (recursive
+   * setTimeouts, one per element / gap) as fast as they arrive, and when the
+   * keying catches up with the stream it simply waits for more, so an agent's
+   * reply is heard and typed live while it is still being written. Resolves
+   * true when the stream ends and the last character has been keyed, false if
+   * the reply was cut off (CLR, retune, power off, another reply).
+   */
+  const streamReply = useCallback(
+    (chunks: AsyncIterable<string>, isGhost: boolean, timing?: ReplyTiming): Promise<boolean> => {
       stopReply()
       clearTimers()
       setSymbol('')
       wordRef.current = ''
+      const gen = replyGen.current
+      const alive = () => replyGen.current === gen
       receivingRef.current = true
       setIsReceiving(true)
 
       const t = timing ?? (isGhost ? GHOST_TIMING : REPLY_TIMING)
       const tone = isGhost ? playGhostTone : (ms: number) => playTone(ms, t.toneHz)
-      const chars = [...message.toUpperCase()]
+      const jitter = Math.min(0.9, Math.max(0, t.jitter ?? 0))
+      /** an irregular fist: stretch or squeeze by up to `amount` */
+      const shake = (ms: number, amount = jitter) => (amount ? Math.max(8, ms * (1 + (Math.random() * 2 - 1) * amount)) : ms)
+
+      const chars: string[] = []
+      let ended = false
+      let waiting = false
+      let keyed = ''
       let i = 0
 
-      const schedule = (fn: () => void, ms: number) => {
-        replyTimer.current = setTimeout(fn, ms)
-      }
+      return new Promise<boolean>((resolve) => {
+        replyDone.current = resolve
+        const schedule = (fn: () => void, ms: number) => {
+          replyTimer.current = setTimeout(fn, ms)
+        }
 
-      const nextChar = () => {
-        if (i >= chars.length) {
-          stopReply()
-          markSent() // their text is not your draft
-          callbacksRef.current.onReplyEnd?.(message, isGhost)
-          return
-        }
-        const ch = chars[i++]
-        if (ch === ' ') {
-          appendSpace()
-          schedule(nextChar, t.wordGapMs)
-          return
-        }
-        const code = CHAR_TO_MORSE[ch]
-        if (!code) {
-          // nothing to key (shouldn't happen with the scripted replies): just print it
-          setMessage(messageRef.current + ch)
-          schedule(nextChar, t.charGapMs)
-          return
-        }
-        let j = 0
-        const nextElement = () => {
-          if (j >= code.length) {
-            setSymbol('')
-            setMessage(messageRef.current + ch)
-            schedule(nextChar, t.charGapMs)
+        const nextChar = () => {
+          if (!alive()) return
+          if (i >= chars.length) {
+            if (!ended) {
+              waiting = true // keyed everything so far: wait for the stream
+              return
+            }
+            replyDone.current = null
+            stopReply()
+            appendSpace() // whatever the agent sent, your next word starts fresh
+            markSent() // their text is not your draft
+            callbacksRef.current.onReplyEnd?.(keyed, isGhost)
+            resolve(true)
             return
           }
-          const el = code[j++]
-          const ms = el === '.' ? t.ditMs : t.dahMs
-          tone(ms)
-          setSymbol(symbolRef.current + el)
-          schedule(nextElement, ms + t.elementGapMs)
+          const ch = chars[i++]
+          keyed += ch
+          if (ch === ' ') {
+            appendSpace()
+            schedule(nextChar, shake(t.wordGapMs))
+            return
+          }
+          const code = CHAR_TO_MORSE[ch]
+          if (!code) {
+            // nothing to key (shouldn't happen: replies are sanitised): just print it
+            setMessage(messageRef.current + ch)
+            schedule(nextChar, shake(t.charGapMs))
+            return
+          }
+          let j = 0
+          const nextElement = () => {
+            if (!alive()) return
+            if (j >= code.length) {
+              setSymbol('')
+              setMessage(messageRef.current + ch)
+              schedule(nextChar, shake(t.charGapMs))
+              return
+            }
+            const el = code[j++]
+            const ms = shake(el === '.' ? t.ditMs : t.dahMs, jitter / 2)
+            tone(ms)
+            setSymbol(symbolRef.current + el)
+            schedule(nextElement, ms + shake(t.elementGapMs))
+          }
+          nextElement()
         }
-        nextElement()
-      }
 
-      // the reply starts on a fresh word
-      appendSpace()
-      markSent()
-      schedule(nextChar, t.leadInMs)
+        const wake = () => {
+          if (waiting && alive()) {
+            waiting = false
+            nextChar()
+          }
+        }
+
+        // read the stream as it comes
+        void (async () => {
+          try {
+            for await (const chunk of chunks) {
+              if (!alive()) return
+              chars.push(...chunk.toUpperCase())
+              wake()
+            }
+          } catch {
+            /* a broken stream just ends the reply where it got to */
+          } finally {
+            ended = true
+            wake()
+          }
+        })()
+
+        // the reply starts on a fresh word
+        appendSpace()
+        markSent()
+        schedule(nextChar, shake(t.leadInMs, Math.min(0.3, jitter)))
+      })
     },
     [appendSpace, clearTimers, markSent, setMessage, setSymbol, stopReply],
+  )
+
+  /** A whole message at once (the stations' replies): a one-chunk stream */
+  const simulateReply = useCallback(
+    (message: string, isGhost: boolean, timing?: ReplyTiming) => {
+      void streamReply(oneChunk(message), isGhost, timing)
+    },
+    [streamReply],
   )
 
   const handleTap = useCallback(
@@ -444,6 +528,7 @@ function useMorseDecoderEngine(
     isActive: canKey,
     isReceiving,
     simulateReply,
+    streamReply,
   }
 }
 
@@ -482,10 +567,13 @@ function browserStorage(): StationStorage | undefined {
  * The far end of every contact lives here too:
  *   - the ham operators (src/utils/stations.ts) hear you tune in, every word
  *     you send, and how long the band has been quiet (polled), and answer;
- *   - 104.40, the ghost: ... CQ -> " I C U " (slow, distorted), then the haunt.
+ *   - the wandering ghost (GHOST_FREQUENCY): anything you send goes to its
+ *     agent (src/utils/ghostAgent.ts), whose reply is keyed live AS IT STREAMS.
+ *     After its first reply you are trapped (RadioContext.isTrapped); when the
+ *     agent strikes (by its 4th reply at the latest) the haunt begins (isHaunted).
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
-  const { isPowerOn, isDecoderOn, frequency, setIsHaunted } = useRadio()
+  const { isPowerOn, isDecoderOn, frequency, isHaunted, setIsHaunted, isTrapped, setIsTrapped } = useRadio()
   const { band, canTransmit } = getBandInfo(frequency)
   const canKey = isPowerOn && canTransmit
   const station = hamStationAt(frequency)
@@ -521,16 +609,95 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
    * it has something to say to (the rest of the over is then moot).
    * Returns whether anyone answered.
    */
+  /* --- The ghost: a live (or scripted) agent ---------------------------------- */
+  const ghostSession = useRef<GhostSession | null>(null)
+  const ghostAbort = useRef<AbortController | null>(null)
+  const streamRef = useRef<MorseDecoderState['streamReply']>(() => Promise.resolve(false))
+  const hauntedRef = useRef(isHaunted)
+  hauntedRef.current = isHaunted
+  const trappedRef = useRef(isTrapped)
+  trappedRef.current = isTrapped
+
+  /** Hand what you sent to the ghost's agent and key its reply live as it streams */
+  const askGhost = useCallback(
+    (heard: string) => {
+      const session = (ghostSession.current ??= createGhostSession())
+      if (session.climaxed) return false
+      ghostAbort.current?.abort()
+      const abort = new AbortController()
+      ghostAbort.current = abort
+      const voice = ghostVoice(session.exchange)
+      let strikes = false
+      async function* tokens(): AsyncGenerator<string> {
+        for await (const ev of session.turn(heard, abort.signal)) {
+          if (ev.type === 'climax') strikes = true
+          else yield ev.text
+        }
+      }
+      const timing: ReplyTiming = {
+        ...timingForWpm(voice.charWpm, voice.effectiveWpm, voice.leadInMs, voice.toneHz),
+        jitter: voice.jitter,
+      }
+      void streamRef.current(tokens(), voice.distorted, timing).then((finished) => {
+        if (!finished) {
+          abort.abort() // cut off: stop the agent too
+          return
+        }
+        touch()
+        if (!trappedRef.current) setIsTrapped(true) // it has you now
+        if (strikes) setIsHaunted(true)
+      })
+      return true
+    },
+    [setIsHaunted, setIsTrapped, touch],
+  )
+
+  /*
+   * The ghost hears your whole over, not word by word (an agent needs the
+   * sentence): words collect until you end the over (K / KN / AR / SK / BK),
+   * press TX SEND, or go quiet for GHOST_OVER_SILENCE_MS.
+   */
+  const ghostOver = useRef<string[]>([])
+  const ghostOverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** set once the engine exists (it is created below) */
+  const busyRef = useRef<() => boolean>(() => false)
+  const stopGhostOverTimer = useCallback(() => {
+    if (ghostOverTimer.current !== null) clearTimeout(ghostOverTimer.current)
+    ghostOverTimer.current = null
+  }, [])
+  const endGhostOver = useCallback(() => {
+    stopGhostOverTimer()
+    const heard = ghostOver.current.join(' ').trim()
+    ghostOver.current = []
+    return heard ? askGhost(heard) : false
+  }, [askGhost, stopGhostOverTimer])
+  const armGhostOver = useCallback(() => {
+    stopGhostOverTimer()
+    const check = () => {
+      ghostOverTimer.current = null
+      const quiet = performance.now() - lastActivity.current
+      // still keying (or they're sending, or a draft is waiting): keep listening
+      if (busyRef.current() || quiet < GHOST_OVER_SILENCE_MS) {
+        ghostOverTimer.current = setTimeout(check, Math.max(150, GHOST_OVER_SILENCE_MS - quiet))
+        return
+      }
+      endGhostOver()
+    }
+    ghostOverTimer.current = setTimeout(check, GHOST_OVER_SILENCE_MS)
+  }, [endGhostOver, stopGhostOverTimer])
+
   const deliver = useCallback(
-    (words: readonly SentWord[]) => {
+    (words: readonly SentWord[], endOfOver = false) => {
       markSentRef.current()
-      if (!words.length) return false
       const f = frequencyRef.current
       if (getBandInfo(f).band === 'ghost') {
-        if (!words.some((w) => w.word === 'CQ')) return false
-        replyRef.current(GHOST_REPLY, true)
-        return true
+        if (hauntedRef.current) return false // it has said all it will say
+        ghostOver.current.push(...words.map((w) => w.word))
+        if (endOfOver || words.some((w) => GHOST_OVER_ENDINGS.has(w.word))) return endGhostOver()
+        if (ghostOver.current.length) armGhostOver()
+        return false
       }
+      if (!words.length) return false
       const id = hamStationAt(f)
       if (!id) return false
       for (const w of words) {
@@ -542,7 +709,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       }
       return false
     },
-    [stations, transmit],
+    [armGhostOver, endGhostOver, stations, transmit],
   )
 
   const onWordEnd = useCallback(
@@ -559,20 +726,17 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   )
 
   // when the ghost has finished sending (its last letter is "U"), the haunt begins
-  const onReplyEnd = useCallback(
-    (_message: string, isGhost: boolean) => {
-      touch()
-      if (isGhost) setIsHaunted(true)
-    },
-    [setIsHaunted, touch],
-  )
+  const onReplyEnd = useCallback(() => touch(), [touch])
 
   const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
   const { currentSymbol, decodedMessage, draftFrom, isActive, isReceiving, simulateReply, flush, receivingNow, pendingNow } = engine
   replyRef.current = simulateReply
+  streamRef.current = engine.streamReply
+  const streamReply = engine.streamReply
   markSentRef.current = engine.markSent
   /** you have keyed something that hasn't been sent yet */
   const hasDraftNow = useCallback(() => draftWords.current.length > 0 || pendingNow(), [pendingNow])
+  busyRef.current = () => receivingNow() || hasDraftNow()
   const canKeyRef = useRef(canKey)
   canKeyRef.current = canKey
 
@@ -619,10 +783,12 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const clear = useCallback(() => {
     engineClear()
     draftWords.current = []
+    ghostOver.current = []
+    stopGhostOverTimer()
     keyedSinceOver.current = false
     stopTxTimer()
     setTxStatus('idle')
-  }, [engineClear, stopTxTimer])
+  }, [engineClear, stopGhostOverTimer, stopTxTimer])
 
   const discardDraft = engine.discardDraft
   const clearButton = useCallback(() => {
@@ -649,7 +815,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     const words = draftWords.current.splice(0)
     if (!flushed && !words.length && !keyedSinceOver.current) return notice('empty')
     keyedSinceOver.current = false
-    const answered = deliver(words)
+    const answered = deliver(words, true) // TX SEND ends the over
     // hand it over explicitly (Bob waits for the end of your over)
     const id = hamStationAt(f)
     if (!answered && id && !receivingNow()) transmit(stations[id].onOver?.() ?? null)
@@ -669,6 +835,13 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   }, [deliver, flush, isPowerOn, notice, receivingNow, stations, stopTxTimer, touch, transmit])
 
   useEffect(() => stopTxTimer, [stopTxTimer])
+  useEffect(
+    () => () => {
+      ghostAbort.current?.abort()
+      stopGhostOverTimer()
+    },
+    [stopGhostOverTimer],
+  )
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
     ? 'off'
@@ -716,8 +889,8 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   }, [hasDraftNow, isPowerOn, receivingNow, station, stations, touch, transmit])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status }),
-    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, streamReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, streamReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

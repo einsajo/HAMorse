@@ -3,6 +3,117 @@ import DustCanvas from './DustCanvas'
 import { formatFrequency, useRadio } from '../context/RadioContext'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { TxStatus } from '../hooks/useMorseDecoder'
+import type { CSSProperties } from 'react'
+
+/* --- The haunt: shattered glass and black liquid -------------------------------
+   Drawn once (deterministic, so it never changes between renders): cracks
+   radiating from an off-centre impact, two rings of concentric fractures
+   joining them, a few glinting shards, and the viscous #050505 liquid that
+   crawls down the glass. Only shown in the corrupted phase (App.css /
+   LCDDisplay.css: .stage[data-haunt='corrupt']). */
+const GLASS_W = 400
+const GLASS_H = 130
+const IMPACT = { x: 268, y: 50 }
+
+function seeded(seed: number) {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const SHATTER = (() => {
+  const rng = seeded(1984)
+  const rays = 13
+  const reach = Math.hypot(GLASS_W, GLASS_H)
+  const angles = Array.from({ length: rays }, (_, i) => ((i + rng() * 0.6) / rays) * Math.PI * 2)
+  // each crack: a jagged polyline out to (past) the edge of the glass
+  const cracks = angles.map((a) => {
+    const pts: [number, number][] = [[IMPACT.x, IMPACT.y]]
+    let r = 0
+    let ang = a
+    while (r < reach) {
+      r += 14 + rng() * 26
+      ang += (rng() - 0.5) * 0.22
+      pts.push([IMPACT.x + Math.cos(ang) * r, IMPACT.y + Math.sin(ang) * r])
+    }
+    return pts
+  })
+  const at = (crack: [number, number][], k: number) => crack[Math.min(crack.length - 1, k)]
+  // concentric fractures: join neighbouring cracks a few segments out
+  const rings = [1, 3].map((k) =>
+    cracks.map((c, i) => {
+      const p = at(c, k + (rng() < 0.3 ? 1 : 0))
+      const q = at(cracks[(i + 1) % cracks.length], k)
+      const mx = (p[0] + q[0]) / 2 + (rng() - 0.5) * 8
+      const my = (p[1] + q[1]) / 2 + (rng() - 0.5) * 8
+      return `M${p[0].toFixed(1)} ${p[1].toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${q[0].toFixed(1)} ${q[1].toFixed(1)}`
+    }),
+  )
+  // glinting shards near the impact
+  const shards = cracks
+    .map((c, i) => ({ c, n: cracks[(i + 1) % cracks.length] }))
+    .filter(() => rng() < 0.5)
+    .map(({ c, n }) => [at(c, 0), at(c, 1), at(n, 1)].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '))
+  const line = (pts: [number, number][]) => 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L')
+  return { cracks: cracks.map(line), rings: rings.flat(), shards }
+})()
+
+/** The drips: [left %, width cqw, final length %, duration s, delay s] */
+const DRIPS: readonly (readonly [number, number, number, number, number])[] = [
+  [6, 1.6, 72, 7.5, 0.2],
+  [17, 1.0, 46, 9, 1.4],
+  [29, 2.2, 96, 6.5, 0],
+  [41, 1.2, 58, 8.5, 2.2],
+  [55, 1.8, 84, 7, 0.8],
+  [66, 1.0, 38, 10, 3],
+  [78, 2.4, 104, 6, 0.4],
+  [90, 1.3, 64, 8, 1.8],
+]
+
+function HauntGlass() {
+  return (
+    <div className="lcd__haunt" aria-hidden="true">
+      <div className="lcd__drips">
+        {DRIPS.map(([x, w, len, dur, delay]) => (
+          <span
+            key={x}
+            className="lcd__drip"
+            style={{ '--x': `${x}%`, '--w': `${w}cqw`, '--len': `${len}%`, '--dur': `${dur}s`, '--delay': `${delay}s` } as CSSProperties}
+          />
+        ))}
+      </div>
+      <svg className="lcd__shatter" viewBox={`0 0 ${GLASS_W} ${GLASS_H}`} preserveAspectRatio="none">
+        <defs>
+          {/* merges the drips into one viscous mass */}
+          <filter id="lcd-goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" />
+          </filter>
+        </defs>
+        {SHATTER.shards.map((pts) => (
+          <polygon key={pts} className="lcd__shard" points={pts} />
+        ))}
+        {/* each crack: a dark fracture with a light edge where it catches the light */}
+        <g className="lcd__crack-shadow">
+          {[...SHATTER.cracks, ...SHATTER.rings].map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </g>
+        <g className="lcd__crack">
+          {[...SHATTER.cracks, ...SHATTER.rings].map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </g>
+        <circle className="lcd__impact" cx={IMPACT.x} cy={IMPACT.y} r="5" />
+      </svg>
+    </div>
+  )
+}
 
 /**
  * Amber LCD display panel.
@@ -95,7 +206,7 @@ function Annunciator({ tx, rx, draft }: { tx: TxStatus; rx: boolean; draft: bool
 }
 
 export default function LCDDisplay() {
-  const { frequency, isPowerOn } = useRadio()
+  const { frequency, isPowerOn, isHaunted } = useRadio()
   const { currentSymbol, decodedMessage, draftFrom, status, isReceiving, txStatus } = useMorseDecoder()
   // what's been sent / received, and your unsent draft after it (underlined)
   const sentText = decodedMessage.slice(0, draftFrom)
@@ -151,6 +262,9 @@ export default function LCDDisplay() {
               </span>
             </span>
           </div>
+
+          {/* the haunt: the glass shatters and something black seeps down it */}
+          {isHaunted && <HauntGlass />}
 
           {/* permanent, un-wipeable stain/fog baked into the old glass */}
           <span className="lcd__stain" aria-hidden="true" />

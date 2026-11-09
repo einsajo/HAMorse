@@ -25,7 +25,7 @@
     - **Broadcast stations (89.30 / 93.50 / 98.10):** pinned at S9 with a slight carrier waver.
     - **Ham band (100.00-103.50):** flutters actively around S4-S7.
     - **A ham operator sending to you:** a strong, close signal kicking around S8 (`keying` mode) until the transmission ends.
-    - **Ghost frequency (104.40):** slams to the +40 dB stop, bounces, then stays pinned.
+    - **Ghost frequency (wandering, see 3c):** slams to the +40 dB stop, bounces, then stays pinned.
     - **Dead air (everywhere else):** drops to around S1, dipping toward 0.
     - Later (Phase 3): tracks the received audio level.
 - **Right (Decoder Switch):** A horizontal slide switch labelled `DECODER` above it, with `OFF` on the left and `ON` on the right.
@@ -110,13 +110,13 @@
 
 ## 3. Core Mechanics & Audio
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
-- **Static:** Continuous white noise (with sparse crackle) through a ~1 kHz bandpass, like muffled AM static. Loudness follows the band: dead air 100%, ham band 50%, broadcasters 20%, and only 10% on 104.40, so the ghost station is eerily quiet and clear. Silent when the power is OFF.
-- **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or 104.40 with the power ON, including with the DECODER OFF, so practised users can train by ear. Other operators come through the same sidetone at their own beat note (620-820 Hz), as on a real receiver; your own keying is always 700 Hz.
+- **Static:** Continuous white noise (with sparse crackle) through a ~1 kHz bandpass, like muffled AM static. Loudness follows the band: dead air 100%, ham band 50%, broadcasters 20%, and only 10% on the ghost's frequency, so the ghost station is eerily quiet and clear. Silent when the power is OFF.
+- **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or the ghost's frequency with the power ON, including with the DECODER OFF, so practised users can train by ear. Other operators come through the same sidetone at their own beat note (620-820 Hz), as on a real receiver; your own keying is always 700 Hz.
 - **Mechanical Foley (synthesised, no files), physically modelled so it never sounds like a synth:** a strike (a contact pulse with a little noise grain) rings a bank of resonators tuned to the parts (dome, case, panel); friction is a stream of stick-slip ticks whose density and loudness follow the part's speed; every play is jittered (pitch, level, timing) so no two presses match; all of it plays into a small synthesised room. The MCB: handle rub, latch crack ringing the phenolic case, the stop knocking through the DIN rail, the contacts closing (ON only), a faint spring ring. The DECODER slide: stick-slip ticks along the rails into a detent click. REF / CLR / TX SEND: a click going down (dome collapse, contact bounce, plunger knock) and a lighter, higher one coming back up; the VFO a ball tipping over a crest and knocking into its pocket every 0.05 MHz (muffled, about half its energy below 1 kHz so phones still play it; firmer, with a settle, at a station). The reference card is driven millisecond by millisecond by its actual speed, computed from the same keyframes as the CSS animation: rough pink-noise paper friction whose loudness and brightness follow the speed (dull when slow, airy when fast), the slot and cabinet resonating behind it (~340 / 780 / 1450 Hz), stick-slip judder whenever it crawls (easing into the catch and during the strain wobble while stuck), a low buckle "thup" and edge flick as it breaks free, then a soft slap as it lands (or a dull tap as it tucks home); shaded a little, since it is behind the chassis. Until the MCB has been operated no audio exists at all (autoplay policy).
 - **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are keyed and decoded whenever the radio is powered and on a transmit frequency. The DECODER only controls the display.
 - **Reserved receive-only slots (`RESERVED_RX_FREQUENCIES`):** 100.65, 101.35, 102.05, 102.75, one midway in each gap between operators, kept for content to be mapped later. For now each is a silent carrier: band `reserved`, the S-meter steady at S5, static at 35%, the LCD `RX ONLY`, keying does nothing, TX SEND → `INHIBIT`. Each has a narrow detent; the rest of each gap stays open band.
-- **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-103.50 (inclusive) and the ghost frequency 104.40 allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
-- **Decoder gating:** taps are keyed and decoded only on the ham band or exactly on 104.40, with the power ON (DECODER ON or OFF). On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
+- **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-103.50 (inclusive) and the (wandering) ghost frequency allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
+- **Decoder gating:** taps are keyed and decoded only on the ham band or exactly on the ghost's frequency, with the power ON (DECODER ON or OFF). On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
 - **Retuning:** any frequency change instantly clears the decoded message, the half-keyed letter and any unsent draft.
 - **Draft (DECODER ON):** your unsent words are underlined (dotted) on the LCD and the annunciator pulses `PRESS TX`. Stations never transmit unprompted (CQ, nudges, the next bulletin) while a draft is waiting. `CLR` wipes only the draft the first time (fix a mistake, keep the conversation); with no draft it clears the screen.
 - **Timing:** Gaps are measured from the last tap. They start generous for beginners (600ms of silence ends a letter, 1400ms a word: one space, never leading or doubled) and **adapt to the operator** like a real CW decoder: the letter gap is ~4x the running average of the tap interval inside a letter (never below 320ms), and the word gap is 2.4x the letter gap (at most 1400ms). A fast operator is therefore not capped at ~12 WPM.
@@ -128,7 +128,7 @@
 ## 3a. Interactive Transmissions (the reply engine)
 - **Incoming replies** are keyed out loud element by element (you hear every dit and dah), shown live on the LCD as they build, then committed letter by letter. While another station is sending, the paddles are locked out and the LCD cursor is hidden. CLR, retuning or power OFF cut a reply off.
 - **Tutor, 101.00 MHz** (a practice station inside the ham band, with its own tuning detent): when your last word is `HI` it answers `GUD COPY. SEND SOS`; when it is `SOS` it answers `FB. 73.` (fine business, best regards). Brisk, clean 700 Hz: 60/180 ms dit/dah, 150 ms between characters.
-- **Ghost, 104.40 MHz:** when your last word is `CQ` it answers ` I C U `, agonisingly slowly (500 ms between characters, 120/360 ms elements) in a lower, sagging, beating, distorted tone. When it finishes the `U`, the global `isHaunted` state becomes true (the trigger for Section 4).
+- **Ghost (wandering frequency):** its replies come from an agent, streamed and keyed live: see Section 3c.
 - Replies trigger on a whole *word* you send (so `CHI` is not `HI`): with the DECODER ON when you press TX SEND, with it OFF when you pause after the word. A station answers the first word of your over it has something to say to.
 
 ## 3b. The Ham Band Operators (beginner to pro)
@@ -146,9 +146,40 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
 - Retuning or power OFF cancels any transmission; the next tune-in restarts the station's greeting / call.
 
 
+## 3c. The Agentic Ghost (the wandering frequency and its brain)
+- **The wandering ghost:** `GHOST_FREQUENCY` is chosen at random every time the app loads (`pickGhostFrequency`), on the dial's 0.05 MHz grid, within 88.00-108.00. It stays at least **0.50 MHz** from every broadcaster, operator and reserved slot (which rules out the whole ham band) and **1.00 MHz** from the 88.50 power-on spot. It keeps a broadcaster's wide detent (0.20 / 0.32 MHz).
+- **Finding it by ear (proximity audio):** within **0.80 MHz**, the static fades out in proportion to closeness and a low, detuned drone fades in (by the square of the closeness, so it creeps in).
+  - The drone: saws at 55 / 55.7 Hz beating, a flat fifth (82.1 Hz), a sub (36.7 Hz), a drifting tritone (77.8 Hz), and a thin detuned hum at 220 / 221.3 Hz so phone speakers can play it, all through a slowly breathing resonant low-pass.
+  - **Exactly on the frequency the drone stops dead**, the static drops to its eerie 10%, and the S-meter pins at +40 dB.
+- **The brain (`src/utils/ghostAgent.ts`) is pluggable:**
+  - **A live agent** at `VITE_GHOST_AGENT_URL`: an LLM behind a serverless proxy or an MCP / agent bridge, so the browser never holds a key. The endpoint receives `{ system: GHOST_PERSONA_PROMPT, exchange, heard, history, maxExchanges }` and streams NDJSON or SSE lines: `{"text":"..."}` tokens, and `{"climax":true}` when the ghost strikes.
+  - **One plugged in at runtime:** `registerGhostBrain(brain)` / `window.__ghostBrain`.
+  - **Otherwise, the scripted ghost:** the same persona as a state machine, streaming its reply token by token after a "thinking" pause, like an LLM. It is also the fallback whenever a live agent fails before its first word, so the ghost never goes silent.
+- **Persona:**
+  - Reply 1: a perfectly normal ham (`GE OM. UR 599 HR. FB SIG. NAME? K`).
+  - Reply 2: polite but wrong (it's late, are you alone, your name repeated).
+  - Reply 3: erratic and obsessive (it hears you breathing, won't let you tune away), with stuttered and garbled words.
+  - Reply 4: it strikes.
+  - Trying to leave (73 / SK / QRT / SOS) after the first exchange makes it strike at once. It uses your name against you.
+- **Its voice sours:** reply 1 is a clean, ordinary tone at 18/15 WPM with a steady fist. From reply 2 it uses the distorted ghost tone, slower, with an increasingly irregular fist (timing jitter 0.18 → 0.38 → 0.6).
+- **Streaming:** the agent's tokens are piped straight into the reply engine (`streamReply`). Each character is keyed and typed on the LCD as soon as it arrives, while the agent is still writing.
+- **It hears your whole over:** your words collect until you end the over (`K` / `KN` / `AR` / `SK` / `BK`), press TX SEND, or go quiet for 2.5s.
+- **Session rules (whatever the brain):** only Morse-keyable text (A-Z 0-9 space . , ? /), at most 64 characters per reply, and the climax by the 4th reply at the latest.
+- **The trap (`RadioContext.isTrapped`):** set after the ghost's first reply.
+  - **VFO lock:** `setFrequency` refuses every change, so the LCD stays on the ghost. The knob still turns under the finger (a slipping clutch, `--vfo-slip`) and springs back, overshooting, when released.
+  - **Trap rumble:** every degree of forced travel builds a low grinding rumble from the cabinet (brown noise, a 230 Hz groan band, a 41 Hz growl chopped at 7 Hz). It grows the longer you fight and dies away when you stop. The arrow keys don't help either.
+  - **Power lock:** switching the breaker OFF works for a moment: the handle snaps down and the screen dies. 1s later the breaker slams itself back ON (a hard snap, a jolt of the whole block, a haptic buzz) and the screen powers back up. Presses during that time are ignored.
+
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
-- **Trigger:** When tuned to 104.4 MHz, transmitting text triggers an AI (or scripted fallback) response. During the final response line, execute the "Liquid Crystal Bleed" visual override.
-- **The Blackout:** Chassis brightness drops by 90%. The amber backlight dies.
-- **The Bleed:** A pitch-black, viscous SVG/CSS fluid animates, leaking down from the cracked LCD screen over the metal chassis.
-- **The Glitch:** The serial plate text scrambles to `SER: D34D-S0UL`. The S-Meter needle violently pins to the red maximum.
-- **The Audio:** The incoming Morse audio rapidly increases in speed and pitch-shifts erratically before the MCB power switch trips itself OFF (handle snaps down), returning the app to dead silence.
+- **Trigger:** the ghost's agent strikes (`{"climax":true}`, or its 4th reply). Once that reply has been keyed, `isHaunted` becomes true.
+- **Blackout (800ms):** a black veil over everything, and **total silence**: the master output is cut, so no static, no drone, nothing.
+- **The flash:** ONE blinding white flash, fading over 0.7s. A single flash stays inside the 3-flashes-per-second photosensitive limit; with reduced motion it is dimmer and softer.
+  - **BANG:** deafening and metallic: a body blow through the cabinet, a crack, falling debris, and a long inharmonic ring of steel.
+  - **Screech:** mixed in, a high-pitched **2000 Hz feedback howl** (two beating sines, slightly overdriven, howling in and drifting sharp over ~3s).
+  - The master limiter keeps it startling, not harmful.
+- **Corrupted:**
+  - The LCD backlight burns a dark, sick red, with a slow smoulder, never a strobe.
+  - An inline SVG **shattered glass** effect: cracks radiating from an off-centre impact, concentric fractures and glinting shards.
+  - **#050505 black viscous liquid** seeps in under the top bezel and drips slowly down the glass: eight drips, 6-10s each, with heavy drops at the tips, merged by an SVG goo filter.
+- **The reference card is forcibly ejected:** blown out of its slot by the blast, with overshoot and shake.
+- **Still to come (Phase 4b):** the serial plate scrambling to `SER: D34D-S0UL`, and the breaker finally tripping itself OFF into dead silence.

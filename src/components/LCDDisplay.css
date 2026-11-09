@@ -445,3 +445,153 @@
     animation: none;
   }
 }
+
+/* ==========================================================================
+   The haunt, corrupted phase (.stage[data-haunt='corrupt']): the backlight
+   burns a dark, sick red, the glass is shattered and black #050505 liquid
+   crawls slowly down it. The flicker is a slow, low-contrast smoulder
+   (well under 3 changes a second), never a strobe.
+   ========================================================================== */
+.lcd__haunt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  visibility: hidden;
+  container-type: size;
+}
+
+.stage[data-haunt='corrupt'] .lcd__haunt {
+  visibility: visible;
+}
+
+.stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass {
+  background:
+    /* scanlines still there, now over a burnt red */
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(ellipse 70% 80% at 62% 40%, #6e0f0b 0%, #3d0605 55%, #1a0202 100%);
+  animation: lcd-smoulder 2.6s ease-in-out infinite;
+}
+
+.stage[data-haunt='corrupt'] .lcd__ghost {
+  color: rgba(30, 0, 0, 0.35);
+}
+
+@keyframes lcd-smoulder {
+  0%, 100% { filter: brightness(1) saturate(1.1); }
+  40% { filter: brightness(0.82) saturate(1.25); }
+  55% { filter: brightness(0.9) saturate(1.15); }
+}
+
+/* --- cracks --- */
+.lcd__shatter {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lcd__crack-shadow,
+.lcd__crack {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lcd__crack-shadow {
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 1.6;
+  transform: translate(0.6px, 0.8px);
+}
+
+.lcd__crack {
+  stroke: rgba(255, 214, 200, 0.55);
+  stroke-width: 0.7;
+}
+
+.lcd__shard {
+  fill: rgba(255, 220, 210, 0.07);
+  stroke: none;
+}
+
+.lcd__impact {
+  fill: rgba(255, 235, 225, 0.35);
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 1.2;
+}
+
+/* --- the black liquid --- */
+.lcd__drips {
+  position: absolute;
+  inset: 0;
+  filter: url(#lcd-goo);
+}
+
+/* seeping in under the top bezel */
+.lcd__drips::before {
+  content: '';
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 0;
+  height: 9%;
+  background:
+    radial-gradient(ellipse 9% 120% at 8% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
+    radial-gradient(ellipse 7% 140% at 30% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
+    radial-gradient(ellipse 11% 110% at 56% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
+    radial-gradient(ellipse 8% 150% at 79% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
+    linear-gradient(#050505 0 35%, rgba(5, 5, 5, 0) 36%);
+  transform-origin: top;
+  animation: lcd-seep 2.4s ease-out both;
+}
+
+.lcd__drip {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: var(--w);
+  height: 0;
+  border-radius: 0 0 999px 999px;
+  /* viscous black with a faint wet highlight down one side */
+  background: linear-gradient(90deg, #050505 0 28%, #232323 42%, #050505 58%);
+  animation: lcd-drip var(--dur) cubic-bezier(0.55, 0, 0.75, 0.6) var(--delay) forwards;
+}
+
+/* the heavy drop gathering at the tip */
+.lcd__drip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--w) * -1.2);
+  width: 170%;
+  aspect-ratio: 1 / 1.2;
+  border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+  background: radial-gradient(circle at 35% 35%, #2a2a2a 0, #050505 40%);
+  transform: translateX(-50%);
+}
+
+@keyframes lcd-seep {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes lcd-drip {
+  0% { height: 0; }
+  12% { height: calc(var(--len) * 0.08); } /* it clings at first... */
+  100% { height: var(--len); }              /* ...then sags, slowly, all the way */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass {
+    animation: none;
+  }
+
+  .lcd__drip {
+    animation-duration: 1ms;
+    animation-delay: 0s;
+  }
+
+  .lcd__drips::before {
+    animation: none;
+  }
+}

@@ -617,3 +617,28 @@
 .decoder__plate[data-on='true'] .decoder__thumb {
   --slide: 1;
 }
+
+/* Trapped: the breaker slams itself back ON. The handle snaps up hard (no
+   easing) and the whole block jolts in its mounting. */
+.mcb[data-forced='true'] .mcb__handle {
+  transition-duration: 30ms;
+}
+
+.mcb[data-forced='true'] {
+  animation: mcb-jolt 450ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes mcb-jolt {
+  0% { translate: 0 0; rotate: 0deg; }
+  12% { translate: 0 -3px; rotate: -1.6deg; }
+  26% { translate: 1px 2px; rotate: 1.2deg; }
+  42% { translate: -1px -1px; rotate: -0.7deg; }
+  60% { translate: 0 1px; rotate: 0.35deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcb[data-forced='true'] {
+    animation: none;
+  }
+}
