@@ -5,6 +5,7 @@ import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
 import { DETENT_FREQUENCIES } from '../constants'
 import { playClick } from '../utils/audioEngine'
+import { usePowerHint } from '../hooks/usePowerHint'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 /*
@@ -201,8 +202,11 @@ function useVfoDrag(
   frequency: number,
   setFrequency: (mhz: number) => void,
   targets: readonly number[] = TARGET_FREQUENCIES,
+  onRelease?: () => void,
 ) {
   const [dragging, setDragging] = useState(false)
+  const onReleaseRef = useRef(onRelease)
+  onReleaseRef.current = onRelease
   const dragRef = useRef<DragState | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
   const freqRef = useRef(frequency)
@@ -259,6 +263,7 @@ function useVfoDrag(
         dragRef.current = null
         stopRef.current = null
         setDragging(false)
+        onReleaseRef.current?.()
       }
 
       const onEnd = (ev: PointerEvent) => {
@@ -283,8 +288,13 @@ function useVfoDrag(
  * and shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
-  const { frequency, setFrequency } = useRadio()
-  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency)
+  const { frequency, setFrequency, isPowerOn } = useRadio()
+  const { nudge } = usePowerHint()
+  // the dial turns with the power off (it is mechanical); on release, before
+  // the first power-on, the Quick Start guide explains why nothing shows
+  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency, TARGET_FREQUENCIES, () => {
+    if (!isPowerOn) nudge()
+  })
   const angle = freqToAngle(frequency)
 
   // tick whenever the frequency crosses into a new 0.05 MHz step (any cause: drag or keys)

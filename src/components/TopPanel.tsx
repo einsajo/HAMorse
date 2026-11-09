@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
 import { useRadio } from '../context/RadioContext'
-import { playClick, unlockAudio } from '../utils/audioEngine'
+import { playBreakerClick, playClick, unlockAudio } from '../utils/audioEngine'
+import { usePowerHint } from '../hooks/usePowerHint'
 import { getBandInfo } from '../constants'
 import type { Band } from '../constants'
 
@@ -53,7 +54,12 @@ interface SwitchProps {
   onToggle: () => void
 }
 
-function PowerSwitch({ on, onToggle }: SwitchProps) {
+interface PowerSwitchProps extends SwitchProps {
+  /** glow to draw the eye (Quick Start guide) */
+  attention?: boolean
+}
+
+function PowerSwitch({ on, onToggle, attention = false }: PowerSwitchProps) {
   const handlers = useToggleHandlers(onToggle)
   return (
     <div className="power">
@@ -75,6 +81,7 @@ function PowerSwitch({ on, onToggle }: SwitchProps) {
       <div
         className="mcb"
         data-on={on}
+        data-attention={attention}
         role="switch"
         aria-checked={on}
         aria-label="Main power"
@@ -397,25 +404,27 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
  */
 export default function TopPanel() {
   const { frequency, isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
+  const { attention, nudge } = usePowerHint()
 
-  // The breaker is the ONLY control allowed to start audio (mobile autoplay
-  // policy). Throwing it ON is a higher, snappier thunk; OFF a lower, duller one.
+  // The breaker is the ONLY control allowed to start audio (mobile autoplay policy).
   const onPower = useCallback(() => {
     unlockAudio()
-    playClick(isPowerOn ? 140 : 190, 0.9)
+    playBreakerClick(!isPowerOn)
     togglePower()
   }, [isPowerOn, togglePower])
 
-  // the slide's detent: a lighter metallic click (silent until audio is unlocked)
+  // the slide's detent: a lighter metallic click (silent until audio is unlocked).
+  // It still slides with the power off; before the first power-on, show the guide.
   const onDecoder = useCallback(() => {
+    if (!isPowerOn) nudge()
     playClick(isDecoderOn ? 1500 : 1800, 0.45)
     toggleDecoder()
-  }, [isDecoderOn, toggleDecoder])
+  }, [isPowerOn, isDecoderOn, nudge, toggleDecoder])
 
   return (
     <section className="top" aria-label="Top Panel">
       <div className="top__col top__col--power">
-        <PowerSwitch on={isPowerOn} onToggle={onPower} />
+        <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} />
       </div>
       <div className="top__col top__col--meter">
         <SMeter isPowerOn={isPowerOn} frequency={frequency} />
