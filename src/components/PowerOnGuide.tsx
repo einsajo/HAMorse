@@ -100,7 +100,8 @@ export default function PowerOnGuide() {
           </li>
           <li>
             Turn the <b>VFO</b> dial to tune. Broadcast stations are receive-only; transmit on the{' '}
-            <b>HAM band, 100.00–102.00&nbsp;MHz</b>.
+            <b>HAM band, 100.00–102.00&nbsp;MHz</b>. A practice station listens on <b>101.00</b>: send{' '}
+            <b>HI</b>.
           </li>
           <li>
             Tap <b>DIT (·)</b> and <b>DAH (–)</b> to send Morse. You'll hear a 700&nbsp;Hz tone.

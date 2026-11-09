@@ -125,6 +125,72 @@ export function createSidetone(ctx: BaseAudioContext, destination: AudioNode, pe
   return { key, oscillator, gain }
 }
 
+/* --- The ghost's tone ------------------------------------------------------------ */
+/**
+ * What the thing on 104.40 sounds like: not a clean 700 Hz sidetone but a
+ * lower, sagging, beating tone. Two detuned oscillators (~7 Hz beat) share a
+ * slow wobbling vibrato, the pitch sags as each element is held, and the
+ * whole lot is lightly overdriven and band-limited like a failing receiver.
+ */
+const GHOST_TONE_HZ = 540
+/** Soft-clip transfer curve (type inferred, so it fits WaveShaperNode.curve on every TS version) */
+function makeDriveCurve() {
+  const curve = new Float32Array(1024)
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1
+    curve[i] = Math.tanh(2.4 * x) / Math.tanh(2.4)
+  }
+  return curve
+}
+let driveCurve: ReturnType<typeof makeDriveCurve> | null = null
+
+export function scheduleGhostTone(ctx: BaseAudioContext, destination: AudioNode, durationMs: number, when = ctx.currentTime): void {
+  const dur = Math.max(0.02, durationMs / 1000)
+  const edge = 0.008
+  const env = ctx.createGain()
+  env.gain.value = 0
+  env.gain.setValueAtTime(0, when)
+  env.gain.linearRampToValueAtTime(0.24, when + edge)
+  env.gain.setValueAtTime(0.24, when + dur - edge)
+  env.gain.linearRampToValueAtTime(0, when + dur)
+
+  const drive = ctx.createWaveShaper()
+  drive.curve = driveCurve ??= makeDriveCurve()
+  const band = ctx.createBiquadFilter()
+  band.type = 'bandpass'
+  band.frequency.value = 900
+  band.Q.value = 0.45
+  drive.connect(band).connect(env).connect(destination)
+
+  // a slow, uneven vibrato shared by both voices
+  const lfo = ctx.createOscillator()
+  lfo.type = 'sine'
+  lfo.frequency.value = 4.6 + Math.random() * 1.2
+  const lfoDepth = ctx.createGain()
+  lfoDepth.gain.value = 16
+
+  const voices: OscillatorNode[] = []
+  for (const detune of [0, 7]) {
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    const f = GHOST_TONE_HZ + detune
+    osc.frequency.setValueAtTime(f, when)
+    osc.frequency.linearRampToValueAtTime(f * 0.955, when + dur) // the pitch sags as it is held
+    lfo.connect(lfoDepth).connect(osc.frequency)
+    const pre = ctx.createGain()
+    pre.gain.value = 0.55
+    osc.connect(pre).connect(drive)
+    osc.start(when)
+    osc.stop(when + dur + 0.02)
+    voices.push(osc)
+  }
+  lfo.start(when)
+  lfo.stop(when + dur + 0.02)
+  voices[0].onended = () => {
+    for (const n of [...voices, lfo, lfoDepth, drive, band, env]) n.disconnect()
+  }
+}
+
 /* --- Foley toolkit --------------------------------------------------------------- */
 type Ctx = BaseAudioContext
 
@@ -534,6 +600,12 @@ export function staticLevelFor(band: Band, isPowerOn: boolean): number {
 export function playTone(durationMs: number): void {
   if (!(durationMs > 0)) return
   whenRunning((e) => e.sidetone.key(durationMs, e.ctx.currentTime))
+}
+
+/** The ghost's distorted, sagging tone for one Morse element */
+export function playGhostTone(durationMs: number): void {
+  if (!(durationMs > 0)) return
+  whenRunning((e) => scheduleGhostTone(e.ctx, e.master, durationMs, e.ctx.currentTime))
 }
 
 /* --- Public Foley API ---------------------------------------------------------- */

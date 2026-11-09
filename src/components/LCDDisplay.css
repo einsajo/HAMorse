@@ -261,6 +261,11 @@
   animation: lcd-cursor 1.06s steps(1, end) infinite;
 }
 
+/* another station is sending: no cursor (it's their turn, the paddles are locked) */
+.lcd__row--buffer[data-receiving='true'] .lcd__cursor {
+  visibility: hidden;
+}
+
 @keyframes lcd-cursor {
   0%, 55% { opacity: 0.85; }
   56%, 100% { opacity: 0; }

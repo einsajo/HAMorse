@@ -9,6 +9,8 @@
  *   node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict
  *
  * Dit = "." and dah = "-". Keys are Morse codes, values are characters.
+ * A-Z and 0-9 are required (and validated); a little punctuation is included
+ * so the reply stations can send it.
  */
 export const MORSE_DICTIONARY: Readonly<Record<string, string>> = Object.freeze({
   // letters
@@ -49,6 +51,11 @@ export const MORSE_DICTIONARY: Readonly<Record<string, string>> = Object.freeze(
   '--...': '7',
   '---..': '8',
   '----.': '9',
+  // punctuation used on air (e.g. "GUD COPY.", "FB. 73.")
+  '.-.-.-': '.',
+  '--..--': ',',
+  '..--..': '?',
+  '-..-.': '/',
 })
 
 /** Reverse lookup: character -> Morse code (e.g. 'A' -> '.-') */

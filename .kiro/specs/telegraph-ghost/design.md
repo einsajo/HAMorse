@@ -84,12 +84,27 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
   the row left-aligned; longer text overflows to the *left*, so the newest
   characters stay at the right edge.
 
+### 2.2a Reply engine (`useMorseDecoder`)
+
+- **`simulateReply(message, isGhost)`** sets `isReceiving` (paddles locked),
+  then walks the message with recursive `setTimeout`s: for each character it
+  looks up `CHAR_TO_MORSE`, keys every element (`playTone` / `playGhostTone`),
+  grows `currentSymbol` live, then appends the character to `decodedMessage`.
+  Spaces are word gaps.
+- **Timing:** `REPLY_TIMING` (lead-in 700, dit 60 / dah 180, element gap 60,
+  char gap 150, word gap 420 ms) and `GHOST_TIMING` (lead-in 1600, 120 / 360,
+  120, char gap 500, word gap 1000 ms).
+- **Triggers** run in the word-timeout handler (`onWordEnd`) using the latest
+  frequency: tutor `TUTOR_FREQUENCY` 101.00 (`HI`, `SOS`), ghost 104.40
+  (`CQ`). `onReplyEnd` for the ghost sets `isHaunted` in `RadioContext`.
+- **Interruptions:** `clear()` (CLR, retune, power off) also stops a reply.
+
 ### 2.3 The dial (`src/constants.ts`)
 
 | Band | Frequencies | S-meter | Decoder | LCD status |
 |---|---|---|---|---|
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
-| `ham` | 100.00 – 102.00 inclusive | flutters S4–S7 | open | cursor |
+| `ham` | 100.00 – 102.00 inclusive (tutor at 101.00) | flutters S4–S7 | open | cursor |
 | `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
 

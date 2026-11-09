@@ -37,10 +37,13 @@ export interface RadioState {
   isPowerOn: boolean
   /** DECODER slide switch */
   isDecoderOn: boolean
+  /** The ghost on 104.40 has answered: the haunt has begun */
+  isHaunted: boolean
   /** Set the frequency; out-of-band values are clamped, non-finite values ignored */
   setFrequency: (mhz: number | ((prev: number) => number)) => void
   setIsPowerOn: (on: boolean) => void
   setIsDecoderOn: (on: boolean) => void
+  setIsHaunted: (haunted: boolean) => void
   togglePower: () => void
   toggleDecoder: () => void
 }
@@ -56,6 +59,7 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
   const [frequency, setFrequencyRaw] = useState(() => clampFrequency(initialFrequency))
   const [isPowerOn, setIsPowerOn] = useState(false)
   const [isDecoderOn, setIsDecoderOn] = useState(false)
+  const [isHaunted, setIsHaunted] = useState(false)
 
   const setFrequency = useCallback<RadioState['setFrequency']>((next) => {
     setFrequencyRaw((prev) => {
@@ -71,13 +75,15 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       frequency,
       isPowerOn,
       isDecoderOn,
+      isHaunted,
       setFrequency,
       setIsPowerOn,
       setIsDecoderOn,
+      setIsHaunted,
       togglePower,
       toggleDecoder,
     }),
-    [frequency, isPowerOn, isDecoderOn, setFrequency, togglePower, toggleDecoder],
+    [frequency, isPowerOn, isDecoderOn, isHaunted, setFrequency, togglePower, toggleDecoder],
   )
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>
