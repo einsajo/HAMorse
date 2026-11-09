@@ -100,9 +100,8 @@ export default function PowerOnGuide() {
           </li>
           <li>
             Turn the <b>VFO</b> dial to tune. Broadcast stations are receive-only; transmit on the{' '}
-            <b>HAM band, 100.00–102.00&nbsp;MHz</b>. Five operators live there, beginner to pro: start with
-            the <b>Elmer on 100.60</b>: copy each letter he sends and send it back. The band plan is on the{' '}
-            <b>REF</b> card.
+            <b>HAM band, 100.00–102.00&nbsp;MHz</b>. Real-feeling operators live there; tune around to meet them.
+            New to Morse? The <b>Elmer on 100.60</b> will teach you.
           </li>
           <li>
             Tap <b>DIT (·)</b> and <b>DAH (–)</b> to send Morse. You'll hear a 700&nbsp;Hz tone.

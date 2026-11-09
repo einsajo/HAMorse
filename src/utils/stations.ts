@@ -2,10 +2,15 @@
  * The operators on the ham band (100.00-102.00 MHz), from beginner to pro.
  *
  *   100.20  CODE PRACTICE  a slow bulletin to copy by ear (Farnsworth 18/8 WPM)
- *   100.60  ELMER          a mentor: one new character at a time, then words
+ *   100.60  ELMER          a mentor who asks if you're new, then teaches you by chatting
  *   101.00  PRACTICE       the original tutor: send HI, then SOS
  *   101.40  BOB            a real-feeling QSO: RST, name, QTH, 73
- *   101.80  SPEED DRILL    5-character groups that speed up as you copy them
+ *   101.80  SAM            an old-timer who runs high-speed copy practice
+ *
+ * They are people, not levels: they greet you, ask questions, react to
+ * what you send, remember you, and point you at each other. Nothing on the
+ * radio lists them; you find them like a real ham does, by tuning around
+ * (or by copying the bulletin on 100.20, which mentions them).
  *
  * Everything here is plain logic with no React and no audio, so it can be
  * tested on its own: a station gets told when you tune in, when you finish a
@@ -191,7 +196,7 @@ export const BULLETIN_TEXTS: readonly string[] = Object.freeze([
   'QTH IS YOUR LOCATION. RST IS YOUR SIGNAL REPORT. AR',
   '73 MEANS BEST REGARDS. TNX MEANS THANKS. FB MEANS FINE. AR',
   'NUMBERS 1 2 3 4 5 6 7 8 9 0. AR',
-  'TUNE 100.60 FOR THE ELMER. 101.40 FOR A QSO. 101.80 FOR SPEED. AR',
+  'NEW TO CW? ELMER ON 100.60 HELPS. BOB ON 101.40 LIKES TO CHAT. SAM ON 101.80 SENDS FAST. AR',
 ])
 /** Silence between bulletins */
 export const BULLETIN_PAUSE_MS = 4000
@@ -215,34 +220,60 @@ function createBulletin(): Station {
 /* --- 100.60 the Elmer (beginner: sending) ---------------------------------------- */
 
 /**
- * "Elmer" is ham slang for a mentor. He teaches one character at a time,
- * shortest codes first, introducing each by sound three times ("NEW A. A A A"),
- * then asks for it back. Right: "FB" and the next prompt (two quick reviews
- * of earlier characters, then a new one). Wrong: he tells you how it sounds
- * ("NO. A IS DIDAH. SEND A"). Send ? or AGN for a repeat. Once every letter
- * and number is learned he moves on to whole words. Progress is remembered.
- * 15 WPM characters at 10 WPM effective.
+ * "Elmer" is ham slang for the experienced operator who takes a newcomer
+ * under their wing. This one talks to you like a person, not a level screen:
+ *
+ *   him: GE. DE ELMER. R U NEW TO CW? K
+ *   you: Y            (or YES / R / C ... or NO; or say nothing at all)
+ *   him: FB. WE START EASY. E IS 1 DIT. SEND E K
+ *   you: E
+ *   him: VY GUD. NEXT T. T IS DAH. T T T. UR TURN K
+ *
+ * He brings in one character at a time, shortest codes first, mixes in
+ * earlier ones now and then, and talks you through mistakes ("NOT QUITE. A
+ * IS DIDAH. TRY AGN K", then plays it to you again). Now and then he
+ * remarks on how far you've come, and once you have a few letters he points
+ * you at Bob and Sam. Say HI and he says hi back; send 73 and he signs off;
+ * come back later and he welcomes you back where you left off (remembered
+ * in localStorage). If you say you're not new, he sends you words instead
+ * and suggests the other operators. A silent newcomer gets gentle help:
+ * "NO PROBLEM. JUST SEND 1 DIT. THAT IS E K".
+ * 18 WPM characters at 12 WPM effective (Farnsworth, as ARRL slow practice).
  */
-export const ELMER_TIMING = timingForWpm(15, 10, 1200, 680)
+export const ELMER_TIMING = timingForWpm(18, 12, 1200, 680)
 export const ELMER_ORDER = 'ETIANMSURWDKGOHVFLPJBXCYZQ5432167890'
 export const ELMER_WORDS: readonly string[] = Object.freeze([
   'CQ', 'DE', 'THE', 'AND', 'RST', 'QTH', 'NAME', 'TNX', 'FB', '73',
   'HELLO', 'RADIO', 'MORSE', 'KEY', 'SOS', 'GHOST', 'NIGHT', 'WAVE', 'COPY', 'TEST',
 ])
 const ELMER_REVIEWS = 2
-const ELMER_IDLE_MS = 25000
+/** how long he waits for an answer to "R U NEW TO CW?" before helping */
+export const ELMER_ASK_IDLE_MS = 15000
+export const ELMER_IDLE_MS = 25000
 const ELMER_MAX_NUDGES = 2
 const ELMER_STORAGE_KEY = 'telegraph-ghost.elmer.learned'
 
+const YES_WORDS = new Set(['Y', 'YES', 'YS', 'R', 'RR', 'C', 'OK', 'NEW', 'BEGINNER', 'YEP', 'YA', 'YEA', 'YEAH', 'E'])
+const NO_WORDS = new Set(['N', 'NO', 'NIL', 'NOT', 'NOPE', 'NEG'])
+const GREETINGS = new Set(['HI', 'HELLO', 'GE', 'GM', 'GA', 'HW', 'HWY'])
+const GOODBYES = new Set(['73', 'SK', 'GN', 'CUL', 'GB', 'QRT', 'BYE'])
+const PRAISE = ['FB', 'VY GUD', 'R R FB', 'GUD', 'NICE', 'PERFECT', 'SOLID']
+
+type ElmerStage = 'greet' | 'ask' | 'lesson' | 'paused'
+
 function createElmer(rng: () => number, storage?: StationStorage): Station {
   const stored = Number.parseInt(storage?.getItem(ELMER_STORAGE_KEY) ?? '', 10)
-  /** characters unlocked so far (the newest is ELMER_ORDER[learned - 1]) */
+  /** characters met so far (the newest is ELMER_ORDER[learned - 1]) */
   let learned = Number.isFinite(stored) ? Math.min(ELMER_ORDER.length, Math.max(1, stored)) : 1
+  const returning = Number.isFinite(stored) && stored > 1
+  let stage: ElmerStage = 'greet'
   let target = ELMER_ORDER[learned - 1]
-  let isNew = true
+  let isNew = !returning
   let reviewsLeft = 0
-  let greeted = false
+  let misses = 0
   let nudges = 0
+  /** said they already know CW: words only */
+  let knowsCw = false
   const inWords = () => target.length > 1
 
   const save = () => {
@@ -253,9 +284,36 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
     }
   }
 
-  const prompt = () => (isNew ? `NEW ${target}. ${target} ${target} ${target} ` : `SEND ${target} `)
+  const reply = (text: string) => tx(text, ELMER_TIMING)
 
-  const advance = () => {
+  /** what he asks you to send next */
+  const prompt = () => {
+    if (inWords()) return `SEND ${target} K `
+    if (isNew) {
+      return learned === 1
+        ? `E IS 1 DIT. SEND E K `
+        : `NEXT ${target}. ${target} IS ${spokenMorse(target)}. ${target} ${target} ${target}. UR TURN K `
+    }
+    return `${pick(['SEND', 'NOW', 'TRY'], rng)} ${target} K `
+  }
+
+  /** a remark when you reach a milestone (said once, as it happens) */
+  const milestone = () => {
+    if (inWords()) return ''
+    if (learned === 6) return 'U KNOW 6 LTRS NOW. '
+    if (learned === 12) return 'U CAN TRY BOB ON 101.40 SOMETIME. '
+    if (learned === 20) return 'HALF WAY HI. '
+    if (learned === 27) return 'ALL LTRS DONE. NOW NUMBERS. '
+    return ''
+  }
+
+  const startLesson = () => {
+    stage = 'lesson'
+    misses = 0
+  }
+
+  const next = () => {
+    misses = 0
     if (isNew) {
       isNew = false
       reviewsLeft = learned >= 2 ? ELMER_REVIEWS : 0
@@ -263,20 +321,31 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
       reviewsLeft--
     }
     if (reviewsLeft > 0) {
-      // review something already learned (any of them, the newest included)
+      // go back over something already learned (any of them, the newest included)
       target = inWords() ? pick(ELMER_WORDS, rng) : ELMER_ORDER[Math.floor(rng() * learned) % learned]
-      return
+      return ''
     }
-    if (learned < ELMER_ORDER.length) {
+    if (!knowsCw && learned < ELMER_ORDER.length) {
       learned++
       save()
       target = ELMER_ORDER[learned - 1]
       isNew = true
-    } else {
-      // every character learned: whole words from now on
-      target = pick(ELMER_WORDS.filter((w) => w !== target), rng)
-      reviewsLeft = 1
+      return milestone()
     }
+    const first = !inWords()
+    target = pick(ELMER_WORDS.filter((w) => w !== target), rng)
+    reviewsLeft = 1
+    return first && !knowsCw ? 'U KNOW THEM ALL. NOW WORDS. ' : ''
+  }
+
+  const lessonWord = (w: string): Transmission | null => {
+    if (w === target) return reply(`${pick(PRAISE, rng)}. ${next()}${prompt()}`)
+    // procedure words aren't attempts (unless he asked for exactly that)
+    if (OVER_ENDINGS.has(w) || w === 'DE') return null
+    misses++
+    if (inWords()) return reply(misses >= 2 ? `NO PROBLEM. LISTEN. ${target} ${target}. SEND ${target} K ` : `NOT QUITE. AGN ${target} K `)
+    if (misses >= 2) return reply(`NO WORRIES. LISTEN. ${target} ${target} ${target}. SEND ${target} K `)
+    return reply(`NOT QUITE. ${target} IS ${spokenMorse(target)}. TRY AGN K `)
   }
 
   return {
@@ -284,26 +353,67 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
     frequency: HAM_STATIONS.elmer,
     onTuneIn() {
       nudges = 0
-      const hello = greeted ? '' : 'DE ELMER. ' // short: a beginner wants to start keying, not copy a speech
-      greeted = true
-      return tx(hello + prompt(), ELMER_TIMING)
+      if (stage === 'greet') {
+        if (returning) {
+          startLesson()
+          return reply(`GE. WB. LAST TIME U GOT TO ${target}. ${prompt()}`)
+        }
+        stage = 'ask'
+        return reply('GE. DE ELMER. R U NEW TO CW? K ')
+      }
+      if (stage === 'ask') return reply('R U NEW TO CW? K ')
+      startLesson()
+      return reply(`WB. ${prompt()}`)
     },
     onWord({ word }) {
       nudges = 0
       const w = normaliseWord(word)
       if (w === '') return null
-      if (w === '?' || w === 'AGN' || w === 'QRZ') return tx(prompt(), ELMER_TIMING)
-      if (w === target) {
-        advance()
-        return tx(`FB ${prompt()}`, ELMER_TIMING)
+      if (w === '?' || w === 'AGN' || w === 'QRZ' || w === 'QRS') {
+        return reply(stage === 'ask' ? 'R U NEW TO CW? SEND Y OR N K ' : prompt())
       }
-      const hint = inWords() ? `NO. AGN ${target} ` : `NO. ${target} IS ${spokenMorse(target)}. SEND ${target} `
-      return tx(hint, ELMER_TIMING)
+      if (GOODBYES.has(w) && stage !== 'paused' && w !== target) {
+        stage = 'paused'
+        return reply('73 ES GL. CU AGN SK ')
+      }
+      switch (stage) {
+        case 'greet':
+        case 'ask':
+          if (YES_WORDS.has(w)) {
+            startLesson()
+            return reply(`FB. WE START EASY. ${prompt()}`)
+          }
+          if (NO_WORDS.has(w)) {
+            knowsCw = true
+            startLesson()
+            isNew = false
+            target = pick(ELMER_WORDS, rng)
+            reviewsLeft = 1
+            return reply(`FB OM. TRY BOB ON 101.40 OR SAM ON 101.80. OR WORDS WID ME. ${prompt()}`)
+          }
+          if (GREETINGS.has(w)) return reply('HI HI. R U NEW TO CW? K ')
+          if (OVER_ENDINGS.has(w) || w === 'DE') return null
+          return reply('SRI. R U NEW TO CW? SEND Y OR N K ')
+        case 'paused':
+          startLesson()
+          return reply(`WB. ${prompt()}`)
+        case 'lesson':
+          if (GREETINGS.has(w) && w !== target) return reply(`HI HI. ${prompt()}`)
+          return lessonWord(w)
+      }
     },
     onIdle(idleMs) {
-      if (idleMs < ELMER_IDLE_MS || nudges >= ELMER_MAX_NUDGES) return null
+      if (stage === 'paused' || nudges >= ELMER_MAX_NUDGES) return null
+      if (stage === 'ask') {
+        if (idleMs < ELMER_ASK_IDLE_MS) return null
+        // a newcomer who can't answer yet: help them start
+        nudges++
+        startLesson()
+        return reply('NO PROBLEM. JUST SEND 1 DIT. THAT IS E K ')
+      }
+      if (stage !== 'lesson' || idleMs < ELMER_IDLE_MS) return null
       nudges++
-      return tx(prompt(), ELMER_TIMING)
+      return reply(`STILL THERE? ${prompt()}`)
     },
   }
 }
@@ -426,60 +536,91 @@ function createRagchew(): Station {
   }
 }
 
-/* --- 101.80 the speed drill (pro) ------------------------------------------------- */
+/* --- 101.80 Sam, the high-speed operator (pro) ------------------------------------ */
 
 /**
- * Copy a random 5-character group (letters and numbers, no context to guess
- * from) and send it back. Right: you get your own sending speed and the drill
- * speeds up 2 WPM ("QRQ 22"); wrong: it slows down ("QRS 18") and repeats the
- * group. 15-40 WPM, starting at 20. Send ? or AGN for a repeat. Best with the
- * DECODER OFF: then nothing is on the screen and it is all ears.
+ * Sam is an old-timer who loves fast code and runs practice for anyone who
+ * answers his call. He calls "CQ QRQ DE SAM K" (QRQ = "send faster"); answer
+ * him and he explains, then sends a 5-character group (letters and numbers,
+ * no context to guess from) for you to copy and send back. Copy it and he
+ * tells you your speed and speeds up ("SOLID CPY. UR 21WPM. QRQ 22"); miss
+ * it and he slows down ("CLOSE" if you were one character off) and sends it
+ * again. 15-40 WPM, starting at 20. ? / AGN / QRS repeats; 73 ends the session.
+ * Best with the DECODER OFF: then it's all ears.
  */
 export const SPEED_START_WPM = 20
 export const SPEED_MIN_WPM = 15
 export const SPEED_MAX_WPM = 40
 export const SPEED_STEP_WPM = 2
+export const SPEED_NAME = 'SAM'
 const SPEED_TONE_HZ = 820
+const SPEED_CQ_EVERY_MS = 40000
 const SPEED_IDLE_MS = 30000
 const SPEED_MAX_NUDGES = 2
 const GROUP_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+const SPEED_PRAISE = ['FB', 'SOLID CPY', 'R R', 'VY FB', 'NICE FIST']
 
 export const speedTiming = (wpm: number) => timingForWpm(wpm, wpm, 1200, SPEED_TONE_HZ)
+
+/** same length, exactly one character different */
+const oneOff = (a: string, b: string) => a.length === b.length && [...a].filter((ch, i) => ch !== b[i]).length === 1
+
+type SpeedStage = 'call' | 'drill'
 
 function createSpeedDrill(rng: () => number): Station {
   let wpm = SPEED_START_WPM
   const newGroup = () => Array.from({ length: 5 }, () => pick([...GROUP_CHARS], rng)).join('')
   let group = newGroup()
-  let introduced = false
+  let stage: SpeedStage = 'call'
+  let met = false
   let nudges = 0
   const send = (text: string) => tx(text, speedTiming(wpm))
+  const cq = () => send(`CQ QRQ CQ QRQ DE ${SPEED_NAME} K `)
 
   return {
     id: 'speed',
     frequency: HAM_STATIONS.speed,
     onTuneIn() {
       nudges = 0
-      return send(introduced ? `GRP ${group} ` : `DE SPD. RPT GROUP. GRP ${group} `)
+      if (stage === 'drill') return send(`WB. GRP ${group} `)
+      return cq()
     },
     onWord({ word, wpm: yours }) {
       nudges = 0
-      introduced = true
       const w = normaliseWord(word)
-      if (w === '' || OVER_ENDINGS.has(w)) return null
+      if (w === '' || OVER_ENDINGS.has(w) || w === 'DE') return null
+      if (GOODBYES.has(w)) {
+        stage = 'call'
+        return send('TU FER PRACTICE. 73 SK ')
+      }
+      if (stage === 'call') {
+        stage = 'drill'
+        const intro = met
+          ? `WB. ${wpm} WPM. `
+          : `GE. DE ${SPEED_NAME}. I SEND 5 LTR GRPS. U SEND THEM BACK. ${wpm} WPM. `
+        met = true
+        return send(`${intro}GRP ${group} `)
+      }
       if (w === '?' || w === 'AGN' || w === 'QRZ') return send(`GRP ${group} `)
+      if (w === 'QRS') {
+        wpm = Math.max(SPEED_MIN_WPM, wpm - SPEED_STEP_WPM)
+        return send(`R QRS ${wpm}. GRP ${group} `)
+      }
       if (w === group) {
+        const report = yours === null ? '' : `UR ${yours}WPM. `
+        const faster = wpm < SPEED_MAX_WPM
         wpm = Math.min(SPEED_MAX_WPM, wpm + SPEED_STEP_WPM)
         group = newGroup()
-        const report = yours === null ? '' : `UR ${yours}WPM. `
-        return send(`R ${report}QRQ ${wpm}. GRP ${group} `)
+        return send(`${pick(SPEED_PRAISE, rng)}. ${report}${faster ? `QRQ ${wpm}` : 'TOP SPEED HI'}. GRP ${group} `)
       }
       wpm = Math.max(SPEED_MIN_WPM, wpm - SPEED_STEP_WPM)
-      return send(`NIL. QRS ${wpm}. GRP ${group} `)
+      return send(`${oneOff(w, group) ? 'CLOSE' : 'NIL'}. QRS ${wpm}. AGN GRP ${group} `)
     },
     onIdle(idleMs) {
+      if (stage === 'call') return idleMs >= SPEED_CQ_EVERY_MS ? cq() : null
       if (idleMs < SPEED_IDLE_MS || nudges >= SPEED_MAX_NUDGES) return null
       nudges++
-      return send(`AGN GRP ${group} `)
+      return send(`QRZ? GRP ${group} `)
     },
   }
 }
@@ -496,12 +637,3 @@ export function createStations({ rng = Math.random, storage }: StationOptions = 
     speed: createSpeedDrill(rng),
   }
 }
-
-/** What the reference card's band plan says, in dial order */
-export const BAND_PLAN: readonly { id: HamStationId; frequency: number; label: string }[] = Object.freeze([
-  { id: 'bulletin', frequency: HAM_STATIONS.bulletin, label: 'code practice' },
-  { id: 'elmer', frequency: HAM_STATIONS.elmer, label: 'Elmer, learn' },
-  { id: 'tutor', frequency: HAM_STATIONS.tutor, label: 'send HI' },
-  { id: 'ragchew', frequency: HAM_STATIONS.ragchew, label: 'Bob, QSO' },
-  { id: 'speed', frequency: HAM_STATIONS.speed, label: 'speed drill' },
-])

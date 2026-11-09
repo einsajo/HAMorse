@@ -342,31 +342,6 @@
   white-space: nowrap; /* keep "- Nevlin" together as a signature */
 }
 
-.refcard__note p {
-  margin: 0;
-}
-
-.refcard__plan-head {
-  text-decoration: underline;
-  text-decoration-thickness: 0.06em;
-  text-underline-offset: 0.12em;
-}
-
-/* the pencilled band plan: one station per line */
-.refcard__plan {
-  margin: 0.1em 0 0.35em;
-  padding: 0;
-  list-style: none;
-}
-
-.refcard__plan li {
-  white-space: nowrap;
-}
-
-.refcard__plan b {
-  font-weight: 700;
-}
-
 /* --- Tall card (wide screens: card beside the radio) ------------------- */
 @container refcard (aspect-ratio < 1) {
   .refcard__sheet {

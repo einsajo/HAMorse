@@ -136,11 +136,16 @@ interface Transmission { text: string; timing: ReplyTiming }
   `lastActivity` is touched by taps, word ends, reply ends, tune-ins and any
   idle transmission. Every idle threshold (3.5s and up) is longer than the
   word gap, so a station never interrupts a word in progress.
-- **State machines:** bulletin = text index; Elmer = `learned` count
-  (persisted under `telegraph-ghost.elmer.learned`), `target`, `isNew`,
-  `reviewsLeft`, `nudges`; Bob = stage `call → name → qth → closing` plus the
-  words of the current over (ended by K/KN/BK/AR/SK or 3.5s silence); speed
-  drill = `wpm`, `group`, `introduced`, `nudges`.
+- **Conversation, not levels:** each operator is a small dialogue state
+  machine with varied phrasing (seeded `rng`), so practice happens *inside* a
+  QSO. Bulletin = text index. Elmer = stage `greet → ask → lesson ⇄ paused`
+  plus `learned` (persisted under `telegraph-ghost.elmer.learned`), `target`,
+  `isNew`, `reviewsLeft`, `misses`, `knowsCw`, `nudges`. Bob = stage
+  `call → name → qth → closing` plus the words of the current over (ended by
+  K/KN/BK/AR/SK or 3.5s silence). Sam = stage `call ⇄ drill`, `wpm`, `group`,
+  `met`, `nudges`.
+- **Discovery:** nothing in the UI lists the operators (the REF card stays a
+  Morse helper). The 100.20 bulletin, the Elmer and the Quick Start mention them.
 - **Text** uses only characters in `CHAR_TO_MORSE` (unit-tested).
 - **S-meter:** `TopPanel` reads `isReceiving`; on the ham band the needle
   switches to `keying` (S8 with fast kicks) for the transmission.

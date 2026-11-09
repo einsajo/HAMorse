@@ -88,13 +88,14 @@
 - **Content:**
   - A faded dark-grey typewriter (monospace) grid of A-Z and 0-9 Morse code.
   - A Q-code section: `CQ: Calling any station`, `QRT: Stop transmission`.
-  - A faded blue handwritten margin note: the previous owner's pencilled band plan (`Ham band:` 100.20 code practice, 100.60 Elmer, 101.00 send HI, 101.40 Bob, QSO, 101.80 speed drill), then `Dial drifts below 90 in the cold. - Nevlin`. It must fit on the card at 412x915 and 1280x800.
+  - A faded blue handwritten margin note: `Dial drifts below 90MHz in the cold. - Nevlin`.
+  - The card is a Morse helper only. It does **not** list the ham band operators: you find them by tuning around (and from the 100.20 bulletin), like a real ham, and a list would shrink the Morse table.
 - **Closing:** Tap the card, press `REF` again, or drag the card back toward the radio.
 
 ### 2f. Quick Start Guide (before the first power-on)
 - **Trigger:** using a control that needs power (DIT / DAH, DECODER, CLR, TX SEND, or releasing the VFO) before the radio has ever been switched on. REF and the dust wipe never trigger it (they work unpowered).
 - **Look:** a yellowed cardstock "QUICK START" note taped over the radio in typewriter type, with a pencil "start here" arrow. The chassis dims around a spotlight on the MAIN POWER breaker, which pulses with a soft amber glow (under 1 flash per second).
-- **Content:** explains the trainer (power, tuning and the HAM band with its five operators, starting with the Elmer on 100.60, DIT/DAH and the 700 Hz tone, DECODER ON shows text vs OFF for ear training while the radio keeps working, REF (with the band plan) and CLR) and why sound needs the power on. It never mentions the haunt.
+- **Content:** explains the trainer (power, tuning and the HAM band, where operators can be met by tuning around, with the Elmer on 100.60 for newcomers; DIT/DAH and the 700 Hz tone; DECODER ON shows text vs OFF for ear training while the radio keeps working; REF and CLR) and why sound needs the power on. It never mentions the haunt.
 - **Actions:** `[ THROW MAIN POWER ]` performs the breaker's own action (thunk, audio unlock, power ON); `[ GOT IT ]` or Escape closes it. After it is dismissed, later attempts only make the breaker glow briefly. The first power-on retires it for the session.
 
 ## 3. Core Mechanics & Audio
@@ -119,15 +120,15 @@
 - Replies trigger on your *word* ending (a whole word, so `CHI` is not `HI`), whether the DECODER is ON or OFF.
 
 ## 3b. The Ham Band Operators (beginner to pro)
-Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HAM_STATIONS`). Each hears you tune in, every word you finish (with your measured sending speed) and how long the band has been quiet. Each answers with real Morse timing (Farnsworth where noted: ARRL t_a = (60c - 37.2s)/(sc)), in its own beat note. Names and places are fictional and nobody uses a callsign (real callsigns identify real people).
+Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HAM_STATIONS`). They must feel like **people on the air, not a level-up game**: they greet you, ask questions and react to your answers, vary their wording, talk you through mistakes, remember you when you come back, sign off when you send 73, and point you at each other. Nothing in the UI lists them; you discover them by tuning (the 100.20 bulletin mentions them, as real bulletins do). Each hears you tune in, every word you finish (with your measured sending speed) and how long the band has been quiet. Each answers with real Morse timing (Farnsworth where noted: ARRL t_a = (60c - 37.2s)/(sc)), in its own beat note. Names and places are fictional and nobody uses a callsign (real callsigns identify real people).
 
 | MHz | Who | Level | Behaviour |
 | --- | --- | --- | --- |
-| 100.20 | Code-practice bulletin | Beginner, listening | Starts on tune-in with `VVV ...`; rotates eight practice texts (pangram, Q-codes, numbers, the band plan) at 18/8 WPM with 4s pauses. Never answers. |
-| 100.60 | The Elmer (mentor) | Beginner, sending | Greets once (`DE ELMER.`). Teaches characters shortest-first (`ETIANMSURWDKGOHVFLPJBXCYZQ5432167890`): `NEW E. E E E`, then you send it. Right: `FB` + next (two reviews of earlier characters, then a new one). Wrong: `NO. A IS DIDAH. SEND A`. `?` / `AGN` repeats. After all 36: whole words. Nudges after 25s idle (twice at most). Progress is kept in localStorage. 15/10 WPM. |
+| 100.20 | Code-practice bulletin | Beginner, listening | Starts on tune-in with `VVV ...`; rotates eight practice texts (pangram, Q-codes, numbers, and who else is on the band) at 18/8 WPM with 4s pauses. Never answers. |
+| 100.60 | The Elmer (mentor) | Beginner, sending | First asks `GE. DE ELMER. R U NEW TO CW? K`. Yes (Y / YES / R / C / OK) → `FB. WE START EASY. E IS 1 DIT. SEND E K`; silence for 15s → `NO PROBLEM. JUST SEND 1 DIT. THAT IS E K`; No → words, plus `TRY BOB ON 101.40 OR SAM ON 101.80`. Then he brings in characters shortest-first (`NEXT T. T IS DAH. T T T. UR TURN K`) and mixes in earlier ones (`SEND` / `NOW` / `TRY E K`). Varied praise (`FB`, `VY GUD`, `NICE`...). Mistakes: `NOT QUITE. A IS DIDAH. TRY AGN K`, then `NO WORRIES. LISTEN. A A A`. Occasional remarks (`U KNOW 6 LTRS NOW`, `U CAN TRY BOB ON 101.40 SOMETIME`). `HI` → `HI HI`; `?`/`AGN` repeats; `73` → `73 ES GL. CU AGN SK`; coming back → `GE. WB. LAST TIME U GOT TO N.` (localStorage). `STILL THERE?` after 25s idle (twice at most). 18/12 WPM. |
 | 101.00 | Practice station | First contact | `HI` -> `GUD COPY. SEND SOS`; `SOS` -> `FB. 73.` (unchanged). |
 | 101.40 | Bob, ragchewer | Intermediate | Calls `CQ CQ DE BOB BOB K` on tune-in, then every 30s while idle. Your over ends with `K`/`KN`/`BK`/`AR`/`SK` or 3.5s of silence. Then: `GE. UR RST 579. NAME BOB. UR NAME? K` -> `FB {NAME}. QTH OHIO. UR QTH? K` -> `FB. {QTH}. TNX QSO {NAME}. 73 SK` -> (your 73) `E E`. Procedure words never count as a name or place (`SRI. UR NAME? K`). Tuning in restarts the QSO. 18/13 WPM. |
-| 101.80 | Speed drill | Pro | Random 5-character groups (A-Z, 0-9). Right: `R UR {your WPM}WPM. QRQ {+2}. GRP ...`; wrong: `NIL. QRS {-2}. GRP {same}`. 15-40 WPM, starts at 20. `?` / `AGN` repeats; nudges after 30s idle. Best with the DECODER OFF. |
+| 101.80 | Sam, high-speed op | Pro | Calls `CQ QRQ CQ QRQ DE SAM K` (every 40s). Answer him and he explains (`I SEND 5 LTR GRPS. U SEND THEM BACK. 20 WPM. GRP ...`). Right: `SOLID CPY. UR {your WPM}WPM. QRQ {+2}. GRP ...`; one character off: `CLOSE. QRS {-2}. AGN GRP {same}`; otherwise `NIL. ...`. 15-40 WPM (`TOP SPEED HI`). `QRS` slows him down; `?`/`AGN` repeats; `73` → `TU FER PRACTICE. 73 SK`; he remembers you (`WB`). Best with the DECODER OFF. |
 
 - Your sending speed: WPM = characters per minute / 5, timed from the first tap of the word to the last.
 - Retuning or power OFF cancels any transmission; the next tune-in restarts the station's greeting / call.
