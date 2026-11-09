@@ -84,7 +84,20 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
   the row left-aligned; longer text overflows to the *left*, so the newest
   characters stay at the right edge.
 
-### 2.3 Interaction rules
+### 2.3 The dial (`src/constants.ts`)
+
+| Band | Frequencies | S-meter | Decoder | LCD status |
+|---|---|---|---|---|
+| `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
+| `ham` | 100.00 – 102.00 inclusive | flutters S4–S7 | open | cursor |
+| `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
+| `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
+
+`getBandInfo(mhz)` classifies a frequency (exact stations first, then the
+range, at 0.01 MHz resolution). All four stations share the tuning detent
+(`DETENT_FREQUENCIES`), so the ghost's detent is not a giveaway.
+
+### 2.4 Interaction rules
 
 - **Switches act on pointer-down**, like real hardware, not on click/release.
   Primary button / touch / pen only.

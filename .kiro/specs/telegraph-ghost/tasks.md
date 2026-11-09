@@ -81,6 +81,10 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [ ] 12.4 TX SEND submits the buffer (Phase 4 trigger)
   - _Requirements: 2b, 2d, 3_
 
+- [x] 12.5 Frequency bands (`src/constants.ts`): broadcasters, ham band, ghost, dead air
+  - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
+  - _Requirements: 2a, 2b, 3_
+
 - [ ] 13.* Unit tests for timing and decoding (letter / word gaps, squeeze alternation)
 
 ## Phase 3: Web Audio integration

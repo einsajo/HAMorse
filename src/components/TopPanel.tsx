@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
-import { GHOST_FREQUENCY, isTunedTo, useRadio } from '../context/RadioContext'
+import { useRadio } from '../context/RadioContext'
+import { getBandInfo } from '../constants'
+import type { Band } from '../constants'
 
 /* Shared silkscreen-wear filter: fine noise knocks holes out of printed ink */
 function InkWear({ id }: { id: string }) {
@@ -136,11 +138,41 @@ const DB_TICKS = [19, 26, 33, 40].map((a) => {
    A small damped-spring model of a moving-coil meter movement. The needle is
    driven toward a target angle and is caught by hard end stops at both ends,
    where it bounces. Angles are degrees (0 = straight up). */
-type NeedleMode = 'off' | 'static' | 'peak'
+type NeedleMode = 'off' | 'dead' | 'ham' | 'broadcast' | 'peak'
 
 const STOP_LEFT = NEEDLE_REST // zero signal: resting on the left stop
 const STOP_RIGHT = 43 // just past the +40 dB mark
-const STATIC_BASE = (S_ANGLE(3) + S_ANGLE(4)) / 2 // band noise sits around S3-S4
+
+/**
+ * Flutter profiles: the needle is driven to `base +/- spread` (occasionally a
+ * bigger `flick`) at random intervals between minMs and maxMs.
+ *   dead       barely off zero: hiss, hovering around S1 and dipping toward 0
+ *   ham        live amateur traffic: busy, restless S4-S7
+ *   broadcast  a strong, steady commercial carrier: pinned at S9
+ */
+interface Flutter {
+  base: number
+  spread: number
+  flickChance: number
+  flickSpread: number
+  minMs: number
+  maxMs: number
+}
+
+const FLUTTER: Record<'dead' | 'ham' | 'broadcast', Flutter> = {
+  dead: { base: S_ANGLE(1) - 2.5, spread: 2.5, flickChance: 0.06, flickSpread: 4.5, minMs: 110, maxMs: 320 },
+  ham: { base: (S_ANGLE(4) + S_ANGLE(7)) / 2, spread: 8, flickChance: 0.15, flickSpread: 10.5, minMs: 45, maxMs: 150 },
+  broadcast: { base: S_ANGLE(9), spread: 0.7, flickChance: 0.05, flickSpread: 1.6, minMs: 120, maxMs: 280 },
+}
+
+/** Where the needle settles with prefers-reduced-motion (no physics) */
+const RESTING_ANGLE: Record<NeedleMode, number> = {
+  off: STOP_LEFT,
+  dead: FLUTTER.dead.base,
+  ham: FLUTTER.ham.base,
+  broadcast: FLUTTER.broadcast.base,
+  peak: STOP_RIGHT,
+}
 const SPRING = 380 // restoring stiffness (1/s^2)
 const DAMPING = 22 // coil damping (1/s): slightly under-damped, so it twitches
 const BOUNCE = 0.6 // energy kept when the needle hits an end stop (visible peg bounce)
@@ -154,7 +186,7 @@ function useNeedle(mode: NeedleMode) {
     const write = () => ref.current?.style.setProperty('--needle-angle', `${s.angle.toFixed(2)}deg`)
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      s.angle = mode === 'off' ? STOP_LEFT : mode === 'peak' ? STOP_RIGHT : STATIC_BASE
+      s.angle = RESTING_ANGLE[mode]
       s.vel = 0
       write()
       return
@@ -176,10 +208,11 @@ function useNeedle(mode: NeedleMode) {
         // drive far past the stop, so it arrives at speed, slams in and rebounds
         s.target = STOP_RIGHT + 38 + (Math.random() - 0.5) * 4
       } else if (now >= s.nextFlutter) {
-        // static: random flutter around S3-S4, with the occasional bigger flick
-        const flick = Math.random() < 0.12
-        s.target = STATIC_BASE + (Math.random() * 2 - 1) * (flick ? 13 : 6.5)
-        s.nextFlutter = now + 60 + Math.random() * 170
+        // signal: random flutter around the band's level, with the occasional bigger flick
+        const f = FLUTTER[mode]
+        const flick = Math.random() < f.flickChance
+        s.target = f.base + (Math.random() * 2 - 1) * (flick ? f.flickSpread : f.spread)
+        s.nextFlutter = now + f.minMs + Math.random() * (f.maxMs - f.minMs)
       }
 
       // semi-implicit Euler, sub-stepped for stability
@@ -200,7 +233,8 @@ function useNeedle(mode: NeedleMode) {
 
       // resting against a stop (power off, or pinned): park the loop
       const atStop = s.angle === STOP_LEFT || s.angle === STOP_RIGHT
-      restFor = mode !== 'static' && atStop && Math.abs(s.vel) < 2 ? restFor + dt : 0
+      const restsAtStop = mode === 'off' || mode === 'peak'
+      restFor = restsAtStop && atStop && Math.abs(s.vel) < 2 ? restFor + dt : 0
       if (restFor > 0.4) {
         s.vel = 0
         return
@@ -222,12 +256,21 @@ interface SMeterProps {
 
 const METER_LABEL: Record<NeedleMode, string> = {
   off: 'S-meter, no signal',
-  static: 'S-meter, static around S3',
+  dead: 'S-meter, dead air around S1',
+  ham: 'S-meter, amateur traffic around S4 to S7',
+  broadcast: 'S-meter, strong station at S9',
   peak: 'S-meter, signal pinned at plus 40 dB',
 }
 
+const BAND_TO_MODE: Record<Band, NeedleMode> = {
+  dead: 'dead',
+  ham: 'ham',
+  broadcast: 'broadcast',
+  ghost: 'peak',
+}
+
 function SMeter({ isPowerOn, frequency }: SMeterProps) {
-  const mode: NeedleMode = !isPowerOn ? 'off' : isTunedTo(frequency, GHOST_FREQUENCY) ? 'peak' : 'static'
+  const mode: NeedleMode = isPowerOn ? BAND_TO_MODE[getBandInfo(frequency).band] : 'off'
   const needle = useNeedle(mode)
   const needleTip = polar(0, ARC_R + 4)
   return (
