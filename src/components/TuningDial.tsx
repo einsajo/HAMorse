@@ -3,7 +3,8 @@ import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } 
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
-import { DETENT_FREQUENCIES } from '../constants'
+import { DETENTS } from '../constants'
+import type { Detent } from '../constants'
 import { playEncoderThud } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
 
@@ -122,15 +123,14 @@ const DEAD_ZONE = 0.18 // fraction of the knob radius
 
 /* --- Magnetic tuning gravity -----------------------------------------------
    Exact decimals are hard to hit by finger on a small knob, so the dial has
-   detents at these stations. A drag that comes within SNAP_RANGE of a target
+   detents at these stations. A drag that comes within a detent's captureMhz
    snaps the frequency onto it exactly. The pull has hysteresis: once captured,
-   the drag must travel SNAP_RANGE + SNAP_STICKINESS away before it pops out,
-   so leaving the station takes a slightly harder pull than entering it. */
-// every station has a detent, broadcasters and the ghost alike, so the ghost's
-// detent is no giveaway: it feels like one more station on the dial
-const TARGET_FREQUENCIES: readonly number[] = DETENT_FREQUENCIES
-const SNAP_RANGE = 0.2 // MHz: capture zone either side of a target
-const SNAP_STICKINESS = 0.12 // MHz: extra travel needed to break free
+   the drag must travel escapeMhz away before it pops out, so leaving the
+   station takes a slightly harder pull than entering it. Broadcasters and the
+   ghost have wide detents (0.20 / 0.32 MHz, so the ghost's is no giveaway: it
+   feels like one more station); the ham operators, 0.40 apart, have narrow
+   ones (0.08 / 0.13 MHz) so you can still tune the open band between them. */
+const TARGET_DETENTS: readonly Detent[] = DETENTS
 
 /** Short haptic "click" when the dial drops into a detent (where supported) */
 const detentClick = () => {
@@ -177,20 +177,25 @@ interface DragState {
   /** unrounded knob angle, accumulated from pointer movement */
   angle: number
   /** detent the drag is currently held in, if any */
-  captured: number | null
+  captured: Detent | null
 }
 
 /** Apply the detents: returns the frequency to publish for a raw drag position */
-function applyGravity(d: DragState, raw: number, targets: readonly number[]): number {
+function applyGravity(d: DragState, raw: number, targets: readonly Detent[]): number {
   if (d.captured !== null) {
-    if (Math.abs(raw - d.captured) <= SNAP_RANGE + SNAP_STICKINESS + 1e-9) return d.captured
+    if (Math.abs(raw - d.captured.frequency) <= d.captured.escapeMhz + 1e-9) return d.captured.frequency
     d.captured = null // pulled hard enough: pop out of the detent
   }
-  const hit = targets.find((t) => Math.abs(raw - t) <= SNAP_RANGE + 1e-9)
-  if (hit === undefined) return raw
+  // the closest detent in range wins (zones never overlap today, but stay robust)
+  let hit: Detent | null = null
+  for (const t of targets) {
+    const dist = Math.abs(raw - t.frequency)
+    if (dist <= t.captureMhz + 1e-9 && (hit === null || dist < Math.abs(raw - hit.frequency))) hit = t
+  }
+  if (hit === null) return raw
   d.captured = hit
   detentClick()
-  return hit
+  return hit.frequency
 }
 
 /**
@@ -203,7 +208,7 @@ function applyGravity(d: DragState, raw: number, targets: readonly number[]): nu
 function useVfoDrag(
   frequency: number,
   setFrequency: (mhz: number) => void,
-  targets: readonly number[] = TARGET_FREQUENCIES,
+  targets: readonly Detent[] = TARGET_DETENTS,
   onRelease?: () => void,
 ) {
   const [dragging, setDragging] = useState(false)
@@ -237,7 +242,7 @@ function useVfoDrag(
         last: outside ? bearing(e.clientX, e.clientY, cx, cy) : null,
         angle: freqToAngle(freqRef.current),
         // starting a drag while parked on a station: it begins held in the detent
-        captured: targets.find((t) => isTunedTo(freqRef.current, t)) ?? null,
+        captured: targets.find((t) => isTunedTo(freqRef.current, t.frequency)) ?? null,
       }
 
       const onMove = (ev: PointerEvent) => {
@@ -294,7 +299,7 @@ export default function TuningDial() {
   const { nudge } = usePowerHint()
   // the dial turns with the power off (it is mechanical); on release, before
   // the first power-on, the Quick Start guide explains why nothing shows
-  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency, TARGET_FREQUENCIES, () => {
+  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency, TARGET_DETENTS, () => {
     if (!isPowerOn) nudge()
   })
   const angle = freqToAngle(frequency)

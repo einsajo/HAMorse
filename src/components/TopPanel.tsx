@@ -4,6 +4,7 @@ import './TopPanel.css'
 import { useRadio } from '../context/RadioContext'
 import { playBreakerThunk, playSliderScrape, unlockAudio } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
+import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import { getBandInfo } from '../constants'
 import type { Band } from '../constants'
 
@@ -149,7 +150,7 @@ const DB_TICKS = [19, 26, 33, 40].map((a) => {
    A small damped-spring model of a moving-coil meter movement. The needle is
    driven toward a target angle and is caught by hard end stops at both ends,
    where it bounces. Angles are degrees (0 = straight up). */
-type NeedleMode = 'off' | 'dead' | 'ham' | 'broadcast' | 'peak'
+type NeedleMode = 'off' | 'dead' | 'ham' | 'keying' | 'broadcast' | 'peak'
 
 const STOP_LEFT = NEEDLE_REST // zero signal: resting on the left stop
 const STOP_RIGHT = 43 // just past the +40 dB mark
@@ -159,6 +160,8 @@ const STOP_RIGHT = 43 // just past the +40 dB mark
  * bigger `flick`) at random intervals between minMs and maxMs.
  *   dead       barely off zero: hiss, hovering around S1 and dipping toward 0
  *   ham        live amateur traffic: busy, restless S4-S7
+ *   keying     an operator on this frequency is sending to you: a strong,
+ *              close signal kicking around S8
  *   broadcast  a strong, steady commercial carrier: pinned at S9
  */
 interface Flutter {
@@ -170,9 +173,10 @@ interface Flutter {
   maxMs: number
 }
 
-const FLUTTER: Record<'dead' | 'ham' | 'broadcast', Flutter> = {
+const FLUTTER: Record<'dead' | 'ham' | 'keying' | 'broadcast', Flutter> = {
   dead: { base: S_ANGLE(1) - 2.5, spread: 2.5, flickChance: 0.06, flickSpread: 4.5, minMs: 110, maxMs: 320 },
   ham: { base: (S_ANGLE(4) + S_ANGLE(7)) / 2, spread: 8, flickChance: 0.15, flickSpread: 10.5, minMs: 45, maxMs: 150 },
+  keying: { base: S_ANGLE(8), spread: 2.2, flickChance: 0.12, flickSpread: 4.5, minMs: 40, maxMs: 110 },
   broadcast: { base: S_ANGLE(9), spread: 0.7, flickChance: 0.05, flickSpread: 1.6, minMs: 120, maxMs: 280 },
 }
 
@@ -181,6 +185,7 @@ const RESTING_ANGLE: Record<NeedleMode, number> = {
   off: STOP_LEFT,
   dead: FLUTTER.dead.base,
   ham: FLUTTER.ham.base,
+  keying: FLUTTER.keying.base,
   broadcast: FLUTTER.broadcast.base,
   peak: STOP_RIGHT,
 }
@@ -263,12 +268,15 @@ function useNeedle(mode: NeedleMode) {
 interface SMeterProps {
   isPowerOn: boolean
   frequency: number
+  /** a ham operator is sending on this frequency */
+  isReceiving: boolean
 }
 
 const METER_LABEL: Record<NeedleMode, string> = {
   off: 'S-meter, no signal',
   dead: 'S-meter, dead air around S1',
   ham: 'S-meter, amateur traffic around S4 to S7',
+  keying: 'S-meter, station sending around S8',
   broadcast: 'S-meter, strong station at S9',
   peak: 'S-meter, signal pinned at plus 40 dB',
 }
@@ -280,8 +288,10 @@ const BAND_TO_MODE: Record<Band, NeedleMode> = {
   ghost: 'peak',
 }
 
-function SMeter({ isPowerOn, frequency }: SMeterProps) {
-  const mode: NeedleMode = isPowerOn ? BAND_TO_MODE[getBandInfo(frequency).band] : 'off'
+function SMeter({ isPowerOn, frequency, isReceiving }: SMeterProps) {
+  const band = getBandInfo(frequency).band
+  // the ghost keeps the needle pinned whatever it's doing
+  const mode: NeedleMode = !isPowerOn ? 'off' : isReceiving && band === 'ham' ? 'keying' : BAND_TO_MODE[band]
   const needle = useNeedle(mode)
   const needleTip = polar(0, ARC_R + 4)
   return (
@@ -404,6 +414,7 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
  */
 export default function TopPanel() {
   const { frequency, isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
+  const { isReceiving } = useMorseDecoder()
   const { attention, nudge } = usePowerHint()
 
   // The breaker is the ONLY control allowed to start audio (mobile autoplay policy).
@@ -427,7 +438,7 @@ export default function TopPanel() {
         <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} />
       </div>
       <div className="top__col top__col--meter">
-        <SMeter isPowerOn={isPowerOn} frequency={frequency} />
+        <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} />
       </div>
       <div className="top__col top__col--decoder">
         <DecoderSwitch on={isDecoderOn} onToggle={onDecoder} />

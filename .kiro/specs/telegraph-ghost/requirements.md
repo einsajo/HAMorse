@@ -24,6 +24,7 @@
     - **Power OFF:** rests at zero on the left stop.
     - **Broadcast stations (89.30 / 93.50 / 98.10):** pinned at S9 with a slight carrier waver.
     - **Ham band (100.00-102.00):** flutters actively around S4-S7.
+    - **A ham operator sending to you:** a strong, close signal kicking around S8 (`keying` mode) until the transmission ends.
     - **Ghost frequency (104.40):** slams to the +40 dB stop, bounces, then stays pinned.
     - **Dead air (everywhere else):** drops to around S1, dipping toward 0.
     - Later (Phase 3): tracks the received audio level.
@@ -55,7 +56,7 @@
   - **Rotary encoder, not a button:** the knob never moves on the Z axis.
   - **Drag to tune:** pointer drag around the knob centre rotates it through 180 degrees with hard stops: 9 o'clock (-90 degrees) = 88.00 MHz, 3 o'clock (+90 degrees) = 108.00 MHz (9 degrees per MHz). The knob turns with the power off; the frequency is only visible once the MCB is ON.
   - **Exact indicator:** the finger dimple sits at 12 o'clock on the face, so it points exactly at the printed tick for the current frequency.
-  - **Magnetic detent:** dragging within 0.20 MHz of a station (104.40) snaps the frequency onto it; escaping takes 0.32 MHz of travel (stickiness).
+  - **Magnetic detents (per station, `DETENTS` in `src/constants.ts`):** broadcasters and the ghost capture within 0.20 MHz and release beyond 0.32 MHz; the five ham operators (0.40 MHz apart) capture within 0.08 and release beyond 0.13 MHz, so the open band between them stays tunable. Capture zones never overlap.
   - **Keyboard:** arrows +/-0.05 MHz, PageUp/PageDown +/-1 MHz, Home/End jump to the band edges. Exposed as an ARIA slider.
   - The dial container uses `touch-action: none`. Rotation is driven by `--vfo-angle` (derived from the global frequency), with lighting on non-rotating layers.
 - **Frequency Scale:** A worn, faded white silkscreen scale printed on the chassis around the upper half of the knob: ticks every 1 MHz from 88 (9 o'clock) to 108 (3 o'clock), labelled every 4 MHz.
@@ -88,26 +89,27 @@
   - A faded dark-grey typewriter (monospace) grid of A-Z and 0-9 Morse code.
   - A Q-code section: `CQ: Calling any station`, `QRT: Stop transmission`.
   - A faded blue handwritten margin note: `Dial drifts below 90MHz in the cold. - Nevlin`.
+  - The card is a Morse helper only. It does **not** list the ham band operators: you find them by tuning around (and from the 100.20 bulletin), like a real ham, and a list would shrink the Morse table.
 - **Closing:** Tap the card, press `REF` again, or drag the card back toward the radio.
 
 ### 2f. Quick Start Guide (before the first power-on)
 - **Trigger:** using a control that needs power (DIT / DAH, DECODER, CLR, TX SEND, or releasing the VFO) before the radio has ever been switched on. REF and the dust wipe never trigger it (they work unpowered).
 - **Look:** a yellowed cardstock "QUICK START" note taped over the radio in typewriter type, with a pencil "start here" arrow. The chassis dims around a spotlight on the MAIN POWER breaker, which pulses with a soft amber glow (under 1 flash per second).
-- **Content:** explains the trainer (power, tuning and the HAM band, DIT/DAH and the 700 Hz tone, DECODER for beginners vs OFF for ear training, REF and CLR) and why sound needs the power on. It never mentions the haunt.
+- **Content:** explains the trainer (power, tuning and the HAM band, where operators can be met by tuning around, with the Elmer on 100.60 for newcomers; DIT/DAH and the 700 Hz tone; DECODER ON shows text vs OFF for ear training while the radio keeps working; REF and CLR) and why sound needs the power on. It never mentions the haunt.
 - **Actions:** `[ THROW MAIN POWER ]` performs the breaker's own action (thunk, audio unlock, power ON); `[ GOT IT ]` or Escape closes it. After it is dismissed, later attempts only make the breaker glow briefly. The first power-on retires it for the session.
 
 ## 3. Core Mechanics & Audio
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
 - **Static:** Continuous white noise (with sparse crackle) through a ~1 kHz bandpass, like muffled AM static. Loudness follows the band: dead air 100%, ham band 50%, broadcasters 20%, and only 10% on 104.40, so the ghost station is eerily quiet and clear. Silent when the power is OFF.
-- **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or 104.40 with the power ON, including with the DECODER OFF, so practised users can train by ear.
+- **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or 104.40 with the power ON, including with the DECODER OFF, so practised users can train by ear. Other operators come through the same sidetone at their own beat note (620-820 Hz), as on a real receiver; your own keying is always 700 Hz.
 - **Mechanical Foley (synthesised, no files):** the MCB is a heavy "KA-CHUNK" with a metallic ring; the DECODER slide a gritty metal scrape; REF / CLR / TX SEND a sharp sprung snap; the VFO a low, muffled ball-bearing thud every 0.05 MHz (heavier at a station). The reference card scrapes through its slot in sync with its friction animation: it slides, goes silent while stuck, spikes as it breaks free, then fades. Until the MCB has been operated no audio exists at all (autoplay policy).
-- **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are only decoded when the radio is powered and the DECODER is ON.
+- **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are keyed and decoded whenever the radio is powered and on a transmit frequency. The DECODER only controls the display.
 - **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-102.00 (inclusive) and the ghost frequency 104.40 allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
-- **Decoder gating:** taps are decoded only on the ham band or exactly on 104.40, with the power and DECODER ON. On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
+- **Decoder gating:** taps are keyed and decoded only on the ham band or exactly on 104.40, with the power ON (DECODER ON or OFF). On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
 - **Retuning:** any frequency change instantly clears the decoded message and the half-keyed letter.
-- **Timing:** Gaps are measured from the last tap: 600ms of silence ends a letter, 1400ms ends a word (one space, never leading or doubled).
+- **Timing:** Gaps are measured from the last tap. They start generous for beginners (600ms of silence ends a letter, 1400ms a word: one space, never leading or doubled) and **adapt to the operator** like a real CW decoder: the letter gap is ~4x the running average of the tap interval inside a letter (never below 320ms), and the word gap is 2.4x the letter gap (at most 1400ms). A fast operator is therefore not capped at ~12 WPM.
 - **Dictionary:** `src/utils/morseDictionary.ts` is the single source of truth (ITU A-Z, 0-9, plus the CQ / QRT Q-codes). The decoder and the reference card both read it, and the `morse-validator` power checks it on every save.
-- **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD, followed by the live dits/dahs of the letter being keyed and a blinking cursor. Unknown codes show as `?`. Once the text is wider than the glass, the oldest characters are hidden on the left so the newest are always visible. When it is OFF, the LCD text area remains blank and the half-keyed letter is dropped. `CLR` clears the buffer; power OFF wipes it.
+- **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD, followed by the live dits/dahs of the letter being keyed and a blinking cursor. Unknown codes show as `?`. Once the text is wider than the glass, the oldest characters are hidden on the left so the newest are always visible. When it is OFF, the LCD text area is blank, **and that is all it does**: keying, decoding and every station's replies carry on unseen (for copying and sending by ear), and switching it back ON shows the whole conversation so far. `CLR` clears the buffer; power OFF wipes it.
 - **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00). The radio powers on at a dead 88.50 MHz, so the player has to search for the station.
 - **S-Meter:** The needle tracks the received audio level.
 
@@ -115,7 +117,22 @@
 - **Incoming replies** are keyed out loud element by element (you hear every dit and dah), shown live on the LCD as they build, then committed letter by letter. While another station is sending, the paddles are locked out and the LCD cursor is hidden. CLR, retuning or power OFF cut a reply off.
 - **Tutor, 101.00 MHz** (a practice station inside the ham band, with its own tuning detent): when your last word is `HI` it answers `GUD COPY. SEND SOS`; when it is `SOS` it answers `FB. 73.` (fine business, best regards). Brisk, clean 700 Hz: 60/180 ms dit/dah, 150 ms between characters.
 - **Ghost, 104.40 MHz:** when your last word is `CQ` it answers ` I C U `, agonisingly slowly (500 ms between characters, 120/360 ms elements) in a lower, sagging, beating, distorted tone. When it finishes the `U`, the global `isHaunted` state becomes true (the trigger for Section 4).
-- Replies trigger on your *word* ending (a whole word, so `CHI` is not `HI`), and only while decoding (DECODER ON).
+- Replies trigger on your *word* ending (a whole word, so `CHI` is not `HI`), whether the DECODER is ON or OFF.
+
+## 3b. The Ham Band Operators (beginner to pro)
+Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HAM_STATIONS`). They must feel like **people on the air, not a level-up game**: they greet you, ask questions and react to your answers, vary their wording, talk you through mistakes, remember you when you come back, sign off when you send 73, and point you at each other. Nothing in the UI lists them; you discover them by tuning (the 100.20 bulletin mentions them, as real bulletins do). Each hears you tune in, every word you finish (with your measured sending speed) and how long the band has been quiet. Each answers with real Morse timing (Farnsworth where noted: ARRL t_a = (60c - 37.2s)/(sc)), in its own beat note. Names and places are fictional and nobody uses a callsign (real callsigns identify real people).
+
+| MHz | Who | Level | Behaviour |
+| --- | --- | --- | --- |
+| 100.20 | Code-practice bulletin | Beginner, listening | Starts on tune-in with `VVV ...`; rotates eight practice texts (pangram, Q-codes, numbers, and who else is on the band) at 18/8 WPM with 4s pauses. Never answers. |
+| 100.60 | The Elmer (mentor) | Beginner, sending | First asks `GE. DE ELMER. R U NEW TO CW? K`. Yes (Y / YES / R / C / OK) → `FB. WE START EASY. E IS 1 DIT. SEND E K`; silence for 15s → `NO PROBLEM. JUST SEND 1 DIT. THAT IS E K`; No → words, plus `TRY BOB ON 101.40 OR SAM ON 101.80`. Then he brings in characters shortest-first (`NEXT T. T IS DAH. T T T. UR TURN K`) and mixes in earlier ones (`SEND` / `NOW` / `TRY E K`). Varied praise (`FB`, `VY GUD`, `NICE`...). Mistakes: `NOT QUITE. A IS DIDAH. TRY AGN K`, then `NO WORRIES. LISTEN. A A A`. Occasional remarks (`U KNOW 6 LTRS NOW`, `U CAN TRY BOB ON 101.40 SOMETIME`). `HI` → `HI HI`; `?`/`AGN` repeats; `73` → `73 ES GL. CU AGN SK`; coming back → `GE. WB. LAST TIME U GOT TO N.` (localStorage). `STILL THERE?` after 25s idle (twice at most). 18/12 WPM. |
+| 101.00 | Practice station | First contact | `HI` -> `GUD COPY. SEND SOS`; `SOS` -> `FB. 73.` (unchanged). |
+| 101.40 | Bob, ragchewer | Intermediate | Calls `CQ CQ DE BOB BOB K` on tune-in, then every 30s while idle. Your over ends with `K`/`KN`/`BK`/`AR`/`SK` or 3.5s of silence. Then: `GE. UR RST 579. NAME BOB. UR NAME? K` -> `FB {NAME}. QTH OHIO. UR QTH? K` -> `FB. {QTH}. TNX QSO {NAME}. 73 SK` -> (your 73) `E E`. Procedure words never count as a name or place (`SRI. UR NAME? K`). Tuning in restarts the QSO. 18/13 WPM. |
+| 101.80 | Sam, high-speed op | Pro | Calls `CQ QRQ CQ QRQ DE SAM K` (every 40s). Answer him and he explains (`I SEND 5 LTR GRPS. U SEND THEM BACK. 20 WPM. GRP ...`). Right: `SOLID CPY. UR {your WPM}WPM. QRQ {+2}. GRP ...`; one character off: `CLOSE. QRS {-2}. AGN GRP {same}`; otherwise `NIL. ...`. 15-40 WPM (`TOP SPEED HI`). `QRS` slows him down; `?`/`AGN` repeats; `73` → `TU FER PRACTICE. 73 SK`; he remembers you (`WB`). Best with the DECODER OFF. |
+
+- Your sending speed: WPM = characters per minute / 5, timed from the first tap of the word to the last.
+- Retuning or power OFF cancels any transmission; the next tune-in restarts the station's greeting / call.
+
 
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
 - **Trigger:** When tuned to 104.4 MHz, transmitting text triggers an AI (or scripted fallback) response. During the final response line, execute the "Liquid Crystal Bleed" visual override.

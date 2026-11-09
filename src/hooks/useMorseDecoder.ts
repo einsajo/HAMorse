@@ -3,15 +3,17 @@ import type { ReactNode } from 'react'
 import { CHAR_TO_MORSE, decodeSymbol } from '../utils/morseDictionary'
 import { playGhostTone, playTone } from '../utils/audioEngine'
 import { useRadio } from '../context/RadioContext'
-import { TUTOR_FREQUENCY, getBandInfo, isTunedTo } from '../constants'
-import type { Band } from '../constants'
+import { getBandInfo, hamStationAt } from '../constants'
+import type { Band, HamStationId } from '../constants'
+import { GHOST_TIMING, REPLY_TIMING, createStations, measureWpm } from '../utils/stations'
+import type { ReplyTiming, SentWord, Station, StationStorage, Transmission } from '../utils/stations'
 
 /* --- Timing ---------------------------------------------------------------
-   Gaps are measured from the most recent tap. They are deliberately longer
+   Gaps are measured from the most recent tap. They start deliberately longer
    than strict Morse timing so a beginner tapping on a touchscreen still gets
-   clean letters. */
-export const SYMBOL_TIMEOUT_MS = 600 // silence that ends a letter
-export const WORD_TIMEOUT_MS = 1400 // silence that ends a word
+   clean letters (and then adapt to the operator, below). */
+export const SYMBOL_TIMEOUT_MS = 600 // silence that ends a letter (the slowest setting)
+export const WORD_TIMEOUT_MS = 1400 // silence that ends a word (the slowest setting)
 export const UNKNOWN_CHAR = '?'
 /** Sidetone lengths: a dah is three dits, as in real Morse */
 export const DIT_TONE_MS = 60
@@ -21,58 +23,38 @@ const MAX_SYMBOL_LENGTH = 7
 /** Characters of history to keep; the LCD only shows the newest ~25 */
 const MAX_MESSAGE_LENGTH = 160
 
+/* --- Adaptive letter spacing ----------------------------------------------
+   Like a real CW decoder, the gap that ends a letter follows the operator's
+   rhythm: it is ~4x their average tap interval inside a letter, between
+   MIN_SYMBOL_TIMEOUT_MS and SYMBOL_TIMEOUT_MS. A beginner keeps the generous
+   600 ms; a fast operator is no longer capped at ~12 WPM by it. The word gap
+   scales with it (x2.4, at most WORD_TIMEOUT_MS). */
+export const MIN_SYMBOL_TIMEOUT_MS = 320
+const ADAPT_FACTOR = 4
+const WORD_TO_SYMBOL = 2.4
+/** weight of the newest tap interval in the running average */
+const ADAPT_WEIGHT = 0.3
+
 /* --- Incoming transmissions -----------------------------------------------
    Replies are keyed element by element with real Morse timing, so you HEAR
    every dit and dah and see it build up on the LCD before the letter lands.
-   `charGapMs` is the pause between characters (the "speed per char").       */
-export interface ReplyTiming {
-  /** silence before the other station starts sending */
-  leadInMs: number
-  ditMs: number
-  dahMs: number
-  /** silence between the elements of one character */
-  elementGapMs: number
-  /** silence between characters */
-  charGapMs: number
-  /** silence between words */
-  wordGapMs: number
-}
-
-/** A friendly operator: brisk, clean 700 Hz */
-export const REPLY_TIMING: Readonly<ReplyTiming> = Object.freeze({
-  leadInMs: 700,
-  ditMs: DIT_TONE_MS,
-  dahMs: DAH_TONE_MS,
-  elementGapMs: 60,
-  charGapMs: 150,
-  wordGapMs: 420,
-})
-
-/** The thing on 104.40: agonisingly slow, distorted */
-export const GHOST_TIMING: Readonly<ReplyTiming> = Object.freeze({
-  leadInMs: 1600,
-  ditMs: 120,
-  dahMs: 360,
-  elementGapMs: 120,
-  charGapMs: 500,
-  wordGapMs: 1000,
-})
-
-/** Scripted QSOs (conversations) */
-export const TUTOR_REPLIES = Object.freeze({ afterHi: 'GUD COPY. SEND SOS ', afterSos: 'FB. 73. ' })
+   The timings (and every station's behaviour) live in src/utils/stations.ts. */
+export type { ReplyTiming } from '../utils/stations'
+export { REPLY_TIMING, GHOST_TIMING, TUTOR_REPLIES } from '../utils/stations'
 export const GHOST_REPLY = ' I C U '
-
-/** True when the last whole word of `message` is `word` (so "CHI " is not "HI ") */
-const lastWordIs = (message: string, word: string) => new RegExp(`(^|\\s)${word} $`).test(message)
+/** How often the band is checked for a station that wants to transmit unprompted */
+export const IDLE_POLL_MS = 400
 
 export type MorseTap = '.' | '-'
 
 /**
  * What the decoder is doing, for the LCD:
- *   off        power or DECODER is OFF: show nothing
+ *   off        power or DECODER is OFF: show nothing (the radio still works:
+ *              taps are keyed and decoded, stations still answer; only the
+ *              screen is blank, for copying and sending by ear)
  *   rx-only    on a broadcaster: you can listen but not transmit
  *   dead-band  dead air: nobody to talk to
- *   ready      ham band or the ghost frequency: taps are decoded
+ *   ready      ham band or the ghost frequency: taps are shown as they decode
  */
 export type DecoderStatus = 'off' | 'rx-only' | 'dead-band' | 'ready'
 
@@ -82,62 +64,77 @@ export interface MorseDecoderState {
   /** Everything decoded so far */
   decodedMessage: string
   /**
-   * Record a paddle tap. On a transmit frequency with the power ON it always
-   * sounds the 700 Hz sidetone; it is decoded only when the DECODER is ON too.
+   * Record a paddle tap. On a transmit frequency with the power ON it sounds
+   * the 700 Hz sidetone and is decoded, whether or not the DECODER (the
+   * display) is ON.
    */
   handleTap: (type: MorseTap) => void
   /** Wipe the buffer and anything in progress (the CLR button) */
   clear: () => void
-  /** True when taps are being decoded (power ON, DECODER ON, ham band or ghost frequency) */
+  /** True when taps are keyed and decoded (power ON, on the ham band or the ghost frequency) */
   isActive: boolean
   /** Another station is sending: the paddles are locked out until it finishes */
   isReceiving: boolean
   /**
    * Play an incoming transmission: each character is keyed out loud
    * (dits and dahs), shown live on the LCD, then appended to the message.
-   * `isGhost` = slow, distorted. Interrupted by CLR, retuning or power off.
+   * `isGhost` = the ghost's distorted tone; `timing` overrides the default
+   * speed (the ghost's, or the 101.00 practice station's). Interrupted by
+   * CLR, retuning or power off.
    */
-  simulateReply: (message: string, isGhost: boolean) => void
+  simulateReply: (message: string, isGhost: boolean, timing?: ReplyTiming) => void
   /** Band the radio is tuned to */
   band: Band
+  /** Ham operator on this exact frequency, if any */
+  station: HamStationId | null
   /** Decoder state for the LCD status line */
   status: DecoderStatus
 }
 
 interface DecoderOptions {
+  /** the slowest (initial) letter gap; the decoder adapts below it */
   symbolTimeoutMs?: number
+  /** the slowest (initial) word gap */
   wordTimeoutMs?: number
 }
 
 const trimHistory = (text: string) => (text.length > MAX_MESSAGE_LENGTH ? text.slice(-MAX_MESSAGE_LENGTH) : text)
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+/** The letter / word gaps for an operator whose average in-letter tap interval is `avgTapMs` */
+export function adaptiveTimeouts(avgTapMs: number | null, maxSymbolMs = SYMBOL_TIMEOUT_MS, maxWordMs = WORD_TIMEOUT_MS) {
+  const minSymbol = Math.min(MIN_SYMBOL_TIMEOUT_MS, maxSymbolMs)
+  const symbolMs = avgTapMs === null ? maxSymbolMs : clamp(Math.round(avgTapMs * ADAPT_FACTOR), minSymbol, maxSymbolMs)
+  const wordMs = clamp(Math.round(symbolMs * WORD_TO_SYMBOL), Math.min(symbolMs + 200, maxWordMs), maxWordMs)
+  return { symbolMs, wordMs }
+}
+
+interface EngineCallbacks {
+  /** the user finished a word (word timeout); receives the whole message and the word itself */
+  onWordEnd?: (message: string, sent: SentWord) => void
+  /** an incoming transmission finished sending */
+  onReplyEnd?: (message: string, isGhost: boolean) => void
+}
 
 /**
  * The decoder engine. Every tap appends to `currentSymbol` and restarts two
- * timers: after `symbolTimeoutMs` of silence the symbol is looked up in the
+ * timers: after the letter gap of silence the symbol is looked up in the
  * Morse dictionary and its character (or `?`) is appended to
- * `decodedMessage`; after `wordTimeoutMs` of silence a word space is added.
+ * `decodedMessage`; after the word gap a word space is added and the far
+ * station hears the word.
  *
  * The symbol lives in a ref as well as in state, so the timers always read
  * the latest value without being recreated on every render.
  *
  * `canKey`: the rig can transmit here (power ON, ham band or ghost), so a tap
- * sounds the sidetone. `isActive`: canKey and the DECODER is ON, so the tap is
- * also decoded. Keying with the DECODER OFF is how practised operators train
- * by ear.
+ * sounds the sidetone and is decoded. The DECODER switch is not the
+ * engine's business: it only decides whether the LCD shows the text.
  */
-interface EngineCallbacks {
-  /** the user finished a word (word timeout); receives the whole message */
-  onWordEnd?: (message: string) => void
-  /** an incoming transmission finished sending */
-  onReplyEnd?: (message: string, isGhost: boolean) => void
-}
-
 function useMorseDecoderEngine(
   canKey: boolean,
-  isActive: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'status'> {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status'> {
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [decodedMessage, setDecodedMessage] = useState('')
   const [isReceiving, setIsReceiving] = useState(false)
@@ -152,9 +149,15 @@ function useMorseDecoderEngine(
   const symbolRef = useRef('')
   const symbolTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeRef = useRef(isActive)
   const canKeyRef = useRef(canKey)
   canKeyRef.current = canKey
+
+  // the word being sent, and its timing (for the operator's WPM)
+  const wordRef = useRef('')
+  const wordStartRef = useRef(0)
+  const lastTapRef = useRef(0)
+  /** running average of the tap interval inside a letter; null until measured */
+  const avgTapRef = useRef<number | null>(null)
 
   const clearTimers = useCallback(() => {
     if (symbolTimer.current !== null) clearTimeout(symbolTimer.current)
@@ -196,27 +199,32 @@ function useMorseDecoderEngine(
     if (!code) return
     const ch = decodeSymbol(code) ?? UNKNOWN_CHAR
     setSymbol('')
+    wordRef.current += ch
     setMessage(messageRef.current + ch)
   }, [setSymbol, setMessage])
 
   /** End of word: one space, never leading and never doubled; then let the far station react */
   const commitWord = useCallback(() => {
     wordTimer.current = null
+    const word = wordRef.current
+    const wpm = measureWpm(word.length, lastTapRef.current - wordStartRef.current)
+    wordRef.current = ''
     appendSpace()
-    callbacksRef.current.onWordEnd?.(messageRef.current)
+    if (word) callbacksRef.current.onWordEnd?.(messageRef.current, { word, wpm })
   }, [appendSpace])
 
   /** The auto-typer: recursive setTimeouts, one per element / gap */
   const simulateReply = useCallback(
-    (message: string, isGhost: boolean) => {
+    (message: string, isGhost: boolean, timing?: ReplyTiming) => {
       stopReply()
       clearTimers()
       setSymbol('')
+      wordRef.current = ''
       receivingRef.current = true
       setIsReceiving(true)
 
-      const t = isGhost ? GHOST_TIMING : REPLY_TIMING
-      const tone = isGhost ? playGhostTone : playTone
+      const t = timing ?? (isGhost ? GHOST_TIMING : REPLY_TIMING)
+      const tone = isGhost ? playGhostTone : (ms: number) => playTone(ms, t.toneHz)
       const chars = [...message.toUpperCase()]
       let i = 0
 
@@ -260,6 +268,8 @@ function useMorseDecoderEngine(
         nextElement()
       }
 
+      // the reply starts on a fresh word
+      appendSpace()
       schedule(nextChar, t.leadInMs)
     },
     [appendSpace, clearTimers, setMessage, setSymbol, stopReply],
@@ -271,13 +281,24 @@ function useMorseDecoderEngine(
       if (receivingRef.current) return // the other station has the frequency: wait your turn
       if (!canKeyRef.current) return // dead radio, broadcaster or dead air: nothing keyed
       playTone(type === '.' ? DIT_TONE_MS : DAH_TONE_MS)
-      if (!activeRef.current) return // DECODER OFF: sidetone only
       clearTimers()
+
+      const now = performance.now()
+      if (symbolRef.current !== '') {
+        // a tap inside a letter: learn the operator's rhythm
+        const interval = now - lastTapRef.current
+        const avg = avgTapRef.current
+        avgTapRef.current = avg === null ? interval : avg * (1 - ADAPT_WEIGHT) + interval * ADAPT_WEIGHT
+      }
+      if (wordRef.current === '' && symbolRef.current === '') wordStartRef.current = now
+      lastTapRef.current = now
+
       // a symbol longer than any real code can never decode: commit it as '?' and start over
       if (symbolRef.current.length >= MAX_SYMBOL_LENGTH) commitSymbol()
       setSymbol(symbolRef.current + type)
-      symbolTimer.current = setTimeout(commitSymbol, symbolTimeoutMs)
-      wordTimer.current = setTimeout(commitWord, wordTimeoutMs)
+      const { symbolMs, wordMs } = adaptiveTimeouts(avgTapRef.current, symbolTimeoutMs, wordTimeoutMs)
+      symbolTimer.current = setTimeout(commitSymbol, symbolMs)
+      wordTimer.current = setTimeout(commitWord, wordMs)
     },
     [clearTimers, commitSymbol, commitWord, setSymbol, symbolTimeoutMs, wordTimeoutMs],
   )
@@ -286,17 +307,18 @@ function useMorseDecoderEngine(
     stopReply()
     clearTimers()
     setSymbol('')
+    wordRef.current = ''
     setMessage('')
   }, [clearTimers, setMessage, setSymbol, stopReply])
 
-  // DECODER (or power) switched off: drop the half-keyed letter and stop the timers
+  // keying no longer possible (power off, tuned off the band): drop the half-keyed letter
   useEffect(() => {
-    activeRef.current = isActive
-    if (!isActive) {
+    if (!canKey) {
       clearTimers()
       setSymbol('')
+      wordRef.current = ''
     }
-  }, [isActive, clearTimers, setSymbol])
+  }, [canKey, clearTimers, setSymbol])
 
   // never leave a timer running after unmount (reads the refs directly, so it
   // runs exactly once, on unmount, whatever happens to callback identities)
@@ -309,7 +331,7 @@ function useMorseDecoderEngine(
     [],
   )
 
-  return { currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply }
+  return { currentSymbol, decodedMessage, handleTap, clear, isActive: canKey, isReceiving, simulateReply }
 }
 
 /* --- Shared instance ------------------------------------------------------
@@ -321,49 +343,89 @@ interface MorseDecoderProviderProps extends DecoderOptions {
   children?: ReactNode
 }
 
+/** localStorage if the browser allows it (it throws in some privacy modes) */
+function browserStorage(): StationStorage | undefined {
+  try {
+    return typeof window !== 'undefined' && window.localStorage ? window.localStorage : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
- * Must sit inside <RadioProvider>. Taps are keyed (sidetone) only when the
- * radio is powered and the dial is on a frequency you can transmit on (the
- * ham band or the ghost frequency), and decoded only if the DECODER is ON too.
- * Broadcasters are receive-only and dead air has nobody listening; the
- * paddles still move there, but nothing is keyed.
+ * Must sit inside <RadioProvider>. Taps are keyed (sidetone) and decoded only
+ * when the radio is powered and the dial is on a frequency you can transmit
+ * on (the ham band or the ghost frequency); the DECODER switch only decides
+ * whether the LCD shows the text. Broadcasters are receive-only and dead air
+ * has nobody listening; the paddles still move there, but nothing is keyed.
+ *
+ * The far end of every contact lives here too:
+ *   - the ham operators (src/utils/stations.ts) hear you tune in, every word
+ *     you finish, and how long the band has been quiet (polled), and answer;
+ *   - 104.40, the ghost: ... CQ -> " I C U " (slow, distorted), then the haunt.
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
   const { isPowerOn, isDecoderOn, frequency, setIsHaunted } = useRadio()
   const { band, canTransmit } = getBandInfo(frequency)
   const canKey = isPowerOn && canTransmit
+  const station = hamStationAt(frequency)
+
+  // one set of operators for the life of the app (each remembers its own QSO)
+  const stationsRef = useRef<Record<HamStationId, Station> | null>(null)
+  if (stationsRef.current === null) stationsRef.current = createStations({ storage: browserStorage() })
+  const stations = stationsRef.current
 
   const frequencyRef = useRef(frequency)
   frequencyRef.current = frequency
-  const replyRef = useRef<(message: string, isGhost: boolean) => void>(() => {})
+  const replyRef = useRef<MorseDecoderState['simulateReply']>(() => {})
 
-  /*
-   * The stations listening on the band. They react when you finish a word:
-   *   101.00 tutor:  ... HI   -> "GUD COPY. SEND SOS"
-   *                  ... SOS  -> "FB. 73."   (fine business, best regards)
-   *   104.40 ghost:  ... CQ   -> " I C U "   (slow, distorted)
-   */
-  const onWordEnd = useCallback((message: string) => {
-    const f = frequencyRef.current
-    if (isTunedTo(f, TUTOR_FREQUENCY)) {
-      if (lastWordIs(message, 'HI')) replyRef.current(TUTOR_REPLIES.afterHi, false)
-      else if (lastWordIs(message, 'SOS')) replyRef.current(TUTOR_REPLIES.afterSos, false)
-    } else if (getBandInfo(f).band === 'ghost' && lastWordIs(message, 'CQ')) {
-      replyRef.current(GHOST_REPLY, true)
-    }
+  /** when anyone (you, the far station) last did anything; drives the idle polling */
+  const lastActivity = useRef(0)
+  const touch = useCallback(() => {
+    lastActivity.current = performance.now()
   }, [])
+
+  const transmit = useCallback((t: Transmission | null) => {
+    if (t) replyRef.current(t.text, false, t.timing)
+  }, [])
+
+  const onWordEnd = useCallback(
+    (_message: string, sent: SentWord) => {
+      touch()
+      const f = frequencyRef.current
+      if (getBandInfo(f).band === 'ghost') {
+        if (sent.word === 'CQ') replyRef.current(GHOST_REPLY, true)
+        return
+      }
+      const id = hamStationAt(f)
+      if (id) transmit(stations[id].onWord(sent))
+    },
+    [stations, touch, transmit],
+  )
 
   // when the ghost has finished sending (its last letter is "U"), the haunt begins
   const onReplyEnd = useCallback(
     (_message: string, isGhost: boolean) => {
+      touch()
       if (isGhost) setIsHaunted(true)
     },
-    [setIsHaunted],
+    [setIsHaunted, touch],
   )
 
-  const { currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply } =
-    useMorseDecoderEngine(canKey, canKey && isDecoderOn, options, { onWordEnd, onReplyEnd })
+  const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
+  const { currentSymbol, decodedMessage, clear, isActive, isReceiving, simulateReply } = engine
   replyRef.current = simulateReply
+  const receivingRef = useRef(isReceiving)
+  receivingRef.current = isReceiving
+
+  const engineTap = engine.handleTap
+  const handleTap = useCallback(
+    (type: MorseTap) => {
+      touch()
+      engineTap(type)
+    },
+    [engineTap, touch],
+  )
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
     ? 'off'
@@ -386,9 +448,32 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     clear()
   }, [frequency, clear])
 
+  // tuning in (or powering up) on an operator's frequency: they notice you
+  // (runs after the wipe above: effects run in order)
+  useEffect(() => {
+    touch()
+    if (!isPowerOn || station === null) return
+    transmit(stations[station].onTuneIn())
+  }, [frequency, isPowerOn, station, stations, touch, transmit])
+
+  // a quiet band: operators call CQ, nudge you, or start the next bulletin
+  useEffect(() => {
+    if (!isPowerOn || station === null) return
+    const op = stations[station]
+    const timer = setInterval(() => {
+      if (receivingRef.current) return
+      const t = op.onIdle(performance.now() - lastActivity.current)
+      if (t) {
+        touch()
+        transmit(t)
+      }
+    }, IDLE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [isPowerOn, station, stations, touch, transmit])
+
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, status }),
-    [currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, status],
+    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status }),
+    [currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }
