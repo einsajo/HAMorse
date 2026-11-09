@@ -5,6 +5,7 @@ import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { MorseTap } from '../hooks/useMorseDecoder'
 import { usePowerHint } from '../hooks/usePowerHint'
 import { useRadio } from '../context/RadioContext'
+import { playButtonSnap } from '../utils/audioEngine'
 
 /* --- Iambic squeeze keyer ------------------------------------------------ */
 
@@ -76,9 +77,14 @@ interface UtilityButtonProps {
   latched?: boolean
 }
 
-/** Small tactile push switch (REF / CLR) */
+/** Small tactile push switch (REF / CLR): a sharp sprung snap the instant it goes down */
 function UtilityButton({ label, onPress, latched }: UtilityButtonProps) {
-  const { pressed, handlers } = usePress({ onPress })
+  const { pressed, handlers } = usePress({
+    onPress: () => {
+      playButtonSnap()
+      onPress?.()
+    },
+  })
   return (
     <div className="utility">
       <div className="utility__housing">
@@ -104,7 +110,12 @@ function UtilityButton({ label, onPress, latched }: UtilityButtonProps) {
  * inset dark-red glass lens.
  */
 function TxButton({ onPress }: { onPress?: () => void }) {
-  const { pressed, handlers } = usePress({ onPress })
+  const { pressed, handlers } = usePress({
+    onPress: () => {
+      playButtonSnap()
+      onPress?.()
+    },
+  })
   return (
     <div className="utility tx">
       <div className="tx__housing">

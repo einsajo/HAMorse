@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
 import { useRadio } from '../context/RadioContext'
-import { playBreakerClick, playClick, unlockAudio } from '../utils/audioEngine'
+import { playBreakerThunk, playSliderScrape, unlockAudio } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
 import { getBandInfo } from '../constants'
 import type { Band } from '../constants'
@@ -409,15 +409,15 @@ export default function TopPanel() {
   // The breaker is the ONLY control allowed to start audio (mobile autoplay policy).
   const onPower = useCallback(() => {
     unlockAudio()
-    playBreakerClick(!isPowerOn)
+    playBreakerThunk(!isPowerOn) // KA-CHUNK
     togglePower()
   }, [isPowerOn, togglePower])
 
-  // the slide's detent: a lighter metallic click (silent until audio is unlocked).
+  // metal shoe scraping along the slide's track (silent until audio is unlocked).
   // It still slides with the power off; before the first power-on, show the guide.
   const onDecoder = useCallback(() => {
     if (!isPowerOn) nudge()
-    playClick(isDecoderOn ? 1500 : 1800, 0.45)
+    playSliderScrape(!isDecoderOn)
     toggleDecoder()
   }, [isPowerOn, isDecoderOn, nudge, toggleDecoder])
 
