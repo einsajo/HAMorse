@@ -278,6 +278,87 @@
   }
 }
 
+/* --- RX / TX annunciators ------------------------------------------------
+   Printed segments in the top-left corner of the glass, like a real rig's
+   LCD. The flags are always faintly visible (unlit crystal); lit, they turn
+   into dark reverse blocks with the backlight showing through the letters.
+   Sized off the frequency row (0.35em: a little larger than the buffer text, ~11.5px on a 412px phone), and taken
+   out of the flow so the digits never move. */
+.lcd__annun {
+  position: absolute;
+  left: 0;
+  top: 52%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.35em;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.lcd__flag {
+  padding: 0.08em 0.22em 0.04em;
+  border: 1px solid rgba(58, 40, 0, 0.22);
+  border-radius: 1px;
+  color: rgba(58, 40, 0, 0.2);
+}
+
+.lcd__flag[data-lit='true'] {
+  border-color: var(--lcd-ink);
+  background: var(--lcd-ink);
+  /* the amber backlight shining through the letter-shaped gaps */
+  color: rgba(236, 172, 40, 0.92);
+  opacity: 0.86;
+  box-shadow: 1px 1px 0 rgba(58, 40, 0, 0.45), 2px 2px 2px rgba(58, 40, 0, 0.3);
+}
+
+.lcd__annun-msg {
+  min-width: 9ch;
+  white-space: pre;
+}
+
+/* "TX SEND" + dots counting up . .. ... then starting over */
+.lcd__dots > span:nth-child(2) {
+  animation: lcd-dot-2 1.2s steps(1, end) infinite;
+}
+
+.lcd__dots > span:nth-child(3) {
+  animation: lcd-dot-3 1.2s steps(1, end) infinite;
+}
+
+@keyframes lcd-dot-2 {
+  0%, 32% { opacity: 0; }
+  33%, 100% { opacity: 1; }
+}
+
+@keyframes lcd-dot-3 {
+  0%, 65% { opacity: 0; }
+  66%, 100% { opacity: 1; }
+}
+
+/* short notices (NO REPLY, INHIBIT, BUSY, NO MSG) blink to catch the eye */
+.lcd__annun:is([data-tx='no-reply'], [data-tx='inhibit'], [data-tx='busy'], [data-tx='empty']) .lcd__annun-msg {
+  animation: lcd-notice 0.8s steps(1, end) infinite;
+}
+
+.lcd__annun[data-tx='inhibit'] .lcd__flag[data-lit='true'] {
+  animation: lcd-notice 0.8s steps(1, end) infinite;
+}
+
+@keyframes lcd-notice {
+  0%, 69% { opacity: 0.88; }
+  70%, 100% { opacity: 0.22; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcd__dots > span,
+  .lcd__annun-msg,
+  .lcd__flag {
+    animation: none !important;
+  }
+}
+
 /* --- Lit liquid crystal (#050505) -------------------------------------- */
 .lcd__ink {
   position: relative;

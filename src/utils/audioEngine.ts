@@ -192,6 +192,24 @@ export function scheduleGhostTone(ctx: BaseAudioContext, destination: AudioNode,
 }
 
 /* --- Foley toolkit --------------------------------------------------------------- */
+/*
+ * How the mechanical sounds are built, and why they no longer sound "synth":
+ *
+ *  1. Excite, then resonate (modal synthesis). A real click is a near-instant
+ *     impulse that makes the parts ring: the snap dome, the phenolic case, the
+ *     panel it is screwed to. So every sound is a tiny burst of noise fed into
+ *     a small bank of band-pass resonators tuned to those parts, NOT an
+ *     oscillator with a pitch drop (that is what made the old breaker and VFO
+ *     sound like a drum machine's kick).
+ *  2. Friction is a crowd of stick-slip events. A slider or a card is
+ *     hundreds of tiny ticks whose density and loudness follow how fast the
+ *     part is moving, not a steady filtered hiss.
+ *  3. Nothing ever plays twice the same. Pitches, levels and timings are
+ *     jittered every time, the way no two presses of a real switch match.
+ *  4. Everything sits in a room. A short synthesised room response (early
+ *     reflections off the desk and walls, then a dark ~0.35 s tail) is mixed
+ *     in quietly, so the sounds happen *somewhere* instead of inside your ears.
+ */
 type Ctx = BaseAudioContext
 
 const foleyNoiseCache = new WeakMap<Ctx, AudioBuffer>()
@@ -224,15 +242,16 @@ function disposeAfter(sources: AudioScheduledSourceNode[], nodes: AudioNode[]): 
 function noiseBurst(ctx: Ctx, when: number, seconds: number): AudioBufferSourceNode {
   const src = ctx.createBufferSource()
   src.buffer = foleyNoise(ctx)
-  const offset = Math.random() * Math.max(0, 2 - seconds - 0.01)
-  src.start(when, offset, seconds + 0.005)
+  const len = Math.min(1.9, seconds)
+  const offset = Math.random() * Math.max(0, 2 - len - 0.01)
+  src.start(when, offset, len + 0.005)
   return src
 }
 
 function filter(ctx: Ctx, type: BiquadFilterType, hz: number, q = 0.7): BiquadFilterNode {
   const f = ctx.createBiquadFilter()
   f.type = type
-  f.frequency.value = hz
+  f.frequency.value = Math.min(hz, ctx.sampleRate * 0.45)
   f.Q.value = q
   return f
 }
@@ -250,194 +269,435 @@ function hit(ctx: Ctx, when: number, peak: number, attack: number, decay: number
   return g
 }
 
-/** A drum-synth "body": an oscillator whose pitch drops fast */
-function pitchDrop(ctx: Ctx, type: OscillatorType, when: number, fromHz: number, toHz: number, dropS: number, lengthS: number) {
-  const osc = ctx.createOscillator()
-  osc.type = type
-  osc.frequency.setValueAtTime(fromHz, when)
-  osc.frequency.exponentialRampToValueAtTime(toHz, when + dropS)
-  osc.start(when)
-  osc.stop(when + lengthS)
-  return osc
+/** uniform random number in [lo, hi) */
+const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo)
+/** `x` jittered by up to +/- `amount` (fraction) */
+const vary = (x: number, amount = 0.04) => x * (1 + (Math.random() * 2 - 1) * amount)
+
+/** Collects a one-shot's nodes so they can all be disconnected when it ends */
+interface OneShot {
+  ctx: Ctx
+  node: <T extends AudioNode>(n: T) => T
+  source: <T extends AudioScheduledSourceNode>(s: T) => T
+  done: () => void
+}
+
+function oneShot(ctx: Ctx): OneShot {
+  const sources: AudioScheduledSourceNode[] = []
+  const nodes: AudioNode[] = []
+  return {
+    ctx,
+    node: (n) => (nodes.push(n), n),
+    source: (s) => (sources.push(s), nodes.push(s), s),
+    done: () => disposeAfter(sources, nodes),
+  }
+}
+
+/** The output bus of one sound, at `level` */
+function bus(s: OneShot, out: AudioNode, level: number): GainNode {
+  const g = s.node(s.ctx.createGain())
+  g.gain.value = level
+  g.connect(out)
+  return g
+}
+
+interface ExciteOptions {
+  /** burst length (s): a click is ~1 ms, a knock a few ms */
+  len: number
+  peak?: number
+  /** high-pass and low-pass corners shaping the burst (0 = none) */
+  hp?: number
+  lp?: number
+}
+
+const pulseCache = new WeakMap<Ctx, Map<number, AudioBuffer>>()
+
+/**
+ * A contact pulse: one half-sine bump `samples` long. This is what a strike
+ * really is. A hard contact is brief and excites everything (bright); a
+ * soft one lasts longer and only the low modes respond (dull). Unlike a
+ * snippet of noise, it carries the same energy every time.
+ */
+function contactPulse(ctx: Ctx, samples: number): AudioBuffer {
+  let byWidth = pulseCache.get(ctx)
+  if (!byWidth) pulseCache.set(ctx, (byWidth = new Map()))
+  let buf = byWidth.get(samples)
+  if (!buf) {
+    buf = ctx.createBuffer(1, samples + 2, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < samples; i++) d[i + 1] = Math.sin((Math.PI * (i + 0.5)) / samples)
+    byWidth.set(samples, buf)
+  }
+  return buf
+}
+
+/** How much random texture rides on a strike (the rest is the clean contact pulse) */
+const STRIKE_GRIT = 0.35
+
+/**
+ * A strike: a contact pulse (consistent energy; its width follows `lp`, so a
+ * dull strike is a longer, softer contact) plus a little noise for the grain
+ * of real materials. Returns the node to feed into resonators.
+ */
+function excite(s: OneShot, when: number, { len, peak = 1, hp = 0, lp = 0 }: ExciteOptions): AudioNode {
+  const ctx = s.ctx
+  const sum = s.node(ctx.createGain())
+  const width = lp > 0 ? 0.5 / lp : 0.00009 // contact time (s)
+  const samples = Math.max(2, Math.round(vary(width, 0.15) * ctx.sampleRate))
+  const pulse = s.source(ctx.createBufferSource())
+  pulse.buffer = contactPulse(ctx, samples)
+  const pulseGain = s.node(ctx.createGain())
+  // keep the pulse's energy roughly independent of its width
+  pulseGain.gain.value = peak * Math.min(3, Math.sqrt(8 / samples))
+  pulse.connect(pulseGain).connect(sum)
+  pulse.start(when)
+
+  const grit = s.source(noiseBurst(ctx, when, len + 0.004))
+  const gritEnv = s.node(hit(ctx, when, peak * STRIKE_GRIT, 0.00012, len))
+  grit.connect(gritEnv).connect(sum)
+
+  let tail: AudioNode = sum
+  if (hp > 0) tail = tail.connect(s.node(filter(ctx, 'highpass', hp, 0.7)))
+  if (lp > 0) tail = tail.connect(s.node(filter(ctx, 'lowpass', lp, 0.7)))
+  return tail
+}
+
+/** [frequency Hz, Q, relative level] of one resonant mode of a part */
+type Mode = readonly [number, number, number]
+
+/**
+ * Ring `input` through a bank of band-pass resonators (one per mode) into
+ * `out`. A band-pass's response to a short impulse shrinks as its Q rises,
+ * so each mode's level is scaled by its Q to keep the balance as written.
+ */
+function resonate(s: OneShot, input: AudioNode, modes: readonly Mode[], out: AudioNode, scale = 1): void {
+  for (const [hz, q, level] of modes) {
+    const bp = s.node(filter(s.ctx, 'bandpass', hz, q))
+    const g = s.node(s.ctx.createGain())
+    g.gain.value = level * Math.max(1, q) * 0.5 * scale
+    input.connect(bp).connect(g).connect(out)
+  }
+}
+
+/** Pass some of the raw strike straight through: the hard leading edge of a click */
+function edge(s: OneShot, input: AudioNode, out: AudioNode, level: number, hp = 2500): void {
+  const f = s.node(filter(s.ctx, 'highpass', hp, 0.7))
+  const g = s.node(s.ctx.createGain())
+  g.gain.value = level
+  input.connect(f).connect(g).connect(out)
+}
+
+/**
+ * A metallic ring (a spring or a steel frame): decaying sines at inharmonic
+ * pitches, each with its own decay. Real metal rings for much longer than a
+ * stable band-pass can, so these are the one place oscillators are used.
+ */
+function ring(s: OneShot, when: number, partials: readonly (readonly [number, number, number])[], out: AudioNode): void {
+  for (const [hz, level, decay] of partials) {
+    const osc = s.source(s.ctx.createOscillator())
+    osc.type = 'sine'
+    osc.frequency.value = vary(hz, 0.015)
+    const g = s.node(hit(s.ctx, when, level, 0.0006, decay))
+    osc.connect(g).connect(out)
+    osc.start(when)
+    osc.stop(when + decay + 0.02)
+  }
+}
+
+/**
+ * Stick-slip friction: a Poisson train of tiny ticks on one noise source.
+ * `profile(u)` (u = 0..1 across `dur`) is the part's speed, 0..1: it sets
+ * both how often the surfaces catch and how hard. Returns the node carrying
+ * the ticks so they can be filtered / resonated.
+ */
+function grains(
+  s: OneShot,
+  when: number,
+  dur: number,
+  { rate, peak, tau = 0.00035, profile }: { rate: number; peak: number; tau?: number; profile: (u: number) => number },
+): AudioNode {
+  const src = s.source(noiseBurst(s.ctx, when, dur + 0.02))
+  const g = s.node(s.ctx.createGain())
+  const p = g.gain
+  g.gain.value = 0
+  p.setValueAtTime(0, when)
+  const minGap = 0.0003
+  let t = rand(0, 0.002)
+  while (t < dur) {
+    const v = Math.max(0, Math.min(1.6, profile(t / dur)))
+    if (v > 0.03) {
+      const at = when + t
+      p.setValueAtTime(peak * v * rand(0.2, 1), at)
+      p.setTargetAtTime(0, at + 0.00004, tau * rand(0.6, 1.8))
+    }
+    // the faster it moves, the more often the surfaces catch
+    t += Math.max(minGap, -Math.log(1 - Math.random()) / (rate * Math.max(v, 0.04)))
+  }
+  p.setValueAtTime(0, when + dur + 0.004)
+  return src.connect(g)
+}
+
+/**
+ * A smooth gain curve following `profile` (sampled every `stepS`), drawn with
+ * linear ramps (setValueCurveAtTime would throw if events overlap).
+ */
+function contour(s: OneShot, when: number, dur: number, level: number, profile: (u: number) => number, stepS = 0.008): GainNode {
+  const g = s.node(s.ctx.createGain())
+  g.gain.value = 0
+  g.gain.setValueAtTime(0, when)
+  for (let t = stepS; t <= dur + 1e-9; t += stepS) {
+    g.gain.linearRampToValueAtTime(level * Math.max(0, profile(Math.min(1, t / dur))), when + t)
+  }
+  g.gain.linearRampToValueAtTime(0, when + dur + stepS)
+  return g
+}
+
+/* --- Room ------------------------------------------------------------------------- */
+/** How much room is mixed in (the dry sound stays at full level) */
+const ROOM_WET = 0.16
+const ROOM_SECONDS = 0.36
+/** Early reflections: [delay ms, level]: desk, chassis lid, near walls */
+const EARLY_REFLECTIONS: readonly (readonly [number, number])[] = [
+  [2.7, 0.55], [4.9, 0.42], [7.6, 0.33], [11.3, 0.27], [15.8, 0.2], [22.4, 0.15], [29.5, 0.1],
+]
+
+/** A synthesised small-room impulse response: reflections, then a tail that darkens as it decays */
+function makeRoomResponse(ctx: Ctx): AudioBuffer {
+  const sr = ctx.sampleRate
+  const len = Math.floor(sr * ROOM_SECONDS)
+  const buf = ctx.createBuffer(2, len, sr)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch)
+    let lp = 0
+    for (let i = 0; i < len; i++) {
+      const t = i / sr
+      // walls absorb highs first: the tail gets duller as it fades
+      const k = 0.75 - 0.6 * Math.min(1, t / 0.22)
+      lp += ((Math.random() * 2 - 1) - lp) * k
+      const onset = Math.min(1, t / 0.006)
+      d[i] = lp * Math.exp(-t / 0.06) * onset * 0.5
+    }
+    for (const [ms, level] of EARLY_REFLECTIONS) {
+      const i = Math.floor(((ms * (ch ? 1.07 : 1)) / 1000) * sr)
+      if (i < len) d[i] += level * (Math.random() < 0.5 ? -1 : 1)
+    }
+  }
+  return buf
+}
+
+const roomCache = new WeakMap<AudioNode, AudioNode>()
+
+/** The room every Foley sound plays into (one per output, created on first use) */
+function room(ctx: Ctx, destination: AudioNode): AudioNode {
+  const cached = roomCache.get(destination)
+  if (cached) return cached
+  const input = ctx.createGain()
+  input.connect(destination)
+  const conv = ctx.createConvolver()
+  conv.buffer = makeRoomResponse(ctx)
+  const wet = ctx.createGain()
+  wet.gain.value = ROOM_WET
+  input.connect(conv).connect(wet).connect(destination)
+  roomCache.set(destination, input)
+  return input
 }
 
 /* --- Foley: VFO (heavy ball bearings) ------------------------------------------------ */
 /**
- * A hardened steel ball dropping into a detent: a low, muffled thud, felt
- * more than heard. A fast pitch drop, a dull "knock" resonance where the ball
- * seats, all through a lowpass so nothing is bright or clicky. Most energy sits
- * below ~600 Hz, with enough between 300 Hz and 1 kHz that it still reads
- * (quietly) on small phone speakers, which cannot reproduce the deepest part.
- * `heavy` is the bigger detent at a station: lower, longer and firmer.
+ * A hardened steel ball riding over the crest between two detents: a tiny dry
+ * tick as it tips over, then the dull knock of it dropping into the next
+ * pocket, heard through the mass of the knob and the panel. Damped, not
+ * boomy: most of it sits around 250 Hz-1.5 kHz, which is also what small phone
+ * speakers can play. `heavy` is the bigger detent at a station: a firmer,
+ * lower knock with a second little settle as the ball seats.
  */
+const ENCODER_LEVEL = 0.73
+
 export function scheduleEncoderThud(ctx: Ctx, destination: AudioNode, heavy = false, when = ctx.currentTime): void {
-  const k = heavy ? 0.78 : 1 // pitch scale
-  const v = heavy ? 1.6 : 1 // level scale
-  const lp = filter(ctx, 'lowpass', heavy ? 950 : 1150, 0.6)
-  lp.connect(destination)
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), ENCODER_LEVEL * vary(heavy ? 1.5 : 1, 0.15))
 
-  // body: the mass of the knob
-  const body = pitchDrop(ctx, 'sine', when, 290 * k, 88 * k, 0.03, 0.1)
-  const bodyGain = hit(ctx, when, 0.25 * v, 0.0015, heavy ? 0.07 : 0.045)
-  body.connect(bodyGain).connect(lp)
+  // tipping over the crest
+  const tick = excite(s, when, { len: 0.0006, peak: 0.18, hp: 2400 })
+  resonate(s, tick, [[vary(3300), 14, 0.5], [vary(5100), 18, 0.25]], out)
 
-  // edge: an octave-ish overtone, so small speakers have something to play
-  const edge = pitchDrop(ctx, 'triangle', when, 860 * k, 290 * k, 0.022, 0.07)
-  const edgeGain = hit(ctx, when, 0.31 * v, 0.0015, heavy ? 0.05 : 0.042)
-  edge.connect(edgeGain).connect(lp)
+  // dropping into the pocket
+  const t = when + rand(0.0015, 0.003)
+  const knock = excite(s, t, { len: 0.0035, lp: 1700 })
+  const body: readonly Mode[] = heavy
+    ? [[vary(185), 2, 1.3], [vary(540), 3.5, 0.9], [vary(1120), 5, 0.22]]
+    : [[vary(250), 2.2, 1], [vary(700), 3.5, 0.9], [vary(1400), 5, 0.22]]
+  resonate(s, knock, body, out)
 
-  // knock: the ball seating in its pocket (dull, resonant)
-  const knock = noiseBurst(ctx, when, 0.05)
-  const knockBp = filter(ctx, 'bandpass', 470 * k, 2.2)
-  const knockGain = hit(ctx, when, 0.38 * v, 0.0008, heavy ? 0.028 : 0.02)
-  knock.connect(knockBp).connect(knockGain).connect(lp)
-
-  disposeAfter([body, edge, knock], [body, bodyGain, edge, edgeGain, knock, knockBp, knockGain, lp])
+  if (heavy) {
+    // the ball settling in the deeper station detent
+    const settle = excite(s, t + rand(0.008, 0.01), { len: 0.003, peak: 0.4, lp: 1500 })
+    resonate(s, settle, [[vary(480), 3, 0.9], [vary(980), 4.5, 0.4]], out)
+  }
+  s.done()
 }
 
-/* --- Foley: MAIN POWER breaker ("KA-CHUNK") ----------------------------------------- */
-/** Inharmonic partials of a struck steel plate: the metallic ring on the tail */
-const RING_PARTIALS = [
-  { hz: 1873, gain: 0.07, decay: 0.24 },
-  { hz: 2741, gain: 0.05, decay: 0.18 },
-  { hz: 4127, gain: 0.032, decay: 0.12 },
-  { hz: 5563, gain: 0.018, decay: 0.08 },
+/* --- Foley: MAIN POWER breaker ("chk-CLACK") ----------------------------------------- */
+/** The phenolic case and the steel latch: where a breaker's clack rings */
+const BREAKER_CASE: readonly Mode[] = [
+  [1180, 6, 1], [2300, 8, 0.8], [3550, 10, 0.6], [5200, 26, 0.28], [7600, 34, 0.14],
 ]
-/** "KA" (the latch trips) to "CHUNK" (the contacts slam home) */
-const BREAKER_GAP_S = 0.034
+/** The main spring and the steel frame, faintly ringing after the clack: [Hz, level, decay s] */
+const BREAKER_SPRING = [
+  [4310, 0.02, 0.11], [6170, 0.012, 0.08], [2870, 0.014, 0.06],
+] as const
+const BREAKER_LEVEL = 0.72
 
 /**
- * A heavy industrial breaker: "KA", the latch tripping (a short, bright
- * snap), then about 34 ms later "CHUNK", the spring-loaded contacts slamming
- * home (a deep pitch-dropping thump with an impact of lowpassed noise),
- * leaving a faint metallic ring in the steel housing. Switching OFF is a
- * little lower and duller.
+ * A real panel breaker: the handle swings against its spring (a short dry
+ * rub), the latch snaps over centre (a hard, bright crack that rings the
+ * phenolic case), the handle hits its stop and the shock goes through the DIN
+ * rail into the panel (a short low knock, not a boom), and when switching ON
+ * the contacts close a few ms later (a second, smaller clack). The main
+ * spring rings faintly for a moment. Switching OFF is the trip: the spring
+ * does the work, so it fires sooner, a touch lower, with no contact clack.
  */
 export function scheduleBreakerThunk(ctx: Ctx, destination: AudioNode, turningOn = true, when = ctx.currentTime): void {
-  const k = turningOn ? 1 : 0.86
-  const sources: AudioScheduledSourceNode[] = []
-  const nodes: AudioNode[] = []
-  const add = <T extends AudioNode>(n: T) => (nodes.push(n), n)
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), BREAKER_LEVEL * vary(1, 0.1))
+  const k = turningOn ? 1 : 0.92
 
-  // KA: latch
-  const ka = add(noiseBurst(ctx, when, 0.014))
-  const kaBp = add(filter(ctx, 'bandpass', 2900 * k, 1.3))
-  const kaGain = add(hit(ctx, when, 0.42, 0.0006, 0.011))
-  ka.connect(kaBp).connect(kaGain).connect(destination)
-  const kaBody = add(pitchDrop(ctx, 'triangle', when, 1250 * k, 480 * k, 0.008, 0.02))
-  const kaBodyGain = add(hit(ctx, when, 0.16, 0.0006, 0.012))
-  kaBody.connect(kaBodyGain).connect(destination)
-  sources.push(ka, kaBody)
+  // the handle rubbing as it swings against the spring
+  const travel = turningOn ? rand(0.022, 0.03) : rand(0.007, 0.011)
+  const rub = grains(s, when, travel, { rate: 1400, peak: 0.16, profile: (u) => 0.4 + u })
+  rub.connect(s.node(filter(ctx, 'highpass', 1800, 0.7))).connect(out)
 
-  // CHUNK: contacts slam home
-  const t = when + BREAKER_GAP_S
-  const thump = add(pitchDrop(ctx, 'sine', t, 165 * k, 52 * k, 0.06, 0.2))
-  const thumpGain = add(hit(ctx, t, 0.95, 0.0015, 0.15))
-  thump.connect(thumpGain).connect(destination)
-  const impact = add(noiseBurst(ctx, t, 0.04))
-  const impactLp = add(filter(ctx, 'lowpass', 520 * k, 0.8))
-  const impactGain = add(hit(ctx, t, 0.6, 0.0008, 0.03))
-  impact.connect(impactLp).connect(impactGain).connect(destination)
-  sources.push(thump, impact)
+  // the latch snapping over centre
+  const snapAt = when + travel
+  const crack = excite(s, snapAt, { len: 0.0014, hp: 600 })
+  resonate(s, crack, BREAKER_CASE.map(([hz, q, l]) => [vary(hz * k), q, l] as const), out)
+  edge(s, crack, out, 0.5)
 
-  // metallic ring in the housing
-  for (const p of RING_PARTIALS) {
-    const osc = add(ctx.createOscillator())
-    osc.type = 'sine'
-    osc.frequency.value = p.hz * (turningOn ? 1 : 0.94)
-    const g = add(hit(ctx, t + 0.002, p.gain * (turningOn ? 1 : 0.7), 0.002, p.decay))
-    osc.connect(g).connect(destination)
-    osc.start(t)
-    osc.stop(t + p.decay + 0.02)
-    sources.push(osc)
+  // the handle hitting its stop, through the rail into the panel
+  const stop = excite(s, snapAt + 0.0007, { len: 0.007, peak: 1.3, lp: 1100 })
+  resonate(s, stop, [[vary(210 * k), 2.5, 1.1], [vary(520 * k), 4, 0.7], [vary(900 * k), 5, 0.35]], out)
+
+  if (turningOn) {
+    // the contacts closing
+    const contacts = excite(s, snapAt + rand(0.006, 0.009), { len: 0.001, peak: 0.45, hp: 900 })
+    resonate(s, contacts, [[vary(1700), 7, 0.8], [vary(3050), 9, 0.5], [vary(4700), 14, 0.25]], out)
   }
-  disposeAfter(sources, nodes)
+
+  ring(s, snapAt + 0.0005, BREAKER_SPRING.map(([hz, l, d]) => [hz * k, l, d] as const), out)
+  s.done()
 }
 
 /* --- Foley: DECODER slide ------------------------------------------------------------ */
 /**
- * A metal slider dragged along its track: a short, gritty scrape of noise
- * through a sweeping bandpass, chopped by random "grit" as the shoe catches
- * on the rails, ending in a small detent tick. ON sweeps up, OFF sweeps down.
+ * A small metal slide switch: the shoe drags along its rails (a short burst of
+ * stick-slip ticks that swells as it speeds up mid-travel, with a faint rub
+ * underneath and the rail ringing slightly), then drops into the end detent
+ * with a crisp click and a small knock. ON (to the right) is a touch brighter
+ * than OFF.
  */
+const SLIDER_LEVEL = 0.52
+
 export function scheduleSliderScrape(ctx: Ctx, destination: AudioNode, toOn = true, when = ctx.currentTime): void {
-  const dur = 0.13
-  const src = noiseBurst(ctx, when, dur + 0.02)
-  const bp = filter(ctx, 'bandpass', toOn ? 1700 : 3300, 1.6)
-  bp.frequency.setValueAtTime(toOn ? 1700 : 3300, when)
-  bp.frequency.exponentialRampToValueAtTime(toOn ? 3300 : 1700, when + dur)
-  const hp = filter(ctx, 'highpass', 480, 0.7)
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), SLIDER_LEVEL * vary(1, 0.1))
+  const travel = rand(0.055, 0.075)
+  const speed = (u: number) => Math.pow(Math.sin(Math.PI * Math.min(1, u)), 0.6)
 
-  // grit: the shoe catching on the rails
-  const grit = ctx.createGain()
-  grit.gain.setValueAtTime(1, when)
-  for (let t = 0.004; t < dur; t += 0.004 + Math.random() * 0.003) {
-    grit.gain.setValueAtTime(0.35 + Math.random() * 0.65, when + t)
-  }
-  // body envelope: quick in, a little swell, out
-  const env = ctx.createGain()
-  env.gain.setValueAtTime(0, when)
-  env.gain.linearRampToValueAtTime(0.5, when + 0.006)
-  env.gain.linearRampToValueAtTime(0.6, when + dur * 0.55)
-  env.gain.linearRampToValueAtTime(0, when + dur)
-  src.connect(bp).connect(hp).connect(grit).connect(env).connect(destination)
+  // stick-slip ticks of the shoe on the rails
+  const ticks = grains(s, when, travel, { rate: 1300, peak: 0.55, profile: speed })
+  const bright = s.node(filter(ctx, 'bandpass', vary(toOn ? 3800 : 3200, 0.06), 0.9))
+  ticks.connect(s.node(filter(ctx, 'highpass', 1600, 0.7))).connect(bright).connect(out)
+  resonate(s, ticks, [[vary(2050), 12, 0.12]], out) // the rail ringing
 
-  // landing in the detent at the end of travel
-  const tickAt = when + dur - 0.004
-  const tick = noiseBurst(ctx, tickAt, 0.01)
-  const tickHp = filter(ctx, 'highpass', 2600, 0.7)
-  const tickGain = hit(ctx, tickAt, 0.4, 0.0005, 0.008)
-  tick.connect(tickHp).connect(tickGain).connect(destination)
+  // a faint continuous rub under the ticks
+  const rubSrc = s.source(noiseBurst(ctx, when, travel + 0.02))
+  const rubEnv = contour(s, when, travel, 0.05, speed, 0.004)
+  rubSrc.connect(s.node(filter(ctx, 'highpass', 2400, 0.7))).connect(s.node(filter(ctx, 'lowpass', 7500, 0.7))).connect(rubEnv).connect(out)
 
-  disposeAfter([src, tick], [src, bp, hp, grit, env, tick, tickHp, tickGain])
+  // dropping into the detent
+  const endAt = when + travel
+  const click = excite(s, endAt, { len: 0.0009, peak: 0.9, hp: 1200 })
+  resonate(s, click, [[vary(2900), 12, 0.7], [vary(4600), 16, 0.4], [vary(1500), 6, 0.35]], out)
+  edge(s, click, out, 0.3)
+  const knock = excite(s, endAt + 0.0006, { len: 0.004, peak: 0.5, lp: 1800 })
+  resonate(s, knock, [[vary(620), 3.5, 0.8], [vary(1300), 5, 0.35]], out)
+  s.done()
 }
 
 /* --- Foley: push buttons (REF, CLR, TX SEND) ---------------------------------------- */
 /**
- * A high-tension sprung push switch: an instant, very sharp snap of
- * highpassed noise as the snap-dome flips, the plunger knocking its stop, and
- * the return spring ringing briefly at a couple of inharmonic pitches.
+ * A tactile push switch has two sounds, like the real thing.
+ * PRESS: the snap dome collapses (a hard, bright tick ringing the dome and the
+ * cap), the contacts bounce twice in the next couple of milliseconds, and the
+ * plunger bottoms out on the panel a few ms later (a soft, low knock).
+ * RELEASE (scheduleButtonRelease): the dome pops back, lighter and higher,
+ * with no knock.
  */
+const BUTTON_LEVEL = 0.72
+const DOME: readonly Mode[] = [[2650, 14, 0.5], [4150, 18, 0.35], [6400, 22, 0.2]]
+
 export function scheduleButtonSnap(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
-  const snap = noiseBurst(ctx, when, 0.006)
-  const snapHp = filter(ctx, 'highpass', 3600, 0.8)
-  const snapGain = hit(ctx, when, 0.62, 0.0003, 0.0045)
-  snap.connect(snapHp).connect(snapGain).connect(destination)
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), BUTTON_LEVEL * vary(1, 0.12))
+  const dome = DOME.map(([hz, q, l]) => [vary(hz), q, l] as const)
 
-  const plunger = pitchDrop(ctx, 'triangle', when, 950, 380, 0.012, 0.03)
-  const plungerGain = hit(ctx, when, 0.17, 0.0004, 0.016)
-  plunger.connect(plungerGain).connect(destination)
-
-  const sources: AudioScheduledSourceNode[] = [snap, plunger]
-  const nodes: AudioNode[] = [snap, snapHp, snapGain, plunger, plungerGain]
-  for (const [hz, gain, decay] of [[3170, 0.1, 0.07], [4730, 0.055, 0.05]] as const) {
-    const spring = ctx.createOscillator()
-    spring.type = 'sine'
-    spring.frequency.setValueAtTime(hz, when)
-    spring.frequency.linearRampToValueAtTime(hz * 0.985, when + decay) // the spring relaxes
-    const g = hit(ctx, when + 0.001, gain, 0.0008, decay)
-    spring.connect(g).connect(destination)
-    spring.start(when)
-    spring.stop(when + decay + 0.01)
-    sources.push(spring)
-    nodes.push(spring, g)
+  // the dome collapsing, then two contact bounces
+  for (const [dt, peak] of [[0, 1], [rand(0.0006, 0.0013), 0.3], [rand(0.0018, 0.003), 0.14]] as const) {
+    const strike = excite(s, when + dt, { len: 0.0008, peak, hp: 1500 })
+    resonate(s, strike, dome, out)
+    edge(s, strike, out, 0.35 * peak, 3000)
   }
-  disposeAfter(sources, nodes)
+  // the plunger bottoming out on the panel
+  const knock = excite(s, when + rand(0.003, 0.005), { len: 0.004, peak: 0.6, lp: 2200 })
+  resonate(s, knock, [[vary(430), 3, 0.9], [vary(980), 4, 0.6], [vary(1650), 6, 0.3]], out)
+  s.done()
+}
+
+export function scheduleButtonRelease(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), BUTTON_LEVEL * 0.6 * vary(1, 0.15))
+  const dome = DOME.map(([hz, q, l]) => [vary(hz * 1.18), q, l] as const)
+  for (const [dt, peak] of [[0, 1], [rand(0.0007, 0.0014), 0.22]] as const) {
+    const strike = excite(s, when + dt, { len: 0.0007, peak, hp: 2000 })
+    resonate(s, strike, dome, out)
+    edge(s, strike, out, 0.3 * peak, 3500)
+  }
+  s.done()
 }
 
 /* --- Foley: the reference card ------------------------------------------------------ */
 /**
- * Heavy cardstock dragged through the metal slot behind the chassis.
- * Bandpassed noise with a fibrous, uneven grain. The volume envelope follows
- * the card's friction keyframes exactly (src/utils/cardMotion.ts):
+ * Heavy cardstock dragged through the metal slot behind the chassis, locked
+ * to the card's friction keyframes (src/utils/cardMotion.ts). The sound is
+ * driven by the card's *speed* through each phase:
  *
- *   slide (fade in, hold) ─► STUCK (silence) ─► breaks free (spike) ─► glide (fade out)
- *   open:  0-378 ms           378-546 ms          546 ms                 to 945 ms
- *   close: 0-323 ms           323-475 ms          475 ms                 to 902 ms
+ *   slide          fast start, easing into the catch: fibres ticking against
+ *                  the slot (density + loudness follow the speed) over a soft
+ *                  paper rub, with the metal lip ringing faintly
+ *   stuck          silent but for two small creaks as the card strains
+ *   breaks free    a paper "pop" as the card un-buckles and a flick off the lip,
+ *                  then the fastest, loudest burst of friction
+ *   glide          dying away as it slows
+ *   lands          a soft slap as it settles (open) / tucks home (close)
  *
  * With prefers-reduced-motion the card moves instantly, so only a short
  * scrape plays.
  */
+const PAPER_LEVEL = 0.55
+
+/** The card's speed (0..1.6) at time `t` (s) for a given motion */
+function cardSpeed(t: number, stick: number, release: number, settle: number): number {
+  if (t < 0) return 0
+  if (t < stick) {
+    const u = t / stick
+    return Math.min(1, u / 0.07) * Math.pow(1 - u, 0.7) // quick start, easing into the catch
+  }
+  if (t < release) return 0 // stuck on the lip
+  const d = t - release
+  if (t < settle) return 1.6 * Math.min(1, d / 0.008) * Math.exp(-d / ((settle - release) / 3.4))
+  return 0
+}
+
 export function schedulePaperScrape(
   ctx: Ctx,
   destination: AudioNode,
@@ -445,60 +705,52 @@ export function schedulePaperScrape(
   when = ctx.currentTime,
   reducedMotion = false,
 ): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), PAPER_LEVEL * vary(isOpening ? 1 : 0.88, 0.08))
   const ph = cardMotionPhasesMs(isOpening)
+  const total = reducedMotion ? 0.14 : ph.durationMs / 1000
   const stick = ph.stickMs / 1000
   const release = ph.releaseMs / 1000
   const settle = ph.settleMs / 1000
-  const total = reducedMotion ? 0.14 : ph.durationMs / 1000
-  const level = isOpening ? 0.42 : 0.36
+  const speedAt = reducedMotion
+    ? (u: number) => Math.pow(Math.sin(Math.PI * u), 0.7)
+    : (u: number) => cardSpeed(u * total, stick, release, settle)
 
-  const src = noiseBurst(ctx, when, total + 0.03)
-  const bp = filter(ctx, 'bandpass', isOpening ? 1500 : 1250, 0.85)
-  const lp = filter(ctx, 'lowpass', 4200, 0.6)
+  // fibres catching on the slot: the texture of paper
+  const fibres = grains(s, when, total, { rate: 2600, peak: 0.5, tau: 0.0005, profile: speedAt })
+  fibres.connect(s.node(filter(ctx, 'highpass', 1300, 0.7))).connect(s.node(filter(ctx, 'lowpass', 7500, 0.7))).connect(out)
+  resonate(s, fibres, [[vary(1350), 9, 0.1], [vary(2650), 12, 0.05]], out) // the metal lip
 
-  // fibrous grain: the card's edge catching on the slot, ~7 ms steps
-  const grain = ctx.createGain()
-  grain.gain.setValueAtTime(1, when)
-  for (let t = 0.007; t < total; t += 0.005 + Math.random() * 0.005) {
-    grain.gain.setValueAtTime(0.55 + Math.random() * 0.45, when + t)
+  // the soft rub of the card's face sliding on the chassis
+  const rubSrc = s.source(noiseBurst(ctx, when, total + 0.03))
+  const rubEnv = contour(s, when, total, 0.13, speedAt)
+  rubSrc
+    .connect(s.node(filter(ctx, 'highpass', 500, 0.7)))
+    .connect(s.node(filter(ctx, 'bandpass', vary(isOpening ? 2100 : 1800, 0.05), 0.55)))
+    .connect(rubEnv)
+    .connect(out)
+
+  if (!reducedMotion) {
+    // straining on the lip: two small creaks
+    for (const f of [0.35, 0.72]) {
+      const at = when + stick + (release - stick) * f + rand(-0.006, 0.006)
+      const creak = grains(s, at, rand(0.01, 0.016), { rate: 1800, peak: 0.3, tau: 0.0006, profile: (u) => Math.sin(Math.PI * u) })
+      resonate(s, creak, [[vary(900), 4, 0.6], [vary(1900), 6, 0.3]], out)
+      creak.connect(s.node(filter(ctx, 'highpass', 2000, 0.7))).connect(out)
+    }
+
+    // breaking free: the card un-buckles ("pop") and flicks off the lip
+    const pop = excite(s, when + release, { len: 0.006, peak: 0.7, lp: 3200 })
+    resonate(s, pop, [[vary(700), 2.5, 0.9], [vary(1600), 4, 0.45]], out)
+    const flick = excite(s, when + release + 0.002, { len: 0.0015, peak: 0.5, hp: 2500 })
+    edge(s, flick, out, 0.5, 2500)
+
+    // landing: a soft slap of cardstock
+    const landAt = when + (isOpening ? settle : total) - 0.004
+    const slap = excite(s, landAt, { len: 0.01, peak: isOpening ? 0.4 : 0.3, lp: 1400 })
+    resonate(s, slap, [[vary(320), 1.8, 0.8], [vary(760), 3, 0.35]], out)
   }
-
-  const env = ctx.createGain()
-  const g = env.gain
-  const f = bp.frequency
-  const base = isOpening ? 1500 : 1250
-  g.setValueAtTime(0, when)
-  f.setValueAtTime(base, when)
-
-  if (reducedMotion) {
-    g.linearRampToValueAtTime(level, when + 0.02)
-    g.linearRampToValueAtTime(0, when + total)
-  } else {
-    // 1. slide: fade in, then hold while the card travels (easing slightly into the catch)
-    g.linearRampToValueAtTime(level, when + 0.035)
-    g.linearRampToValueAtTime(level * 0.82, when + stick - 0.012)
-    f.linearRampToValueAtTime(base * 0.86, when + stick)
-    // 2. stuck on the lip: silence
-    g.linearRampToValueAtTime(0, when + stick + 0.01)
-    g.setValueAtTime(0, when + release)
-    // 3. breaks free: a sharp, brighter spike
-    g.linearRampToValueAtTime(level * 1.35, when + release + 0.008)
-    f.setValueAtTime(base * 1.75, when + release)
-    // 4. glides out: fade to nothing as the card settles
-    g.setTargetAtTime(0, when + release + 0.02, (settle - release) / 4.2)
-    f.exponentialRampToValueAtTime(base * 0.8, when + settle)
-    g.setValueAtTime(0, when + total)
-
-    // the edge flicking off the lip as it breaks free
-    const flick = noiseBurst(ctx, when + release, 0.012)
-    const flickHp = filter(ctx, 'highpass', 2200, 0.7)
-    const flickGain = hit(ctx, when + release, 0.3, 0.0006, 0.01)
-    flick.connect(flickHp).connect(flickGain).connect(destination)
-    disposeAfter([flick], [flick, flickHp, flickGain])
-  }
-
-  src.connect(bp).connect(lp).connect(grain).connect(env).connect(destination)
-  disposeAfter([src], [src, bp, lp, grain, env])
+  s.done()
 }
 
 /* --- The live engine ------------------------------------------------------------ */
@@ -619,24 +871,29 @@ export function playGhostTone(durationMs: number): void {
 }
 
 /* --- Public Foley API ---------------------------------------------------------- */
-/** VFO rotary encoder: a muffled ball-bearing thud. `heavy` = a station detent. */
+/** VFO rotary encoder: a ball tipping over the crest and knocking into its pocket. `heavy` = a station detent. */
 export function playEncoderThud(heavy = false): void {
   whenRunning((e) => scheduleEncoderThud(e.ctx, e.master, heavy, e.ctx.currentTime))
 }
 
-/** MAIN POWER breaker: "KA-CHUNK" with a metallic ring (OFF is lower and duller) */
+/** MAIN POWER breaker: rub, latch crack, stop knock, contacts (ON), spring ring */
 export function playBreakerThunk(turningOn = true): void {
   whenRunning((e) => scheduleBreakerThunk(e.ctx, e.master, turningOn, e.ctx.currentTime))
 }
 
-/** DECODER slide: a gritty metal scrape along the track, ending in the detent */
+/** DECODER slide: stick-slip ticks along the rails, ending in the detent click */
 export function playSliderScrape(toOn = true): void {
   whenRunning((e) => scheduleSliderScrape(e.ctx, e.master, toOn, e.ctx.currentTime))
 }
 
-/** REF / CLR / TX SEND: a sharp, high-tension sprung snap */
+/** REF / CLR / TX SEND going down: the snap dome collapses, the plunger bottoms out */
 export function playButtonSnap(): void {
   whenRunning((e) => scheduleButtonSnap(e.ctx, e.master, e.ctx.currentTime))
+}
+
+/** REF / CLR / TX SEND coming back up: the dome pops back (lighter, higher) */
+export function playButtonRelease(): void {
+  whenRunning((e) => scheduleButtonRelease(e.ctx, e.master, e.ctx.currentTime))
 }
 
 /**

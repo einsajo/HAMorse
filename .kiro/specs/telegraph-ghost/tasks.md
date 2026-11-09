@@ -78,7 +78,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 12.1 Decode symbols with the dictionary; unknown or over-long sequences become `?`
   - [x] 12.2 DECODER ON shows the decoded text plus the live dits/dahs and a cursor in the LCD buffer row (newest text pinned right, overflow hidden left); OFF leaves it blank and ignores taps
   - [x] 12.3 CLR clears the buffer; power OFF wipes it
-  - [ ] 12.4 TX SEND submits the buffer (Phase 4 trigger)
+  - [x] 12.4 TX SEND sends what's keyed at once and hands the frequency over; LCD RX / TX annunciators with `TX SEND...` (counting dots), NO REPLY / INHIBIT / BUSY / NO MSG
   - _Requirements: 2b, 2d, 3_
 
 - [x] 12.5 Frequency bands (`src/constants.ts`): broadcasters, ham band, ghost, dead air
@@ -103,6 +103,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 16. Sidetone and mechanical sounds
   - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
   - [x] 16.2 Distinct Foley: breaker KA-CHUNK, slider scrape, button snap, ball-bearing VFO thud, paper scrape synced to the card animation
+  - [x] 16.4 Physically modelled Foley: contact-pulse strikes into resonator banks, stick-slip friction following the motion, per-play variation, a synthesised room; button release clicks
   - _Requirements: 3_
 
 - [ ] 17. S-meter follows real audio

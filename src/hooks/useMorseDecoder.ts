@@ -58,6 +58,24 @@ export type MorseTap = '.' | '-'
  */
 export type DecoderStatus = 'off' | 'rx-only' | 'dead-band' | 'ready'
 
+/**
+ * The LCD's TX annunciator, driven by TX SEND:
+ *   idle      nothing to show
+ *   sending   "TX SEND..." your over is going out; waiting for the far end
+ *   no-reply  nobody answered what you sent
+ *   inhibit   this frequency is receive-only / dead air: you can't transmit
+ *   busy      the other station is still sending: wait for it to finish
+ *   empty     you haven't keyed anything to send
+ */
+export type TxStatus = 'idle' | 'sending' | 'no-reply' | 'inhibit' | 'busy' | 'empty'
+
+/** "TX SEND..." stays up at least this long, even if the reply starts at once */
+export const TX_SENDING_MIN_MS = 1200
+/** after this long with no answer, the LCD says NO REPLY */
+export const TX_REPLY_WAIT_MS = 2800
+/** how long NO REPLY / INHIBIT / BUSY / NO MSG stay on the LCD */
+export const TX_NOTICE_MS = 2200
+
 export interface MorseDecoderState {
   /** Dits and dahs of the letter currently being keyed, e.g. ".-" */
   currentSymbol: string
@@ -71,6 +89,14 @@ export interface MorseDecoderState {
   handleTap: (type: MorseTap) => void
   /** Wipe the buffer and anything in progress (the CLR button) */
   clear: () => void
+  /**
+   * TX SEND: send what you've keyed right now (no waiting for the word gap)
+   * and hand the frequency over ("over", like ending with K). Shows
+   * TX SEND... on the LCD until the far end answers, or NO REPLY.
+   */
+  sendOver: () => void
+  /** The LCD's TX annunciator */
+  txStatus: TxStatus
   /** True when taps are keyed and decoded (power ON, on the ham band or the ghost frequency) */
   isActive: boolean
   /** Another station is sending: the paddles are locked out until it finishes */
@@ -134,7 +160,7 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status'> {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus'> & { flush: () => boolean; receivingNow: () => boolean } {
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [decodedMessage, setDecodedMessage] = useState('')
   const [isReceiving, setIsReceiving] = useState(false)
@@ -303,6 +329,17 @@ function useMorseDecoderEngine(
     [clearTimers, commitSymbol, commitWord, setSymbol, symbolTimeoutMs, wordTimeoutMs],
   )
 
+  /** Commit the half-keyed letter and the word now, without waiting for the gaps. True if anything was pending. */
+  const flush = useCallback(() => {
+    if (receivingRef.current) return false
+    const pendingSymbol = symbolRef.current !== ''
+    const pending = pendingSymbol || wordRef.current !== ''
+    clearTimers()
+    if (pendingSymbol) commitSymbol()
+    if (pending) commitWord()
+    return pending
+  }, [clearTimers, commitSymbol, commitWord])
+
   const clear = useCallback(() => {
     stopReply()
     clearTimers()
@@ -331,7 +368,10 @@ function useMorseDecoderEngine(
     [],
   )
 
-  return { currentSymbol, decodedMessage, handleTap, clear, isActive: canKey, isReceiving, simulateReply }
+  /** live (not render-lagged) "another station has the frequency" */
+  const receivingNow = useCallback(() => receivingRef.current, [])
+
+  return { currentSymbol, decodedMessage, handleTap, clear, flush, receivingNow, isActive: canKey, isReceiving, simulateReply }
 }
 
 /* --- Shared instance ------------------------------------------------------
@@ -413,19 +453,86 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   )
 
   const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
-  const { currentSymbol, decodedMessage, clear, isActive, isReceiving, simulateReply } = engine
+  const { currentSymbol, decodedMessage, isActive, isReceiving, simulateReply, flush, receivingNow } = engine
   replyRef.current = simulateReply
-  const receivingRef = useRef(isReceiving)
-  receivingRef.current = isReceiving
+  const canKeyRef = useRef(canKey)
+  canKeyRef.current = canKey
+
+  /* --- TX SEND and the TX annunciator --------------------------------------- */
+  const [txStatus, setTxStatus] = useState<TxStatus>('idle')
+  /** you keyed something since the frequency last changed hands */
+  const keyedSinceOver = useRef(false)
+  const txTimer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null)
+  const stopTxTimer = useCallback(() => {
+    if (txTimer.current !== null) {
+      clearTimeout(txTimer.current)
+      clearInterval(txTimer.current)
+    }
+    txTimer.current = null
+  }, [])
+  /** show a short notice (NO REPLY, INHIBIT, ...) then go back to idle */
+  const notice = useCallback(
+    (status: TxStatus) => {
+      stopTxTimer()
+      setTxStatus(status)
+      txTimer.current = setTimeout(() => {
+        txTimer.current = null
+        setTxStatus('idle')
+      }, TX_NOTICE_MS)
+    },
+    [stopTxTimer],
+  )
+
+  // the far end has started answering: the frequency is theirs now
+  useEffect(() => {
+    if (isReceiving) keyedSinceOver.current = false
+  }, [isReceiving])
 
   const engineTap = engine.handleTap
   const handleTap = useCallback(
     (type: MorseTap) => {
       touch()
+      if (canKeyRef.current && !receivingNow()) keyedSinceOver.current = true
       engineTap(type)
     },
-    [engineTap, touch],
+    [engineTap, receivingNow, touch],
   )
+  const engineClear = engine.clear
+  const clear = useCallback(() => {
+    engineClear()
+    keyedSinceOver.current = false
+    stopTxTimer()
+    setTxStatus('idle')
+  }, [engineClear, stopTxTimer])
+
+  const sendOver = useCallback(() => {
+    touch()
+    if (!isPowerOn) return // the LCD is dark (and the Quick Start note explains)
+    const f = frequencyRef.current
+    if (!getBandInfo(f).canTransmit) return notice('inhibit')
+    if (receivingNow()) return notice('busy')
+    const flushed = flush() // your last word goes out now: the far end may answer it
+    if (!flushed && !keyedSinceOver.current) return notice('empty')
+    keyedSinceOver.current = false
+    // hand it over explicitly (Bob waits for the end of your over)
+    const id = hamStationAt(f)
+    if (id && !receivingNow()) transmit(stations[id].onOver?.() ?? null)
+
+    stopTxTimer()
+    setTxStatus('sending')
+    const started = performance.now()
+    txTimer.current = setInterval(() => {
+      const elapsed = performance.now() - started
+      if (receivingNow() && elapsed >= TX_SENDING_MIN_MS) {
+        stopTxTimer()
+        setTxStatus('idle') // they're answering: the RX flag takes over
+      } else if (!receivingNow() && elapsed >= TX_REPLY_WAIT_MS) {
+        notice('no-reply')
+      }
+    }, 100)
+  }, [flush, isPowerOn, notice, receivingNow, stations, stopTxTimer, touch, transmit])
+
+  useEffect(() => stopTxTimer, [stopTxTimer])
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
     ? 'off'
@@ -461,7 +568,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     if (!isPowerOn || station === null) return
     const op = stations[station]
     const timer = setInterval(() => {
-      if (receivingRef.current) return
+      if (receivingNow()) return
       const t = op.onIdle(performance.now() - lastActivity.current)
       if (t) {
         touch()
@@ -469,11 +576,11 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       }
     }, IDLE_POLL_MS)
     return () => clearInterval(timer)
-  }, [isPowerOn, station, stations, touch, transmit])
+  }, [isPowerOn, receivingNow, station, stations, touch, transmit])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status }),
-    [currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, handleTap, clear, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status }),
+    [currentSymbol, decodedMessage, handleTap, clear, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

@@ -5,7 +5,7 @@ import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { MorseTap } from '../hooks/useMorseDecoder'
 import { usePowerHint } from '../hooks/usePowerHint'
 import { useRadio } from '../context/RadioContext'
-import { playButtonSnap } from '../utils/audioEngine'
+import { playButtonRelease, playButtonSnap } from '../utils/audioEngine'
 
 /* --- Iambic squeeze keyer ------------------------------------------------ */
 
@@ -77,13 +77,14 @@ interface UtilityButtonProps {
   latched?: boolean
 }
 
-/** Small tactile push switch (REF / CLR): a sharp sprung snap the instant it goes down */
+/** Small tactile push switch (REF / CLR): clicks going down, and again (lighter) coming up */
 function UtilityButton({ label, onPress, latched }: UtilityButtonProps) {
   const { pressed, handlers } = usePress({
     onPress: () => {
       playButtonSnap()
       onPress?.()
     },
+    onRelease: playButtonRelease,
   })
   return (
     <div className="utility">
@@ -115,6 +116,7 @@ function TxButton({ onPress }: { onPress?: () => void }) {
       playButtonSnap()
       onPress?.()
     },
+    onRelease: playButtonRelease,
   })
   return (
     <div className="utility tx">
@@ -167,11 +169,12 @@ interface TelegraphDeskProps {
 
 /**
  * Telegraph Desk: REF/CLR switches | horizontal iambic squeeze keyer | TX ARM guard / TX SEND.
- * REF toggles the reference card; DIT / DAH key the Morse decoder; CLR clears it.
+ * REF toggles the reference card; DIT / DAH key the Morse decoder; CLR clears it;
+ * TX SEND sends what you've keyed at once and hands the frequency over.
  */
 export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
   // DIT / DAH feed the shared decoder; CLR wipes its buffer
-  const { handleTap, clear } = useMorseDecoder()
+  const { handleTap, clear, sendOver } = useMorseDecoder()
   const { isPowerOn } = useRadio()
   const { nudge } = usePowerHint()
 
@@ -187,9 +190,11 @@ export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphD
     if (!isPowerOn) nudge()
     clear()
   }, [isPowerOn, nudge, clear])
+  // TX SEND: send what you've keyed now and hand the frequency over
   const onSend = useCallback(() => {
     if (!isPowerOn) nudge()
-  }, [isPowerOn, nudge])
+    sendOver()
+  }, [isPowerOn, nudge, sendOver])
 
   return (
     <section className="desk" aria-label="Telegraph Desk">

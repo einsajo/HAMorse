@@ -104,7 +104,7 @@ export default function PowerOnGuide() {
             New to Morse? The <b>Elmer on 100.60</b> will teach you.
           </li>
           <li>
-            Tap <b>DIT (·)</b> and <b>DAH (–)</b> to send Morse. You'll hear a 700&nbsp;Hz tone.
+            Tap <b>DIT (·)</b> and <b>DAH (–)</b> to key Morse (a 700&nbsp;Hz tone), then <b>TX SEND</b> to send it.
           </li>
           <li>
             <b>DECODER ON</b> shows the Morse as text on the screen. Switch it <b>OFF</b> and the screen goes
