@@ -97,7 +97,31 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 range, at 0.01 MHz resolution). All four stations share the tuning detent
 (`DETENT_FREQUENCIES`), so the ghost's detent is not a giveaway.
 
-### 2.4 Interaction rules
+### 2.4 Audio engine (`src/utils/audioEngine.ts`)
+
+```
+noise loop (4 s, crackle) ─► bandpass 1 kHz Q 0.9 ─► static gain ─┐
+700 Hz sine (always running) ─► key gain (5 ms envelope) ─────────┼─► master 0.8 ─► limiter ─► speakers
+clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
+```
+
+- **Unlocking:** no `AudioContext` exists until the MCB is operated
+  (`unlockAudio()` on pointerdown, pointerup, click and key). On touch screens
+  pointerdown is not a user activation, so the context resumes on release and
+  sounds requested in that gap play if they are under 400ms old.
+- **Sidetone:** one persistent oscillator. Keying only reshapes its gain with
+  `setTargetAtTime` (τ = 1.67ms, so ~5ms to 95%), retriggering from the
+  current level (`cancelAndHoldAtTime`), so fast keying never pops or beats.
+- **Static levels** (`STATIC_LEVELS`, relative to dead air): dead 1.0,
+  ham 0.5, broadcast 0.2, ghost 0.1, power off 0. Changes are smoothed
+  (τ = 40ms), so tuning never zippers. Driven by `<RadioAudio/>`.
+- **Clicks** (`scheduleClick(pitch, volume)`): ~150Hz MCB thunk, 1.5–1.8kHz
+  DECODER detent, 3.4kHz soft encoder tick (rate-limited to one per 14ms),
+  900Hz station-detent clunk.
+- **Testability:** the building blocks take any `BaseAudioContext`, so they are
+  verified by rendering into an `OfflineAudioContext` and measuring the samples.
+
+### 2.5 Interaction rules
 
 - **Switches act on pointer-down**, like real hardware, not on click/release.
   Primary button / touch / pen only.

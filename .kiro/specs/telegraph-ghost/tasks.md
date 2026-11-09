@@ -89,18 +89,20 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 ## Phase 3: Web Audio integration
 
-- [ ] 14. Audio engine
-  - [ ] 14.1 Create one `AudioContext`, kept suspended until the MCB is thrown ON (mobile autoplay policy)
-  - [ ] 14.2 Power OFF suspends or ramps down all output
+- [x] 14. Audio engine (`src/utils/audioEngine.ts`)
+  - [x] 14.1 One `AudioContext`, not even created until the MCB is operated (mobile autoplay policy); touch release re-unlocks
+  - [x] 14.2 Power OFF ramps the static to silence; a limiter caps output loudness
   - _Requirements: 3_
 
 - [ ] 15. Band static
-  - [ ] 15.1 Looping white-noise `AudioBufferSource` through a bandpass filter
-  - [ ] 15.2 Static level and colour vary with distance from 104.40 as the VFO turns
+  - [x] 15.1 Looping white noise (with crackle) through a ~1 kHz bandpass
+  - [x] 15.2 Static level per band: dead air 100%, ham 50%, broadcast 20%, ghost 10%
+  - [ ] 15.3* Static colour / fade that varies continuously with distance from a station
   - _Requirements: 3_
 
-- [ ] 16. Sidetone
-  - [ ] 16.1 700 Hz `OscillatorNode` keyed by the paddles with 5ms attack/release envelopes (no clicks)
+- [x] 16. Sidetone and mechanical sounds
+  - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
+  - [x] 16.2 Synthesised clicks: MCB thunk, DECODER detent, encoder tick every 0.05 MHz, station-detent clunk
   - _Requirements: 3_
 
 - [ ] 17. S-meter follows real audio

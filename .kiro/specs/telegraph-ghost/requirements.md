@@ -92,7 +92,9 @@
 
 ## 3. Core Mechanics & Audio
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
-- **Static:** Generate continuous background white noise routed through a bandpass filter.
+- **Static:** Continuous white noise (with sparse crackle) through a ~1 kHz bandpass, like muffled AM static. Loudness follows the band: dead air 100%, ham band 50%, broadcasters 20%, and only 10% on 104.40, so the ghost station is eerily quiet and clear. Silent when the power is OFF.
+- **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or 104.40 with the power ON, including with the DECODER OFF, so practised users can train by ear.
+- **Mechanical sounds (synthesised, no files):** a heavy thunk for the MCB, a lighter click for the DECODER slide, a soft high tick every 0.05 MHz as the VFO turns, and a firmer clunk when it drops into a station detent. Until the MCB has been operated no audio exists at all (autoplay policy), so earlier switch clicks are silent.
 - **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are only decoded when the radio is powered and the DECODER is ON.
 - **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-102.00 (inclusive) and the ghost frequency 104.40 allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
 - **Decoder gating:** taps are decoded only on the ham band or exactly on 104.40, with the power and DECODER ON. On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.

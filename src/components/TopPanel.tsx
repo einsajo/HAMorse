@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TopPanel.css'
 import { useRadio } from '../context/RadioContext'
+import { playClick, unlockAudio } from '../utils/audioEngine'
 import { getBandInfo } from '../constants'
 import type { Band } from '../constants'
 
@@ -79,6 +80,9 @@ function PowerSwitch({ on, onToggle }: SwitchProps) {
         aria-label="Main power"
         tabIndex={0}
         {...handlers}
+        // touch: pointerdown is not a user activation, so audio is (re)unlocked on release too
+        onPointerUp={unlockAudio}
+        onClick={unlockAudio}
       >
         <span className="mcb__vent mcb__vent--top" aria-hidden="true" />
         <span className="mcb__term mcb__term--top" aria-hidden="true">
@@ -394,16 +398,30 @@ function DecoderSwitch({ on, onToggle }: SwitchProps) {
 export default function TopPanel() {
   const { frequency, isPowerOn, isDecoderOn, togglePower, toggleDecoder } = useRadio()
 
+  // The breaker is the ONLY control allowed to start audio (mobile autoplay
+  // policy). Throwing it ON is a higher, snappier thunk; OFF a lower, duller one.
+  const onPower = useCallback(() => {
+    unlockAudio()
+    playClick(isPowerOn ? 140 : 190, 0.9)
+    togglePower()
+  }, [isPowerOn, togglePower])
+
+  // the slide's detent: a lighter metallic click (silent until audio is unlocked)
+  const onDecoder = useCallback(() => {
+    playClick(isDecoderOn ? 1500 : 1800, 0.45)
+    toggleDecoder()
+  }, [isDecoderOn, toggleDecoder])
+
   return (
     <section className="top" aria-label="Top Panel">
       <div className="top__col top__col--power">
-        <PowerSwitch on={isPowerOn} onToggle={togglePower} />
+        <PowerSwitch on={isPowerOn} onToggle={onPower} />
       </div>
       <div className="top__col top__col--meter">
         <SMeter isPowerOn={isPowerOn} frequency={frequency} />
       </div>
       <div className="top__col top__col--decoder">
-        <DecoderSwitch on={isDecoderOn} onToggle={toggleDecoder} />
+        <DecoderSwitch on={isDecoderOn} onToggle={onDecoder} />
       </div>
     </section>
   )

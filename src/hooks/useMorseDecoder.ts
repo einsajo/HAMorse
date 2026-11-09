@@ -1,6 +1,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { decodeSymbol } from '../utils/morseDictionary'
+import { playTone } from '../utils/audioEngine'
 import { useRadio } from '../context/RadioContext'
 import { getBandInfo } from '../constants'
 import type { Band } from '../constants'
@@ -12,6 +13,9 @@ import type { Band } from '../constants'
 export const SYMBOL_TIMEOUT_MS = 600 // silence that ends a letter
 export const WORD_TIMEOUT_MS = 1400 // silence that ends a word
 export const UNKNOWN_CHAR = '?'
+/** Sidetone lengths: a dah is three dits, as in real Morse */
+export const DIT_TONE_MS = 60
+export const DAH_TONE_MS = 180
 /** Longest code worth collecting; anything longer can never decode */
 const MAX_SYMBOL_LENGTH = 7
 /** Characters of history to keep; the LCD only shows the newest ~25 */
@@ -33,7 +37,10 @@ export interface MorseDecoderState {
   currentSymbol: string
   /** Everything decoded so far */
   decodedMessage: string
-  /** Record a paddle tap. Ignored unless powered, DECODER ON and on a transmit frequency. */
+  /**
+   * Record a paddle tap. On a transmit frequency with the power ON it always
+   * sounds the 700 Hz sidetone; it is decoded only when the DECODER is ON too.
+   */
   handleTap: (type: MorseTap) => void
   /** Wipe the buffer and anything in progress (the CLR button) */
   clear: () => void
@@ -60,8 +67,14 @@ const trimHistory = (text: string) => (text.length > MAX_MESSAGE_LENGTH ? text.s
  *
  * The symbol lives in a ref as well as in state, so the timers always read
  * the latest value without being recreated on every render.
+ *
+ * `canKey`: the rig can transmit here (power ON, ham band or ghost), so a tap
+ * sounds the sidetone. `isActive`: canKey and the DECODER is ON, so the tap is
+ * also decoded. Keying with the DECODER OFF is how practised operators train
+ * by ear.
  */
 function useMorseDecoderEngine(
+  canKey: boolean,
   isActive: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
 ): Omit<MorseDecoderState, 'band' | 'status'> {
@@ -72,6 +85,8 @@ function useMorseDecoderEngine(
   const symbolTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeRef = useRef(isActive)
+  const canKeyRef = useRef(canKey)
+  canKeyRef.current = canKey
 
   const clearTimers = useCallback(() => {
     if (symbolTimer.current !== null) clearTimeout(symbolTimer.current)
@@ -103,8 +118,10 @@ function useMorseDecoderEngine(
 
   const handleTap = useCallback(
     (type: MorseTap) => {
-      if (!activeRef.current) return
       if (type !== '.' && type !== '-') return
+      if (!canKeyRef.current) return // dead radio, broadcaster or dead air: nothing keyed
+      playTone(type === '.' ? DIT_TONE_MS : DAH_TONE_MS)
+      if (!activeRef.current) return // DECODER OFF: sidetone only
       clearTimers()
       // a symbol longer than any real code can never decode: commit it as '?' and start over
       if (symbolRef.current.length >= MAX_SYMBOL_LENGTH) commitSymbol()
@@ -153,16 +170,19 @@ interface MorseDecoderProviderProps extends DecoderOptions {
 }
 
 /**
- * Must sit inside <RadioProvider>. Taps are only decoded when the radio is
- * powered, the DECODER is ON and the dial is on a frequency you can transmit
- * on (the ham band or the ghost frequency). Broadcasters are receive-only and
- * dead air has nobody listening; the paddles still move there, but nothing is keyed.
+ * Must sit inside <RadioProvider>. Taps are keyed (sidetone) only when the
+ * radio is powered and the dial is on a frequency you can transmit on (the
+ * ham band or the ghost frequency), and decoded only if the DECODER is ON too.
+ * Broadcasters are receive-only and dead air has nobody listening; the
+ * paddles still move there, but nothing is keyed.
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
   const { isPowerOn, isDecoderOn, frequency } = useRadio()
   const { band, canTransmit } = getBandInfo(frequency)
+  const canKey = isPowerOn && canTransmit
   const { currentSymbol, decodedMessage, handleTap, clear, isActive } = useMorseDecoderEngine(
-    isPowerOn && isDecoderOn && canTransmit,
+    canKey,
+    canKey && isDecoderOn,
     options,
   )
 
