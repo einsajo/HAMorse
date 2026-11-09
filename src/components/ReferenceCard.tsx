@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { AnimationEvent as ReactAnimationEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import './ReferenceCard.css'
 import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
@@ -17,6 +17,30 @@ const CLOSE_DISTANCE = 40
 /** Movement below this (px) counts as a tap */
 const TAP_SLOP = 6
 
+/* --- The loupe ----------------------------------------------------------------
+   The card is small on a phone (and not big on a desktop), so a magnifying
+   loupe reads it. Touch: press and hold for HOLD_MS and the loupe appears just
+   above your finger (so the finger never hides what you're reading); slide
+   to read; lift to put it down. A quick tap still puts the card away, and a
+   quick swipe toward the radio still closes it. Mouse: the loupe follows the
+   pointer while it's over the card, like a reading glass; click to put the
+   card away. */
+const HOLD_MS = 170
+/** what the magnified type should measure (px); the zoom is chosen per screen */
+const LOUPE_TARGET_FONT_PX = 22
+const LOUPE_MIN_ZOOM = 1.8
+const LOUPE_MAX_ZOOM = 3.4
+/** loupe diameter: a share of the shorter screen side, within these bounds (px) */
+const LOUPE_MIN_D = 150
+const LOUPE_MAX_D = 230
+const LOUPE_SCREEN_SHARE = 0.46
+/** the metal rim, as a share of the diameter */
+const LOUPE_RIM = 0.055
+/** gap between the fingertip and the bottom of the loupe (px) */
+const LOUPE_FINGER_GAP = 26
+/** keep the loupe this far inside the screen edges (px) */
+const LOUPE_EDGE = 6
+
 /* Printed from the same dictionary the decoder uses, so the card can never
    disagree with what the radio actually decodes. */
 const MORSE: [string, string][] = MORSE_TABLE_ORDER.map((ch) => [ch, toTypographic(CHAR_TO_MORSE[ch])])
@@ -34,21 +58,94 @@ interface ReferenceCardProps {
   onClose: () => void
 }
 
+type GestureMode = 'pending' | 'drag' | 'loupe'
+
 interface DragState {
   id: number
   startX: number
   startY: number
+  lastX: number
+  lastY: number
   wide: boolean
   offset: number
+  /** pending: just touched (tap, drag or hold?); drag: sliding the card; loupe: magnifying */
+  mode: GestureMode
+  hold: ReturnType<typeof setTimeout> | null
 }
+
+interface LoupeGeometry {
+  zoom: number
+  diameter: number
+  rim: number
+  /** 'touch' sits above the finger; 'mouse' is centred on the pointer */
+  kind: 'touch' | 'mouse'
+}
+
+/** A small magnifying-glass mark (drawn, so it never depends on font glyphs) */
+function LensIcon() {
+  return (
+    <svg className="refcard__stamp-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="6.5" cy="6.5" r="4.6" />
+      <path d="M10 10 L14.5 14.5" />
+    </svg>
+  )
+}
+
+/** The printed card. Rendered twice: the card itself, and the copy the loupe magnifies. */
+function CardSheet() {
+  return (
+    <div className="refcard__sheet">
+      <header className="refcard__head">
+        <span>HAMorse HM-13</span>
+        {/* rubber-stamped by the factory: how to read the small print */}
+        <span className="refcard__stamp" aria-hidden="true">
+          <LensIcon />
+          <span className="refcard__stamp-touch">HOLD TO MAGNIFY</span>
+          <span className="refcard__stamp-hover">HOVER TO MAGNIFY</span>
+        </span>
+        <span>OPERATOR REF. CARD</span>
+      </header>
+
+      <dl className="refcard__morse">
+        {MORSE.map(([ch, code]) => (
+          <div key={ch} className="refcard__entry">
+            <dt>{ch}</dt>
+            <dd>{code}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <dl className="refcard__q">
+        {QCODE_ROWS.map(([code, meaning]) => (
+          <div key={code} className="refcard__qrow">
+            <dt>{code}:</dt>
+            <dd>{meaning}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="refcard__note">
+        {'Dial drifts below 90MHz in the cold. '}
+        <span className="refcard__sig">- Nevlin</span>
+      </p>
+    </div>
+  )
+}
+
+/** Where the rim engraving runs: a circle just inside the rim (viewBox 0..100) */
+const RIM_TEXT_PATH = 'M 50 50 m -46.4 0 a 46.4 46.4 0 1 1 92.8 0 a 46.4 46.4 0 1 1 -92.8 0'
 
 /**
  * Operator's reference card, tucked behind the (stationary) chassis.
- * Slides out on REF; tap it, or drag it back toward the radio, to put it away.
+ * Slides out on REF; tap it, or drag it back toward the radio, to put it away;
+ * hold it (touch) or hover it (mouse) to read it through the loupe.
  */
 export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  const loupeRef = useRef<HTMLDivElement>(null)
+  const paperRef = useRef<HTMLDivElement>(null)
+  const geometryRef = useRef<LoupeGeometry | null>(null)
   // The friction keyframes only run once the card has been used, so the
   // close animation doesn't play (and flash the card) on first load.
   const armedRef = useRef(false)
@@ -79,43 +176,167 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
 
   const setDrag = (px: number) => cardRef.current?.style.setProperty('--drag', `${px}px`)
 
+  /* --- Loupe: pure DOM writes (it follows the finger every frame) ----------- */
+
+  /** Aim the loupe at viewport point (x, y) */
+  const aimLoupe = useCallback((x: number, y: number) => {
+    const card = cardRef.current
+    const loupe = loupeRef.current
+    const paper = paperRef.current
+    const g = geometryRef.current
+    const stage = card?.parentElement
+    if (!card || !loupe || !paper || !g || !stage) return
+    const rect = card.getBoundingClientRect()
+    const stageRect = stage.getBoundingClientRect()
+    const r = g.diameter / 2
+
+    // the point of the card being read (kept on the card)
+    const px = Math.min(rect.width, Math.max(0, x - rect.left))
+    const py = Math.min(rect.height, Math.max(0, y - rect.top))
+
+    // where the loupe sits: centred on a mouse pointer; above a fingertip
+    // (or below it, near the top of the screen), always fully on screen
+    let cx = x
+    let cy = y
+    if (g.kind === 'touch') {
+      cy = y - LOUPE_FINGER_GAP - r
+      if (cy - r < LOUPE_EDGE) cy = y + LOUPE_FINGER_GAP + r
+    }
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    cx = Math.min(vw - LOUPE_EDGE - r, Math.max(LOUPE_EDGE + r, cx))
+    cy = Math.min(vh - LOUPE_EDGE - r, Math.max(LOUPE_EDGE + r, cy))
+
+    loupe.style.setProperty('--lx', `${(cx - stageRect.left).toFixed(1)}px`)
+    loupe.style.setProperty('--ly', `${(cy - stageRect.top).toFixed(1)}px`)
+    // the magnified copy: the read point lands in the middle of the glass
+    const viewR = r - g.rim
+    paper.style.transform = `translate(${(viewR - px * g.zoom).toFixed(2)}px, ${(viewR - py * g.zoom).toFixed(2)}px) scale(${g.zoom})`
+  }, [])
+
+  const showLoupe = useCallback(
+    (x: number, y: number, kind: LoupeGeometry['kind']) => {
+      const card = cardRef.current
+      const loupe = loupeRef.current
+      const paper = paperRef.current
+      if (!card || !loupe || !paper) return
+      if (!geometryRef.current || geometryRef.current.kind !== kind) {
+        const sheet = card.querySelector('.refcard__sheet')
+        const fontPx = sheet ? parseFloat(getComputedStyle(sheet).fontSize) : 10
+        const zoom = Math.min(LOUPE_MAX_ZOOM, Math.max(LOUPE_MIN_ZOOM, LOUPE_TARGET_FONT_PX / (fontPx || 10)))
+        const short = Math.min(window.innerWidth, window.innerHeight)
+        const diameter = Math.round(Math.min(LOUPE_MAX_D, Math.max(LOUPE_MIN_D, short * LOUPE_SCREEN_SHARE)))
+        geometryRef.current = { zoom, diameter, rim: Math.round(diameter * LOUPE_RIM), kind }
+        const g = geometryRef.current
+        loupe.style.setProperty('--d', `${g.diameter}px`)
+        loupe.style.setProperty('--rim', `${g.rim}px`)
+        // the copy is laid out at the card's own size, so it wraps exactly like the card
+        paper.style.width = `${card.offsetWidth}px`
+        paper.style.height = `${card.offsetHeight}px`
+        const label = `HAMorse \u00b7 HM-13 READING LOUPE \u00b7 ${zoom.toFixed(1)}\u00d7 \u00b7`
+        loupe.querySelectorAll('textPath').forEach((t) => (t.textContent = label))
+        if (kind === 'touch' && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(8)
+      }
+      aimLoupe(x, y)
+      loupe.dataset.show = 'true'
+      card.dataset.loupe = kind
+    },
+    [aimLoupe],
+  )
+
+  const hideLoupe = useCallback(() => {
+    geometryRef.current = null
+    if (loupeRef.current) loupeRef.current.dataset.show = 'false'
+    if (cardRef.current) delete cardRef.current.dataset.loupe
+  }, [])
+
+  // put the loupe away whenever the card goes away
+  useEffect(() => {
+    if (!open) hideLoupe()
+  }, [open, hideLoupe])
+
+  /* --- Gestures --------------------------------------------------------------- */
+
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!open || dragRef.current) return
       e.currentTarget.setPointerCapture(e.pointerId)
-      dragRef.current = {
+      const isMouse = e.pointerType === 'mouse'
+      const d: DragState = {
         id: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
         wide: window.matchMedia(WIDE_QUERY).matches,
         offset: 0,
+        // a mouse press is a click or a drag (the mouse loupe is hover);
+        // a finger might be about to tap, drag or hold to magnify
+        mode: isMouse ? 'drag' : 'pending',
+        hold: null,
       }
+      if (isMouse) hideLoupe()
+      else {
+        d.hold = setTimeout(() => {
+          d.hold = null
+          if (dragRef.current !== d || d.mode !== 'pending') return
+          d.mode = 'loupe'
+          showLoupe(d.lastX, d.lastY, 'touch')
+        }, HOLD_MS)
+      }
+      dragRef.current = d
       e.currentTarget.dataset.dragging = 'true'
     },
-    [open],
+    [open, hideLoupe, showLoupe],
   )
 
-  const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current
-    if (!d || e.pointerId !== d.id) return
-    // "back toward the radio" is down in portrait and left in wide layouts
-    const raw = d.wide ? e.clientX - d.startX : e.clientY - d.startY
-    const rect = e.currentTarget.getBoundingClientRect()
-    const max = d.wide ? rect.width : rect.height
-    const sign = d.wide ? -1 : 1 // +1 = the direction that points back at the radio
-    const toward = raw * sign
-    // free travel back toward the radio; a short rubber-band pull away from it
-    const eased = toward >= 0 ? Math.min(toward, max) : Math.max(toward * 0.2, -16)
-    d.offset = eased * sign
-    setDrag(d.offset)
-  }, [])
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const d = dragRef.current
+      if (!d) {
+        // reading glass: a mouse hovering over the open card
+        if (open && e.pointerType === 'mouse' && e.buttons === 0) showLoupe(e.clientX, e.clientY, 'mouse')
+        return
+      }
+      if (e.pointerId !== d.id) return
+      d.lastX = e.clientX
+      d.lastY = e.clientY
+      if (d.mode === 'loupe') {
+        aimLoupe(e.clientX, e.clientY)
+        return
+      }
+      if (d.mode === 'pending') {
+        if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < TAP_SLOP) return
+        if (d.hold !== null) clearTimeout(d.hold) // moved before the hold: it's a drag
+        d.hold = null
+        d.mode = 'drag'
+      }
+      // "back toward the radio" is down in portrait and left in wide layouts
+      const raw = d.wide ? e.clientX - d.startX : e.clientY - d.startY
+      const rect = e.currentTarget.getBoundingClientRect()
+      const max = d.wide ? rect.width : rect.height
+      const sign = d.wide ? -1 : 1 // +1 = the direction that points back at the radio
+      const toward = raw * sign
+      // free travel back toward the radio; a short rubber-band pull away from it
+      const eased = toward >= 0 ? Math.min(toward, max) : Math.max(toward * 0.2, -16)
+      d.offset = eased * sign
+      setDrag(d.offset)
+    },
+    [open, aimLoupe, showLoupe],
+  )
 
   const endDrag = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const d = dragRef.current
       if (!d || e.pointerId !== d.id) return
       dragRef.current = null
+      if (d.hold !== null) clearTimeout(d.hold)
       delete e.currentTarget.dataset.dragging
+      if (d.mode === 'loupe') {
+        // done reading: put the loupe down, the card stays out
+        hideLoupe()
+        return
+      }
       const moved = Math.hypot(e.clientX - d.startX, e.clientY - d.startY)
       const towardRadio = d.wide ? -d.offset : d.offset
       if (e.type !== 'pointercancel' && (moved < TAP_SLOP || towardRadio > CLOSE_DISTANCE)) {
@@ -126,55 +347,66 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
         setDrag(0) // not far enough: ease back out (--drag is transitioned)
       }
     },
-    [onClose],
+    [onClose, hideLoupe],
+  )
+
+  const onPointerLeave = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'mouse' && !dragRef.current) hideLoupe()
+    },
+    [hideLoupe],
   )
 
   return (
-    <div
-      ref={cardRef}
-      className="refcard"
-      style={MOTION_STYLE}
-      data-open={open}
-      data-armed={armedRef.current}
-      aria-hidden={!open}
-      onAnimationStart={onAnimationStart}
-      onAnimationEnd={() => {
-        if (!open) setDrag(0)
-      }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-    >
-      <div className="refcard__sheet">
-        <header className="refcard__head">
-          <span>HAMorse HM-13</span>
-          <span>OPERATOR REF. CARD</span>
-        </header>
-
-        <dl className="refcard__morse">
-          {MORSE.map(([ch, code]) => (
-            <div key={ch} className="refcard__entry">
-              <dt>{ch}</dt>
-              <dd>{code}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <dl className="refcard__q">
-          {QCODE_ROWS.map(([code, meaning]) => (
-            <div key={code} className="refcard__qrow">
-              <dt>{code}:</dt>
-              <dd>{meaning}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <p className="refcard__note">
-          {'Dial drifts below 90MHz in the cold. '}
-          <span className="refcard__sig">- Nevlin</span>
-        </p>
+    <>
+      <div
+        ref={cardRef}
+        className="refcard"
+        style={MOTION_STYLE}
+        data-open={open}
+        data-armed={armedRef.current}
+        aria-hidden={!open}
+        onAnimationStart={onAnimationStart}
+        onAnimationEnd={() => {
+          if (!open) setDrag(0)
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={onPointerLeave}
+      >
+        <CardSheet />
       </div>
-    </div>
+
+      {/* The reading loupe: above the radio, never takes the pointer */}
+      <div ref={loupeRef} className="loupe" data-show="false" aria-hidden="true">
+        <div className="loupe__view">
+          <div ref={paperRef} className="loupe__paper">
+            <CardSheet />
+          </div>
+        </div>
+        <div className="loupe__glass" />
+        <svg className="loupe__marks" viewBox="0 0 100 100">
+          <defs>
+            <path id="loupe-rim-path" d={RIM_TEXT_PATH} />
+          </defs>
+          {/* engraved: a dark cut with a light lower lip */}
+          <text className="loupe__engrave loupe__engrave--lip">
+            <textPath href="#loupe-rim-path" startOffset="2%">
+              HAMorse · HM-13 READING LOUPE ·
+            </textPath>
+          </text>
+          <text className="loupe__engrave">
+            <textPath href="#loupe-rim-path" startOffset="2%">
+              HAMorse · HM-13 READING LOUPE ·
+            </textPath>
+          </text>
+          {/* index marks, with the radio's red needle colour at 12 o'clock */}
+          <path className="loupe__ticks" d="M50 1.2 V4.4 M98.8 50 H95.6 M50 98.8 V95.6 M1.2 50 H4.4" />
+          <circle className="loupe__index" cx="50" cy="2.8" r="1.1" />
+        </svg>
+      </div>
+    </>
   )
 }
