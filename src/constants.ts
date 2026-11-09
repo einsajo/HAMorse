@@ -12,7 +12,10 @@
  *   Ham band operators, 0.70 MHz apart with open band between them:
  *   100.30 Elmer (mentor) · 101.00 practice (HI / SOS) · 101.70 code-practice
  *   bulletin · 102.40 Bob (QSO) · 103.10 Sam (high speed)
- *   Reserved, receive-only (not mapped yet): 100.65 · 101.35 · 102.05 · 102.75
+ *   Reserved, receive-only (not mapped yet): 100.65 · 101.35 · 102.05
+ *
+ *   Live agents (LLM personas, see src/utils/agentEngine.ts):
+ *   90.20 the Guide (a friendly ham) · 102.75 a random ragchewer (new every boot)
  *
  * Everything not listed is dead air.
  */
@@ -74,12 +77,32 @@ export const HAM_STATIONS = Object.freeze({
 
 /**
  * Receive-only slots, reserved for future content (beacons, nets, a numbers
- * station...). One sits midway in each gap between two operators. For now
+ * station...). Midway in the gaps between operators (102.75 has since been
+ * mapped: it is the random ragchewer, an agent station). For now
  * each is an unmodulated carrier: the S-meter shows a steady signal, the
  * LCD says RX ONLY and you can't transmit. Map one by giving it content
  * (and, if it should answer, moving it to HAM_STATIONS).
  */
-export const RESERVED_RX_FREQUENCIES = Object.freeze([100.65, 101.35, 102.05, 102.75] as const)
+export const RESERVED_RX_FREQUENCIES = Object.freeze([100.65, 101.35, 102.05] as const)
+
+/**
+ * Operators played by live agents (an LLM through the agent route, or a
+ * local persona offline: src/utils/agentEngine.ts). Two-way, like the ham band.
+ */
+export const AGENT_STATIONS = Object.freeze({
+  /** the Guide: a friendly ham on a quiet frequency who points strugglers at the tutors */
+  guide: 90.2,
+  /** a random ragchewer: a new age, place and quirk every boot (the old 102.75 reserved slot) */
+  stranger: 102.75,
+})
+
+export type AgentStationId = keyof typeof AGENT_STATIONS
+
+/** Which agent station (if any) is exactly on `mhz` */
+export function agentStationAt(mhz: number): AgentStationId | null {
+  const ids = Object.keys(AGENT_STATIONS) as AgentStationId[]
+  return ids.find((id) => isTunedTo(mhz, AGENT_STATIONS[id])) ?? null
+}
 
 /* --- The wandering ghost --------------------------------------------------------- */
 
@@ -97,6 +120,7 @@ export const OCCUPIED_FREQUENCIES: readonly number[] = Object.freeze([
   ...BROADCAST_STATIONS,
   ...Object.values(HAM_STATIONS),
   ...RESERVED_RX_FREQUENCIES,
+  ...Object.values(AGENT_STATIONS),
 ])
 
 /** Is `mhz` an allowed home for the ghost? */
@@ -120,13 +144,24 @@ export function pickGhostFrequency(rng: () => number = Math.random): number {
 }
 
 /**
- * The haunted station: chosen once, when the app loads, so it is somewhere
- * new every session. The S-meter pins here and the decoder opens.
+ * The haunted station for this session: chosen when the app loads, and
+ * chosen again whenever the haunt ends in its hard reset (the breaker trips),
+ * so it is somewhere new every time. The S-meter pins here and the decoder opens.
  */
-export const GHOST_FREQUENCY: number = pickGhostFrequency()
+let ghostFrequency: number = pickGhostFrequency()
+
+export function getGhostFrequency(): number {
+  return ghostFrequency
+}
+
+/** A new session: the ghost wanders off somewhere else (returns the new frequency) */
+export function reseedGhostFrequency(rng: () => number = Math.random): number {
+  ghostFrequency = pickGhostFrequency(rng)
+  return ghostFrequency
+}
 
 /** 0 = out of range ... 1 = right on top of the ghost (0 again exactly on it: the drone stops) */
-export function ghostProximity(mhz: number, ghost: number = GHOST_FREQUENCY): number {
+export function ghostProximity(mhz: number, ghost: number = ghostFrequency): number {
   if (isTunedTo(mhz, ghost)) return 0
   const d = Math.abs(mhz - ghost)
   return d >= GHOST_PROXIMITY_MHZ - FREQ_EPSILON ? 0 : 1 - d / GHOST_PROXIMITY_MHZ
@@ -158,10 +193,12 @@ export interface BandInfo {
 
 /** Classify a frequency. Exact stations take priority over ranges. */
 export function getBandInfo(mhz: number): BandInfo {
-  if (isTunedTo(mhz, GHOST_FREQUENCY)) return { band: 'ghost', canTransmit: true }
+  if (isTunedTo(mhz, ghostFrequency)) return { band: 'ghost', canTransmit: true }
   const station = BROADCAST_STATIONS.find((f) => isTunedTo(mhz, f))
   if (station !== undefined) return { band: 'broadcast', kind: BROADCAST_KINDS[station], canTransmit: false }
   if (RESERVED_RX_FREQUENCIES.some((f) => isTunedTo(mhz, f))) return { band: 'reserved', canTransmit: false }
+  // an agent operator: two-way, like the ham band (90.20 is a quiet spot off the band)
+  if (agentStationAt(mhz) !== null) return { band: 'ham', canTransmit: true }
   if (mhz >= HAM_BAND_START - FREQ_EPSILON && mhz <= HAM_BAND_END + FREQ_EPSILON) {
     return { band: 'ham', canTransmit: true }
   }
@@ -191,12 +228,19 @@ const WIDE_DETENT = { captureMhz: 0.2, escapeMhz: 0.32 } as const
 /** Ham operators: small detents (0.70 apart), so most of the band between them stays open to tune through */
 const NARROW_DETENT = { captureMhz: 0.1, escapeMhz: 0.16 } as const
 
-export const DETENTS: readonly Detent[] = Object.freeze([
+const FIXED_DETENTS: readonly Detent[] = Object.freeze([
   ...BROADCAST_STATIONS.map((frequency) => ({ frequency, ...WIDE_DETENT })),
   ...Object.values(HAM_STATIONS).map((frequency) => ({ frequency, ...NARROW_DETENT })),
   ...RESERVED_RX_FREQUENCIES.map((frequency) => ({ frequency, ...NARROW_DETENT })),
-  { frequency: GHOST_FREQUENCY, ...WIDE_DETENT },
+  ...Object.values(AGENT_STATIONS).map((frequency) => ({ frequency, ...NARROW_DETENT })),
 ])
 
-/** Every station the tuning dial gives a magnetic detent to */
-export const DETENT_FREQUENCIES: readonly number[] = Object.freeze(DETENTS.map((d) => d.frequency))
+let detentCache: { ghost: number; detents: readonly Detent[] } | null = null
+
+/** Every detent on the dial, the ghost's included (it moves on a reset, so this is a function) */
+export function getDetents(): readonly Detent[] {
+  if (detentCache?.ghost !== ghostFrequency) {
+    detentCache = { ghost: ghostFrequency, detents: Object.freeze([...FIXED_DETENTS, { frequency: ghostFrequency, ...WIDE_DETENT }]) }
+  }
+  return detentCache.detents
+}

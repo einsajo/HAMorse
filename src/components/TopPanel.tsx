@@ -153,7 +153,7 @@ const DB_TICKS = [19, 26, 33, 40].map((a) => {
    A small damped-spring model of a moving-coil meter movement. The needle is
    driven toward a target angle and is caught by hard end stops at both ends,
    where it bounces. Angles are degrees (0 = straight up). */
-type NeedleMode = 'off' | 'dead' | 'ham' | 'keying' | 'carrier' | 'broadcast' | 'peak'
+type NeedleMode = 'off' | 'dead' | 'fading' | 'ham' | 'keying' | 'carrier' | 'broadcast' | 'peak'
 
 const STOP_LEFT = NEEDLE_REST // zero signal: resting on the left stop
 const STOP_RIGHT = 43 // just past the +40 dB mark
@@ -166,6 +166,8 @@ const STOP_RIGHT = 43 // just past the +40 dB mark
  *   keying     an operator on this frequency is sending to you: a strong,
  *              close signal kicking around S8
  *   carrier    a reserved receive-only slot: a steady, unmodulated S5
+ *   fading     an agent is "thinking" (network latency): a weak signal
+ *              riding the QSB, wandering slowly around S1-S3
  *   broadcast  a strong, steady commercial carrier: pinned at S9
  */
 interface Flutter {
@@ -177,10 +179,11 @@ interface Flutter {
   maxMs: number
 }
 
-const FLUTTER: Record<'dead' | 'ham' | 'keying' | 'carrier' | 'broadcast', Flutter> = {
+const FLUTTER: Record<'dead' | 'fading' | 'ham' | 'keying' | 'carrier' | 'broadcast', Flutter> = {
   dead: { base: S_ANGLE(1) - 2.5, spread: 2.5, flickChance: 0.06, flickSpread: 4.5, minMs: 110, maxMs: 320 },
   ham: { base: (S_ANGLE(4) + S_ANGLE(7)) / 2, spread: 8, flickChance: 0.15, flickSpread: 10.5, minMs: 45, maxMs: 150 },
   keying: { base: S_ANGLE(8), spread: 2.2, flickChance: 0.12, flickSpread: 4.5, minMs: 40, maxMs: 110 },
+  fading: { base: S_ANGLE(2), spread: 5, flickChance: 0.08, flickSpread: 8, minMs: 180, maxMs: 520 },
   carrier: { base: S_ANGLE(5), spread: 0.6, flickChance: 0.03, flickSpread: 1.4, minMs: 150, maxMs: 340 },
   broadcast: { base: S_ANGLE(9), spread: 0.7, flickChance: 0.05, flickSpread: 1.6, minMs: 120, maxMs: 280 },
 }
@@ -192,6 +195,7 @@ const RESTING_ANGLE: Record<NeedleMode, number> = {
   ham: FLUTTER.ham.base,
   keying: FLUTTER.keying.base,
   carrier: FLUTTER.carrier.base,
+  fading: FLUTTER.fading.base,
   broadcast: FLUTTER.broadcast.base,
   peak: STOP_RIGHT,
 }
@@ -276,6 +280,8 @@ interface SMeterProps {
   frequency: number
   /** a ham operator is sending on this frequency */
   isReceiving: boolean
+  /** an agent has your over and hasn't answered yet */
+  isAwaitingAgent?: boolean
 }
 
 const METER_LABEL: Record<NeedleMode, string> = {
@@ -284,6 +290,7 @@ const METER_LABEL: Record<NeedleMode, string> = {
   ham: 'S-meter, amateur traffic around S4 to S7',
   keying: 'S-meter, station sending around S8',
   carrier: 'S-meter, steady carrier around S5',
+  fading: 'S-meter, weak fading signal around S2',
   broadcast: 'S-meter, strong station at S9',
   peak: 'S-meter, signal pinned at plus 40 dB',
 }
@@ -296,10 +303,17 @@ const BAND_TO_MODE: Record<Band, NeedleMode> = {
   ghost: 'peak',
 }
 
-function SMeter({ isPowerOn, frequency, isReceiving }: SMeterProps) {
+function SMeter({ isPowerOn, frequency, isReceiving, isAwaitingAgent = false }: SMeterProps) {
   const band = getBandInfo(frequency).band
-  // the ghost keeps the needle pinned whatever it's doing
-  const mode: NeedleMode = !isPowerOn ? 'off' : isReceiving && band === 'ham' ? 'keying' : BAND_TO_MODE[band]
+  // waiting on an agent's first word: the signal sinks into the QSB (even the ghost's);
+  // otherwise the ghost keeps the needle pinned whatever it's doing
+  const mode: NeedleMode = !isPowerOn
+    ? 'off'
+    : isAwaitingAgent
+      ? 'fading'
+      : isReceiving && band === 'ham'
+        ? 'keying'
+        : BAND_TO_MODE[band]
   const needle = useNeedle(mode)
   const needleTip = polar(0, ARC_R + 4)
   return (
@@ -426,7 +440,7 @@ export const POWER_LOCK_JOLT_MS = 450
  */
 export default function TopPanel() {
   const { frequency, isPowerOn, isDecoderOn, isTrapped, togglePower, setIsPowerOn, toggleDecoder } = useRadio()
-  const { isReceiving } = useMorseDecoder()
+  const { isReceiving, isAwaitingAgent } = useMorseDecoder()
   const { attention, nudge } = usePowerHint()
 
   /*
@@ -480,7 +494,7 @@ export default function TopPanel() {
         <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} forced={forced} />
       </div>
       <div className="top__col top__col--meter">
-        <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} />
+        <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} isAwaitingAgent={isAwaitingAgent} />
       </div>
       <div className="top__col top__col--decoder">
         <DecoderSwitch on={isDecoderOn} onToggle={onDecoder} />

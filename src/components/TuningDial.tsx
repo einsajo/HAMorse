@@ -3,7 +3,7 @@ import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } 
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
-import { DETENTS } from '../constants'
+import { getDetents } from '../constants'
 import type { Detent } from '../constants'
 import { playEncoderThud, pushTrapRumble } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
@@ -130,7 +130,6 @@ const DEAD_ZONE = 0.18 // fraction of the knob radius
    ghost have wide detents (0.20 / 0.32 MHz, so the ghost's is no giveaway: it
    feels like one more station); the ham operators, 0.70 apart, have narrow
    ones (0.10 / 0.16 MHz) so you can still tune the open band between them. */
-const TARGET_DETENTS: readonly Detent[] = DETENTS
 
 /** Short haptic "click" when the dial drops into a detent (where supported) */
 const detentClick = () => {
@@ -218,7 +217,7 @@ function applyGravity(d: DragState, raw: number, targets: readonly Detent[]): nu
 function useVfoDrag(
   frequency: number,
   setFrequency: (mhz: number) => void,
-  targets: readonly Detent[] = TARGET_DETENTS,
+  targets: readonly Detent[] = getDetents(),
   onRelease?: () => void,
   /** trapped: the knob slips (onSlip reports the forced angle; 0 = let go) */
   locked = false,
@@ -320,7 +319,7 @@ function useVfoDrag(
  * and shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
-  const { frequency, setFrequency, isPowerOn, isTrapped } = useRadio()
+  const { frequency, setFrequency, isPowerOn, isTrapped, isHaunted } = useRadio()
   const vfoRef = useRef<HTMLDivElement>(null)
   // the forced (slipping) angle is a direct style write: it changes every frame of the drag
   const onSlip = useCallback((deg: number) => {
@@ -335,7 +334,7 @@ export default function TuningDial() {
   const { dragging, onPointerDown } = useVfoDrag(
     frequency,
     setFrequency,
-    TARGET_DETENTS,
+    getDetents(), // the ghost's detent moves after a reset
     () => {
       if (!isPowerOn) nudge()
     },
@@ -414,8 +413,12 @@ export default function TuningDial() {
           <span className="plate__brand">HAMorse</span>
           <span className="plate__model">HM-13</span>
         </MetalPlate>
-        <MetalPlate className="plate--serial" label="Serial number SER: 1984-K1R0">
-          <span className="plate__serial">SER: 1984-K1R0</span>
+        {/* the haunt's flash rewrites it (CSS: .stage[data-haunt] in TuningDial.css), on the exact frame */}
+        <MetalPlate className="plate--serial" label={isHaunted ? 'Serial number SER: D34D-S0UL' : 'Serial number SER: 1984-K1R0'}>
+          <span className="plate__serial plate__serial--factory">SER: 1984-K1R0</span>
+          <span className="plate__serial plate__serial--cursed" aria-hidden="true">
+            SER: D34D-S0UL
+          </span>
         </MetalPlate>
       </div>
     </section>

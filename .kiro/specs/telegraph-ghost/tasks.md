@@ -143,11 +143,20 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 19a. Agentic haunt engine
   - [x] 19a.1 Wandering `GHOST_FREQUENCY` (random per session, 0.50 MHz from every station, 1.00 from power-on, 0.05 grid)
   - [x] 19a.2 Proximity audio: static fades, detuned drone rises within 0.80 MHz; stops exactly on it
-  - [x] 19a.3 `ghostAgent.ts`: pluggable brain (live agent endpoint NDJSON/SSE, runtime-registered, scripted persona fallback), session rules, souring voice
+  - [x] 19a.3 `ghostAgent.ts` (now `agentEngine.ts`): pluggable brain (live agent endpoint NDJSON/SSE, runtime-registered, scripted persona fallback), session rules, souring voice
   - [x] 19a.4 `streamReply`: agent tokens keyed live as they stream; timing jitter; the ghost hears your whole over
   - [x] 19a.5 `isTrapped` after the first exchange: VFO lock (slipping knob + growing rumble), power lock (snaps off, back on after 1s)
   - [x] 19a.6 Climax: 800ms blackout + silence, single white flash with metallic BANG + 2 kHz screech, red corrupted LCD, shattered glass SVG, dripping #050505 liquid, card ejected
   - _Requirements: 3c, 4_
+
+- [x] 19b. Living world and finale
+  - [x] 19b.1 `agentEngine.ts`: multi-agent cast rolled per boot: the Guide (90.20, weaves in the real tutor frequencies), the Stranger (102.75, random age / gender / place / quirk), the Ghost (random horror archetype); one agent route; local brains
+  - [x] 19b.2 `server/agent-route.mjs`: reference LLM route (OpenAI-compatible, streamed NDJSON, [[CLIMAX]] → climax, guard rails)
+  - [x] 19b.3 Latency as interference: fading S-meter while waiting; 6s timeout / failure → `QSB... QSB... LOST SIG` (offline: `DEAD BAND`); tutors strictly local
+  - [x] 19b.4 Live RX broadcasts through a vintage AM chain (`createMediaElementSource`); `live-streams` Kiro power provisions and verifies CORS-friendly streams
+  - [x] 19b.5 Finale: serial glitch on the flash, the hard trip 4s later (stays off), `hardReset` → fresh boot at 88.50 with a new ghost and new personas
+  - [ ] 19b.6 Run the `live-streams` power with internet access and commit verified streams (the sandbox could not reach them)
+  - _Requirements: 3d, 3e, 3f, 4_
 
 - [ ] 19. Liquid Crystal Bleed: remaining parts
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
@@ -156,7 +165,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [ ] 19.4 The S-meter needle violently pins to the red maximum
   - _Requirements: 4_
 
-- [ ] 20. The breaker trips
+- [x] 20. The breaker trips (19b.5)
   - [ ] 20.1 Incoming Morse speeds up and pitch-shifts erratically
   - [ ] 20.2 The MCB snaps itself OFF; audio cuts to dead silence; everything resets
   - _Requirements: 4_
