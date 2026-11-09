@@ -6,7 +6,7 @@
  *          NEWS       SPORTS      MUSIC      HAM BAND              (ghost)
  *
  *   Ham band operators: 100.20 code-practice bulletin · 100.60 Elmer (mentor)
- *   · 101.00 practice (HI / SOS) · 101.40 Bob (QSO) · 101.80 speed drill
+ *   · 101.00 practice (HI / SOS) · 101.40 Bob (QSO) · 101.80 Sam (high speed)
  *
  * Everything not listed is dead air. The ghost station is deliberately
  * indistinguishable from the broadcasters until you are on it.
@@ -58,7 +58,7 @@ export const HAM_STATIONS = Object.freeze({
   tutor: TUTOR_FREQUENCY,
   /** Bob, for a real-feeling QSO: RST, name, QTH, 73 */
   ragchew: 101.4,
-  /** the speed drill: five-character groups that speed up as you copy them */
+  /** Sam, an old-timer running high-speed copy practice (5-character groups) */
   speed: 101.8,
 })
 
