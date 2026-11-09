@@ -109,6 +109,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [ ] 17.1 An `AnalyserNode` level drives the needle target; the 104.40 peg behaviour is kept
   - _Requirements: 2a, 3_
 
+- [x] 16.3 Quick Start note before the first power-on: spotlight on the breaker, THROW MAIN POWER / GOT IT
+  - _Requirements: 2f, 3_
+
 ## Phase 4: The 104.40 MHz haunt sequence
 
 - [ ] 18. Ghost reply

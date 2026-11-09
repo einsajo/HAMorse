@@ -289,6 +289,11 @@ export function playClick(pitch = 1800, volume = 0.5): void {
   whenRunning((e) => scheduleClick(e.ctx, e.master, pitch, volume, e.ctx.currentTime))
 }
 
+/** The MAIN POWER breaker: a higher, snappier thunk ON; a lower, duller one OFF */
+export function playBreakerClick(turningOn: boolean): void {
+  playClick(turningOn ? 190 : 140, 0.9)
+}
+
 /** Engine status, for debugging and tests */
 export function getAudioState(): { state: AudioContextState | 'locked'; staticLevel: number } {
   return { state: engine ? engine.ctx.state : 'locked', staticLevel }

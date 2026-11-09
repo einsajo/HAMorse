@@ -1,7 +1,10 @@
+import { useCallback } from 'react'
 import './TelegraphDesk.css'
 import { usePress } from '../hooks/usePress'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { MorseTap } from '../hooks/useMorseDecoder'
+import { usePowerHint } from '../hooks/usePowerHint'
+import { useRadio } from '../context/RadioContext'
 
 /* --- Iambic squeeze keyer ------------------------------------------------ */
 
@@ -100,8 +103,8 @@ function UtilityButton({ label, onPress, latched }: UtilityButtonProps) {
  * TX SEND: same footprint as REF / CLR, but a dark knurled housing with an
  * inset dark-red glass lens.
  */
-function TxButton() {
-  const { pressed, handlers } = usePress()
+function TxButton({ onPress }: { onPress?: () => void }) {
+  const { pressed, handlers } = usePress({ onPress })
   return (
     <div className="utility tx">
       <div className="tx__housing">
@@ -158,21 +161,39 @@ interface TelegraphDeskProps {
 export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
   // DIT / DAH feed the shared decoder; CLR wipes its buffer
   const { handleTap, clear } = useMorseDecoder()
+  const { isPowerOn } = useRadio()
+  const { nudge } = usePowerHint()
+
+  // these all need power; before the first power-on they bring up the Quick Start guide
+  const onTap = useCallback(
+    (type: MorseTap) => {
+      if (!isPowerOn) nudge()
+      handleTap(type)
+    },
+    [isPowerOn, nudge, handleTap],
+  )
+  const onClear = useCallback(() => {
+    if (!isPowerOn) nudge()
+    clear()
+  }, [isPowerOn, nudge, clear])
+  const onSend = useCallback(() => {
+    if (!isPowerOn) nudge()
+  }, [isPowerOn, nudge])
 
   return (
     <section className="desk" aria-label="Telegraph Desk">
       <div className="desk__col desk__col--utils">
         <UtilityButton label="REF" onPress={onRefToggle} latched={isRefCardOpen} />
-        <UtilityButton label="CLR" onPress={clear} />
+        <UtilityButton label="CLR" onPress={onClear} />
       </div>
 
       <div className="desk__col desk__col--keyer">
-        <Keyer onTap={handleTap} />
+        <Keyer onTap={onTap} />
       </div>
 
       <div className="desk__col desk__col--tx">
         <ArmGuard />
-        <TxButton />
+        <TxButton onPress={onSend} />
       </div>
     </section>
   )

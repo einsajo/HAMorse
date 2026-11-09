@@ -90,6 +90,12 @@
   - A faded blue handwritten margin note: `Dial drifts below 90MHz in the cold. - Nevlin`.
 - **Closing:** Tap the card, press `REF` again, or drag the card back toward the radio.
 
+### 2f. Quick Start Guide (before the first power-on)
+- **Trigger:** using a control that needs power (DIT / DAH, DECODER, CLR, TX SEND, or releasing the VFO) before the radio has ever been switched on. REF and the dust wipe never trigger it (they work unpowered).
+- **Look:** a yellowed cardstock "QUICK START" note taped over the radio in typewriter type, with a pencil "start here" arrow. The chassis dims around a spotlight on the MAIN POWER breaker, which pulses with a soft amber glow (under 1 flash per second).
+- **Content:** explains the trainer (power, tuning and the HAM band, DIT/DAH and the 700 Hz tone, DECODER for beginners vs OFF for ear training, REF and CLR) and why sound needs the power on. It never mentions the haunt.
+- **Actions:** `[ THROW MAIN POWER ]` performs the breaker's own action (thunk, audio unlock, power ON); `[ GOT IT ]` or Escape closes it. After it is dismissed, later attempts only make the breaker glow briefly. The first power-on retires it for the session.
+
 ## 3. Core Mechanics & Audio
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
 - **Static:** Continuous white noise (with sparse crackle) through a ~1 kHz bandpass, like muffled AM static. Loudness follows the band: dead air 100%, ham band 50%, broadcasters 20%, and only 10% on 104.40, so the ghost station is eerily quiet and clear. Silent when the power is OFF.

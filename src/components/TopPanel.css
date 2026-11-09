@@ -277,6 +277,37 @@
     0 3px 4px 3px rgba(0, 0, 0, 0.55);
 }
 
+/* Quick Start: a soft amber glow ring pulses around the breaker
+   (under 1 flash per second, well below the 3/s photosensitivity limit) */
+.mcb::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 186, 84, 0.85),
+    0 0 12px 4px rgba(255, 150, 40, 0.55);
+  transition: opacity 200ms ease-out;
+}
+
+.mcb[data-attention='true']::after {
+  animation: mcb-attention 1.15s ease-in-out infinite;
+}
+
+@keyframes mcb-attention {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcb[data-attention='true']::after {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
 /* breaker closed: the trip stripe shows red */
 .mcb[data-on='true'] .mcb__handle::after {
   background: rgba(186, 40, 30, 0.85);

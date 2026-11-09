@@ -1,0 +1,213 @@
+/* ==========================================================================
+   Quick Start guide: a yellowed operator's note taped over the radio
+   Lives inside .chassis (a size container here), so it scales with the radio.
+   ========================================================================== */
+
+.guide {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  container-type: size;
+  pointer-events: none; /* only the note itself takes input; the breaker stays usable */
+}
+
+/* the radio dims, with a soft spotlight on the MAIN POWER breaker */
+.guide__veil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--spot-x, 18%) var(--spot-y, 8%),
+    rgba(0, 0, 0, 0) var(--spot-r, 40px),
+    rgba(0, 0, 0, 0.62) calc(var(--spot-r, 40px) + 34px)
+  );
+  animation: guide-fade 220ms ease-out both;
+}
+
+/* --- The note ------------------------------------------------------------- */
+.guide__card {
+  --ink: rgba(46, 43, 38, 0.9);
+  pointer-events: auto;
+  position: absolute;
+  left: 6cqw;
+  right: 6cqw;
+  top: 19cqh; /* just below the top panel, so the breaker stays in view */
+  padding: 4.2cqw 5cqw 3.4cqw;
+  border-radius: 3px 5px 4px 6px / 5px 3px 6px 4px;
+  transform: rotate(-1.2deg);
+  transform-origin: 50% 0;
+  animation: guide-drop 280ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+
+  color: var(--ink);
+  font-family: 'Courier Prime', 'Cutive Mono', serif-monospace, 'Courier New', Courier, 'Nimbus Mono PS', 'Liberation Mono', monospace;
+  font-size: min(2.75cqw, 2.05cqh);
+  line-height: 1.32;
+  text-shadow: 0 0 0.5px rgba(46, 43, 38, 0.45);
+
+  /* aged cardstock (same stock as the reference card) */
+  background:
+    radial-gradient(ellipse 12% 20% at 0% 70%, rgba(58, 44, 26, 0.3) 0%, rgba(58, 44, 26, 0) 100%),
+    radial-gradient(ellipse 16% 9% at 80% 100%, rgba(52, 40, 24, 0.3) 0%, rgba(52, 40, 24, 0) 100%),
+    radial-gradient(circle at 100% 100%, rgba(96, 74, 40, 0.45) 0%, rgba(96, 74, 40, 0) 9%),
+    radial-gradient(circle at 0% 100%, rgba(96, 74, 40, 0.45) 0%, rgba(96, 74, 40, 0) 9%),
+    radial-gradient(ellipse 75% 75% at 50% 45%, rgba(150, 120, 60, 0) 55%, rgba(150, 120, 60, 0.26) 100%),
+    radial-gradient(circle at 30% 40%, rgba(70, 55, 30, 0.13) 0 0.5px, rgba(0, 0, 0, 0) 1px) 0 0 / 5px 7px,
+    radial-gradient(circle at 70% 60%, rgba(255, 250, 235, 0.22) 0 0.5px, rgba(0, 0, 0, 0) 1px) 2px 3px / 7px 11px,
+    repeating-linear-gradient(87deg, rgba(120, 100, 60, 0.035) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    linear-gradient(170deg, #ddd5bf 0%, #d4cbb3 45%, #cbc0a3 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(120, 100, 66, 0.35),
+    inset 0 0 14px rgba(110, 88, 50, 0.22),
+    0 2px 3px rgba(0, 0, 0, 0.55),
+    0 10px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* yellowed sticky tape holding the note to the chassis */
+.guide__tape {
+  position: absolute;
+  top: -1.6cqw;
+  width: 15cqw;
+  height: 4.2cqw;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    linear-gradient(180deg, rgba(232, 214, 160, 0.62), rgba(214, 192, 130, 0.55));
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  clip-path: polygon(3% 0, 97% 4%, 100% 100%, 0 96%);
+}
+
+.guide__tape--l { left: 6cqw; transform: rotate(-7deg); }
+.guide__tape--r { right: 6cqw; transform: rotate(6deg); }
+
+/* pencil scrawl pointing up at the breaker */
+.guide__pencil {
+  position: absolute;
+  left: 3cqw;
+  top: -6.6cqw;
+  font-family: 'Segoe Script', 'Bradley Hand', 'Lucida Handwriting', 'Brush Script MT', 'Dancing Script', cursive;
+  font-size: 1.15em;
+  color: rgba(236, 226, 200, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  transform: rotate(-4deg);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.15em;
+}
+
+.guide__arrow {
+  width: 1.5em;
+  height: 1.5em;
+  margin-bottom: 0.45em;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.8));
+}
+
+.guide__title {
+  margin: 0 0 1.4cqw;
+  padding-bottom: 1.4cqw;
+  border-bottom: 1px solid rgba(46, 43, 38, 0.4);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.2em 1em;
+  font-size: 1.12em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.guide__model {
+  font-size: 0.72em;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.guide__steps {
+  margin: 0;
+  padding-left: 1.6em;
+  display: grid;
+  gap: 0.45em;
+}
+
+.guide__steps b {
+  font-weight: 700;
+}
+
+.guide__actions {
+  margin-top: 1.6cqw;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2cqw 3cqw;
+  align-items: center;
+}
+
+/* typed "form boxes", not modern buttons */
+.guide__btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px; /* finger-sized tap target */
+  padding: 0 0.6cqw;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 2px;
+}
+
+.guide__btn--primary {
+  color: rgba(150, 30, 22, 0.92); /* red typewriter ribbon */
+}
+
+.guide__btn:hover,
+.guide__btn:focus-visible {
+  outline: none;
+  background: rgba(46, 43, 38, 0.08);
+}
+
+.guide__btn:focus-visible {
+  box-shadow: 0 0 0 1px rgba(46, 43, 38, 0.5);
+}
+
+.guide__btn:active {
+  transform: translateY(1px);
+}
+
+.guide__sign {
+  position: absolute;
+  right: 5cqw;
+  bottom: 2.8cqw;
+  margin: 0;
+  font-family: 'Segoe Script', 'Bradley Hand', 'Lucida Handwriting', 'Brush Script MT', 'Dancing Script', cursive;
+  font-size: 0.95em;
+  color: rgba(38, 62, 140, 0.6);
+  transform: rotate(-3deg);
+}
+
+@keyframes guide-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes guide-drop {
+  from { opacity: 0; transform: translateY(-3cqh) rotate(-5deg); }
+  to { opacity: 1; transform: rotate(-1.2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide__veil,
+  .guide__card {
+    animation: none;
+  }
+}
