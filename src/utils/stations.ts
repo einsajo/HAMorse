@@ -128,6 +128,8 @@ export interface Station {
   onWord(sent: SentWord): Transmission | null
   /** nobody has sent anything for `idleMs` (polled; return null to stay quiet) */
   onIdle(idleMs: number): Transmission | null
+  /** you pressed TX SEND: your over is finished (after your last word was delivered) */
+  onOver?(): Transmission | null
 }
 
 /** Minimal storage, so the Elmer remembers how far you got (localStorage in the app) */
@@ -528,6 +530,7 @@ function createRagchew(): Station {
       over.push(w)
       return OVER_ENDINGS.has(w) ? endOver() : null
     },
+    onOver: () => endOver(), // TX SEND ends the over at once, like sending K
     onIdle(idleMs) {
       if (over.length) return idleMs >= RAGCHEW_OVER_IDLE_MS ? endOver() : null
       if (stage === 'call' && idleMs >= RAGCHEW_CQ_EVERY_MS) return tx(`CQ CQ DE ${RAGCHEW_NAME} K `, RAGCHEW_TIMING)

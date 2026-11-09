@@ -58,19 +58,55 @@ export type MorseTap = '.' | '-'
  */
 export type DecoderStatus = 'off' | 'rx-only' | 'dead-band' | 'ready'
 
+/**
+ * The LCD's TX annunciator, driven by TX SEND:
+ *   idle      nothing to show
+ *   sending   "TX SEND..." your over is going out; waiting for the far end
+ *   no-reply  nobody answered what you sent
+ *   inhibit   this frequency is receive-only / dead air: you can't transmit
+ *   busy      the other station is still sending: wait for it to finish
+ *   empty     you haven't keyed anything to send
+ */
+export type TxStatus = 'idle' | 'sending' | 'no-reply' | 'inhibit' | 'busy' | 'empty'
+
+/** "TX SEND..." stays up at least this long, even if the reply starts at once */
+export const TX_SENDING_MIN_MS = 1200
+/** after this long with no answer, the LCD says NO REPLY */
+export const TX_REPLY_WAIT_MS = 2800
+/** how long NO REPLY / INHIBIT / BUSY / NO MSG stay on the LCD */
+export const TX_NOTICE_MS = 2200
+
 export interface MorseDecoderState {
   /** Dits and dahs of the letter currently being keyed, e.g. ".-" */
   currentSymbol: string
   /** Everything decoded so far */
   decodedMessage: string
   /**
+   * Index in `decodedMessage` where your unsent draft starts (= its length
+   * when nothing is waiting). With the DECODER ON, words wait here until TX SEND.
+   */
+  draftFrom: number
+  /**
    * Record a paddle tap. On a transmit frequency with the power ON it sounds
    * the 700 Hz sidetone and is decoded, whether or not the DECODER (the
    * display) is ON.
    */
   handleTap: (type: MorseTap) => void
-  /** Wipe the buffer and anything in progress (the CLR button) */
+  /** Wipe the buffer and anything in progress */
   clear: () => void
+  /**
+   * The CLR button: with an unsent draft it wipes only the draft (fix a
+   * mistake without losing the conversation); otherwise the whole screen.
+   */
+  clearButton: () => void
+  /**
+   * TX SEND: send what you've keyed right now (no waiting for the word gap)
+   * and hand the frequency over ("over", like ending with K). Shows
+   * TX SEND... on the LCD until the far end answers, or NO REPLY.
+   */
+  sendOver: () => void
+  /** The LCD's TX annunciator */
+  txStatus: TxStatus
   /** True when taps are keyed and decoded (power ON, on the ham band or the ghost frequency) */
   isActive: boolean
   /** Another station is sending: the paddles are locked out until it finishes */
@@ -134,7 +170,13 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status'> {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton'> & {
+  flush: () => boolean
+  receivingNow: () => boolean
+  pendingNow: () => boolean
+  markSent: () => void
+  discardDraft: () => void
+} {
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [decodedMessage, setDecodedMessage] = useState('')
   const [isReceiving, setIsReceiving] = useState(false)
@@ -171,10 +213,33 @@ function useMorseDecoderEngine(
     setCurrentSymbol(value)
   }, [])
 
+  /**
+   * Where your unsent draft starts in the message. Everything before it has
+   * been sent (or came from the far end); everything after it is text you've
+   * keyed but not yet sent.
+   */
+  const draftAnchor = useRef(0)
+  const [draftFrom, setDraftFrom] = useState(0)
+
   const setMessage = useCallback((value: string) => {
     const next = trimHistory(value)
+    // the oldest characters scrolled out of history: the anchor moves with the text
+    if (next.length < value.length) {
+      draftAnchor.current = Math.max(0, draftAnchor.current - (value.length - next.length))
+      setDraftFrom(draftAnchor.current)
+    }
+    if (draftAnchor.current > next.length) {
+      draftAnchor.current = next.length
+      setDraftFrom(draftAnchor.current)
+    }
     messageRef.current = next
     setDecodedMessage(next)
+  }, [])
+
+  /** Everything on the screen so far counts as sent */
+  const markSent = useCallback(() => {
+    draftAnchor.current = messageRef.current.length
+    setDraftFrom(draftAnchor.current)
   }, [])
 
   /** append a space unless the message is empty or already ends with one */
@@ -235,6 +300,7 @@ function useMorseDecoderEngine(
       const nextChar = () => {
         if (i >= chars.length) {
           stopReply()
+          markSent() // their text is not your draft
           callbacksRef.current.onReplyEnd?.(message, isGhost)
           return
         }
@@ -270,9 +336,10 @@ function useMorseDecoderEngine(
 
       // the reply starts on a fresh word
       appendSpace()
+      markSent()
       schedule(nextChar, t.leadInMs)
     },
-    [appendSpace, clearTimers, setMessage, setSymbol, stopReply],
+    [appendSpace, clearTimers, markSent, setMessage, setSymbol, stopReply],
   )
 
   const handleTap = useCallback(
@@ -303,13 +370,42 @@ function useMorseDecoderEngine(
     [clearTimers, commitSymbol, commitWord, setSymbol, symbolTimeoutMs, wordTimeoutMs],
   )
 
+  /** Commit the half-keyed letter and the word now, without waiting for the gaps. True if anything was pending. */
+  const flush = useCallback(() => {
+    if (receivingRef.current) return false
+    const pendingSymbol = symbolRef.current !== ''
+    const pending = pendingSymbol || wordRef.current !== ''
+    clearTimers()
+    if (pendingSymbol) commitSymbol()
+    if (pending) commitWord()
+    return pending
+  }, [clearTimers, commitSymbol, commitWord])
+
   const clear = useCallback(() => {
     stopReply()
     clearTimers()
     setSymbol('')
     wordRef.current = ''
     setMessage('')
-  }, [clearTimers, setMessage, setSymbol, stopReply])
+    markSent()
+  }, [clearTimers, markSent, setMessage, setSymbol, stopReply])
+
+  /** Something keyed but not yet sent: a half-keyed letter, a word in progress, or committed draft text */
+  const pendingNow = useCallback(
+    () =>
+      symbolRef.current !== '' ||
+      wordRef.current !== '' ||
+      messageRef.current.slice(draftAnchor.current).trim() !== '',
+    [],
+  )
+
+  /** Throw away your unsent draft (and anything half-keyed), keeping the conversation */
+  const discardDraft = useCallback(() => {
+    clearTimers()
+    setSymbol('')
+    wordRef.current = ''
+    setMessage(messageRef.current.slice(0, draftAnchor.current))
+  }, [clearTimers, setMessage, setSymbol])
 
   // keying no longer possible (power off, tuned off the band): drop the half-keyed letter
   useEffect(() => {
@@ -331,7 +427,24 @@ function useMorseDecoderEngine(
     [],
   )
 
-  return { currentSymbol, decodedMessage, handleTap, clear, isActive: canKey, isReceiving, simulateReply }
+  /** live (not render-lagged) "another station has the frequency" */
+  const receivingNow = useCallback(() => receivingRef.current, [])
+
+  return {
+    currentSymbol,
+    decodedMessage,
+    draftFrom,
+    handleTap,
+    clear,
+    flush,
+    receivingNow,
+    pendingNow,
+    markSent,
+    discardDraft,
+    isActive: canKey,
+    isReceiving,
+    simulateReply,
+  }
 }
 
 /* --- Shared instance ------------------------------------------------------
@@ -359,9 +472,16 @@ function browserStorage(): StationStorage | undefined {
  * whether the LCD shows the text. Broadcasters are receive-only and dead air
  * has nobody listening; the paddles still move there, but nothing is keyed.
  *
+ * When your words go out depends on the DECODER:
+ *   - ON (you can read what you keyed): nothing is sent until you press TX
+ *     SEND. Finished words wait on the screen as an unsent draft, so a
+ *     beginner can check them first (and CLR wipes just the draft).
+ *   - OFF (keying by ear, like real CW): each word goes out as soon as you
+ *     pause after it. TX SEND still sends at once and ends your over.
+ *
  * The far end of every contact lives here too:
  *   - the ham operators (src/utils/stations.ts) hear you tune in, every word
- *     you finish, and how long the band has been quiet (polled), and answer;
+ *     you send, and how long the band has been quiet (polled), and answer;
  *   - 104.40, the ghost: ... CQ -> " I C U " (slow, distorted), then the haunt.
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
@@ -389,18 +509,53 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     if (t) replyRef.current(t.text, false, t.timing)
   }, [])
 
+  const decoderOnRef = useRef(isDecoderOn)
+  decoderOnRef.current = isDecoderOn
+  /** words finished with the DECODER ON, waiting for TX SEND */
+  const draftWords = useRef<SentWord[]>([])
+  /** the engine's markSent (the engine is created below; its callbacks need it) */
+  const markSentRef = useRef<() => void>(() => {})
+
+  /**
+   * Your words reach the far end, in order. A station answers the first word
+   * it has something to say to (the rest of the over is then moot).
+   * Returns whether anyone answered.
+   */
+  const deliver = useCallback(
+    (words: readonly SentWord[]) => {
+      markSentRef.current()
+      if (!words.length) return false
+      const f = frequencyRef.current
+      if (getBandInfo(f).band === 'ghost') {
+        if (!words.some((w) => w.word === 'CQ')) return false
+        replyRef.current(GHOST_REPLY, true)
+        return true
+      }
+      const id = hamStationAt(f)
+      if (!id) return false
+      for (const w of words) {
+        const t = stations[id].onWord(w)
+        if (t) {
+          transmit(t)
+          return true
+        }
+      }
+      return false
+    },
+    [stations, transmit],
+  )
+
   const onWordEnd = useCallback(
     (_message: string, sent: SentWord) => {
       touch()
-      const f = frequencyRef.current
-      if (getBandInfo(f).band === 'ghost') {
-        if (sent.word === 'CQ') replyRef.current(GHOST_REPLY, true)
+      if (decoderOnRef.current) {
+        draftWords.current.push(sent) // it waits on the screen for TX SEND
         return
       }
-      const id = hamStationAt(f)
-      if (id) transmit(stations[id].onWord(sent))
+      // keying by ear: the word goes out now (with anything still waiting from before)
+      deliver(draftWords.current.splice(0).concat(sent))
     },
-    [stations, touch, transmit],
+    [deliver, touch],
   )
 
   // when the ghost has finished sending (its last letter is "U"), the haunt begins
@@ -413,19 +568,107 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   )
 
   const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
-  const { currentSymbol, decodedMessage, clear, isActive, isReceiving, simulateReply } = engine
+  const { currentSymbol, decodedMessage, draftFrom, isActive, isReceiving, simulateReply, flush, receivingNow, pendingNow } = engine
   replyRef.current = simulateReply
-  const receivingRef = useRef(isReceiving)
-  receivingRef.current = isReceiving
+  markSentRef.current = engine.markSent
+  /** you have keyed something that hasn't been sent yet */
+  const hasDraftNow = useCallback(() => draftWords.current.length > 0 || pendingNow(), [pendingNow])
+  const canKeyRef = useRef(canKey)
+  canKeyRef.current = canKey
+
+  /* --- TX SEND and the TX annunciator --------------------------------------- */
+  const [txStatus, setTxStatus] = useState<TxStatus>('idle')
+  /** you keyed something since the frequency last changed hands */
+  const keyedSinceOver = useRef(false)
+  const txTimer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null)
+  const stopTxTimer = useCallback(() => {
+    if (txTimer.current !== null) {
+      clearTimeout(txTimer.current)
+      clearInterval(txTimer.current)
+    }
+    txTimer.current = null
+  }, [])
+  /** show a short notice (NO REPLY, INHIBIT, ...) then go back to idle */
+  const notice = useCallback(
+    (status: TxStatus) => {
+      stopTxTimer()
+      setTxStatus(status)
+      txTimer.current = setTimeout(() => {
+        txTimer.current = null
+        setTxStatus('idle')
+      }, TX_NOTICE_MS)
+    },
+    [stopTxTimer],
+  )
+
+  // the far end has started answering: the frequency is theirs now
+  useEffect(() => {
+    if (isReceiving) keyedSinceOver.current = false
+  }, [isReceiving])
 
   const engineTap = engine.handleTap
   const handleTap = useCallback(
     (type: MorseTap) => {
       touch()
+      if (canKeyRef.current && !receivingNow()) keyedSinceOver.current = true
       engineTap(type)
     },
-    [engineTap, touch],
+    [engineTap, receivingNow, touch],
   )
+  const engineClear = engine.clear
+  const clear = useCallback(() => {
+    engineClear()
+    draftWords.current = []
+    keyedSinceOver.current = false
+    stopTxTimer()
+    setTxStatus('idle')
+  }, [engineClear, stopTxTimer])
+
+  const discardDraft = engine.discardDraft
+  const clearButton = useCallback(() => {
+    if (!receivingNow() && hasDraftNow()) {
+      // first press: just your unsent draft goes
+      discardDraft()
+      draftWords.current = []
+      keyedSinceOver.current = false
+      stopTxTimer()
+      setTxStatus('idle')
+      touch()
+      return
+    }
+    clear()
+  }, [clear, discardDraft, hasDraftNow, receivingNow, stopTxTimer, touch])
+
+  const sendOver = useCallback(() => {
+    touch()
+    if (!isPowerOn) return // the LCD is dark (and the Quick Start note explains)
+    const f = frequencyRef.current
+    if (!getBandInfo(f).canTransmit) return notice('inhibit')
+    if (receivingNow()) return notice('busy')
+    const flushed = flush() // the half-keyed letter / word is finished now (and joins the draft if the DECODER is ON)
+    const words = draftWords.current.splice(0)
+    if (!flushed && !words.length && !keyedSinceOver.current) return notice('empty')
+    keyedSinceOver.current = false
+    const answered = deliver(words)
+    // hand it over explicitly (Bob waits for the end of your over)
+    const id = hamStationAt(f)
+    if (!answered && id && !receivingNow()) transmit(stations[id].onOver?.() ?? null)
+
+    stopTxTimer()
+    setTxStatus('sending')
+    const started = performance.now()
+    txTimer.current = setInterval(() => {
+      const elapsed = performance.now() - started
+      if (receivingNow() && elapsed >= TX_SENDING_MIN_MS) {
+        stopTxTimer()
+        setTxStatus('idle') // they're answering: the RX flag takes over
+      } else if (!receivingNow() && elapsed >= TX_REPLY_WAIT_MS) {
+        notice('no-reply')
+      }
+    }, 100)
+  }, [deliver, flush, isPowerOn, notice, receivingNow, stations, stopTxTimer, touch, transmit])
+
+  useEffect(() => stopTxTimer, [stopTxTimer])
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
     ? 'off'
@@ -461,7 +704,8 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     if (!isPowerOn || station === null) return
     const op = stations[station]
     const timer = setInterval(() => {
-      if (receivingRef.current) return
+      // never talk over someone, or over a draft you're still checking
+      if (receivingNow() || hasDraftNow()) return
       const t = op.onIdle(performance.now() - lastActivity.current)
       if (t) {
         touch()
@@ -469,11 +713,11 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       }
     }, IDLE_POLL_MS)
     return () => clearInterval(timer)
-  }, [isPowerOn, station, stations, touch, transmit])
+  }, [hasDraftNow, isPowerOn, receivingNow, station, stations, touch, transmit])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status }),
-    [currentSymbol, decodedMessage, handleTap, clear, isActive, isReceiving, simulateReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

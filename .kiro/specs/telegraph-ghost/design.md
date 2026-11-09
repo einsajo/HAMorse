@@ -66,7 +66,11 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 | `currentSymbol` | Dits/dahs of the letter being keyed, e.g. `.-` |
 | `decodedMessage` | Decoded text (last 160 characters kept) |
 | `handleTap('.' \| '-')` | Append a tap and restart both timers; ignored unless power ON on a transmit frequency (the DECODER does not matter) |
-| `clear()` | Wipe everything (CLR) |
+| `clear()` | Wipe everything, and reset the TX annunciator (retune, power off) |
+| `clearButton()` | CLR: wipe only the unsent draft if there is one (`discardDraft()`), else `clear()` |
+| `draftFrom` | Index in `decodedMessage` where your unsent draft begins (the engine's draft anchor; moves with history trimming, set by `markSent()` on delivery and at both ends of a reply) |
+| `sendOver()` | TX SEND: `flush()` the half-keyed letter and the word now (the station hears it at once), then `station.onOver?.()` (Bob ends his over), and drive `txStatus` |
+| `txStatus` | `idle` / `sending` / `no-reply` / `inhibit` / `busy` / `empty`, for the LCD annunciator |
 | `isActive` | Power ON on the ham band or 104.40 (taps keyed and decoded) |
 | `isReceiving` | Another station is sending; paddles locked |
 | `station` | `HamStationId` exactly on this frequency, or `null` |
@@ -94,6 +98,18 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
   flex-end; overflow: hidden` with a `flex: 1 0 auto` child. Short text fills
   the row left-aligned; longer text overflows to the *left*, so the newest
   characters stay at the right edge.
+
+- **Word delivery:** `onWordEnd` pushes each finished word onto `draftWords`
+  when the DECODER is ON (it waits for TX SEND), or delivers it at once with
+  anything still queued when it's OFF. `deliver(words)` calls `markSent()`,
+  then the ghost (`CQ` anywhere) or the station's `onWord` word by word,
+  stopping at the first answer. The idle poll skips while `hasDraftNow()`.
+- **TX SEND flow:** power OFF does nothing (the Quick Start nudges); not
+  `canTransmit` → `inhibit`; another station sending (live engine flag, not
+  the render-lagged state) → `busy`; nothing keyed since the frequency last
+  changed hands → `empty`; else `flush()`, `deliver(draftWords)`, `onOver()` if nobody answered, then `sending`, polled every 100ms: once a reply
+  is under way and ≥1.2s has passed → `idle` (RX lights); no reply after
+  2.8s → `no-reply`. Notices last 2.2s.
 
 ### 2.2a Reply engine (`useMorseDecoder`)
 
@@ -188,11 +204,23 @@ clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
 
 | Function | Used by | Sound |
 |---|---|---|
-| `playEncoderThud(heavy?)` | VFO, every 0.05 MHz (heavy = station detent) | steel ball dropping into a detent: pitch drop + dull 470 Hz knock through a lowpass, centroid ~240 Hz |
-| `playBreakerThunk(on)` | MCB | "KA" latch snap, then "CHUNK" 34ms later (165→52 Hz thump + impact), metallic ring tail (1.9–5.6 kHz partials) |
-| `playSliderScrape(on)` | DECODER | 130ms gritty bandpassed noise sweeping up (ON) or down (OFF), ending in a detent tick |
-| `playButtonSnap()` | REF, CLR, TX SEND | snap-dome flip (highpassed noise) + plunger knock + 3.2 / 4.7 kHz spring ring |
-| `playPaperScrape(opening)` | reference card | bandpassed fibrous noise following the card's friction keyframes |
+| `playEncoderThud(heavy?)` | VFO, every 0.05 MHz (heavy = station detent) | crest tick (3.3 / 5.1 kHz) then a soft-contact knock ringing 250 / 700 / 1400 Hz (heavy: 185 / 540 / 1120 Hz + a settle knock ~9ms later) |
+| `playBreakerThunk(on)` | MCB | handle rub (grains), latch crack ringing the case (1.2 / 2.3 / 3.6 / 5.2 / 7.6 kHz), stop knock through the rail (210 / 520 / 900 Hz), contacts 6–9ms later (ON), spring ring (2.9 / 4.3 / 6.2 kHz); OFF fires sooner and ~8% lower |
+| `playSliderScrape(on)` | DECODER | 55–75ms of stick-slip ticks (speed = sin^0.6) over a faint rub, a rail ring at ~2 kHz, then a detent click + knock |
+| `playButtonSnap()` / `playButtonRelease()` | REF, CLR, TX SEND (via `usePress` `onRelease`) | press: dome collapse (2.65 / 4.15 / 6.4 kHz) + two contact bounces + plunger knock; release: the dome popping back ~18% higher, ~0.6x level |
+| `playPaperScrape(opening)` | reference card | fibre ticks + soft rub driven by `cardSpeed()` through the friction keyframes; creaks while stuck; pop + flick on release; slap on landing |
+
+- **Foley toolkit (`audioEngine.ts`):** `excite()` = a half-sine contact pulse
+  (width 0.5 / lowpass Hz: a soft contact is longer and duller; the same
+  energy every time) plus 35% noise grain; `resonate()` = band-pass modes,
+  each scaled by its Q so the written balance holds; `grains()` = a Poisson
+  stick-slip tick train whose rate and level follow a speed profile;
+  `contour()` = a gain curve drawn with linear ramps; `ring()` = decaying sines
+  for long metallic rings; `room()` = a shared convolver per output (a
+  synthesised 0.36s response: early reflections at 2.7–29.5ms, then a tail
+  that darkens as it decays), mixed in at 16%. `vary()` / `rand()` jitter every
+  play. Measured over 8 renders each, peaks stay within ~1.3–1.6x (natural
+  variation), and the spectral balance stays within a few percent.
 
 - **Paper scrape sync:** `src/utils/cardMotion.ts` is the single timeline for the
   card's motion. It sets the CSS animation durations, and its stick / release /
