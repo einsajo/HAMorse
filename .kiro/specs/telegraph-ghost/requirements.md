@@ -111,6 +111,12 @@
 - **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00). The radio powers on at a dead 88.50 MHz, so the player has to search for the station.
 - **S-Meter:** The needle tracks the received audio level.
 
+## 3a. Interactive Transmissions (the reply engine)
+- **Incoming replies** are keyed out loud element by element (you hear every dit and dah), shown live on the LCD as they build, then committed letter by letter. While another station is sending, the paddles are locked out and the LCD cursor is hidden. CLR, retuning or power OFF cut a reply off.
+- **Tutor, 101.00 MHz** (a practice station inside the ham band, with its own tuning detent): when your last word is `HI` it answers `GUD COPY. SEND SOS`; when it is `SOS` it answers `FB. 73.` (fine business, best regards). Brisk, clean 700 Hz: 60/180 ms dit/dah, 150 ms between characters.
+- **Ghost, 104.40 MHz:** when your last word is `CQ` it answers ` I C U `, agonisingly slowly (500 ms between characters, 120/360 ms elements) in a lower, sagging, beating, distorted tone. When it finishes the `U`, the global `isHaunted` state becomes true (the trigger for Section 4).
+- Replies trigger on your *word* ending (a whole word, so `CHI` is not `HI`), and only while decoding (DECODER ON).
+
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
 - **Trigger:** When tuned to 104.4 MHz, transmitting text triggers an AI (or scripted fallback) response. During the final response line, execute the "Liquid Crystal Bleed" visual override.
 - **The Blackout:** Chassis brightness drops by 90%. The amber backlight dies.

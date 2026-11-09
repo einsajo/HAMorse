@@ -2,8 +2,8 @@
  * The radio dial: what lives where on the band.
  *
  *   88.00 ──────────────────────────────────────────────────────── 108.00 MHz
- *          89.30      93.50       98.10    100.00 ═══ 102.00      104.40
- *          NEWS       SPORTS      MUSIC        HAM BAND           (ghost)
+ *          89.30      93.50       98.10    100.00 ═101═ 102.00    104.40
+ *          NEWS       SPORTS      MUSIC      HAM BAND (tutor)      (ghost)
  *
  * Everything not listed is dead air. The ghost station is deliberately
  * indistinguishable from the broadcasters until you are on it.
@@ -38,6 +38,9 @@ export const HAM_BAND_END = 102.0
 /** The haunted station: the S-meter pins here and the decoder opens */
 export const GHOST_FREQUENCY = 104.4
 
+/** A practice station inside the ham band: it answers HI and SOS */
+export const TUTOR_FREQUENCY = 101.0
+
 /* --- Classification --------------------------------------------------------- */
 
 export type Band = 'broadcast' | 'ham' | 'ghost' | 'dead'
@@ -62,4 +65,4 @@ export function getBandInfo(mhz: number): BandInfo {
 }
 
 /** Every station the tuning dial should give a magnetic detent to */
-export const DETENT_FREQUENCIES: readonly number[] = Object.freeze([...BROADCAST_STATIONS, GHOST_FREQUENCY])
+export const DETENT_FREQUENCIES: readonly number[] = Object.freeze([...BROADCAST_STATIONS, TUTOR_FREQUENCY, GHOST_FREQUENCY])

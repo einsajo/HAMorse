@@ -114,10 +114,12 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 ## Phase 4: The 104.40 MHz haunt sequence
 
-- [ ] 18. Ghost reply
-  - [ ] 18.1 At exactly 104.40 MHz, TX SEND triggers a reply: a scripted fallback by default, AI optional
-  - [ ] 18.2 The reply plays as incoming Morse audio and decodes onto the LCD
-  - _Requirements: 4_
+- [x] 18. Interactive reply engine
+  - [x] 18.1 `simulateReply(message, isGhost)`: recursive-timeout auto-typer that keys each character's dits/dahs out loud and types it onto the LCD; paddles locked while receiving
+  - [x] 18.2 Tutor on 101.00: `HI` -> `GUD COPY. SEND SOS`, `SOS` -> `FB. 73.`
+  - [x] 18.3 Ghost on 104.40: `CQ` -> ` I C U ` (slow, distorted tone); sets global `isHaunted`
+  - [ ] 18.4* AI replies (optional), with the scripted replies as the fallback
+  - _Requirements: 3a, 4_
 
 - [ ] 19. Liquid Crystal Bleed (final reply line)
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies

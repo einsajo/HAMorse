@@ -23,7 +23,7 @@ const STATUS_TEXT = {
 
 export default function LCDDisplay() {
   const { frequency, isPowerOn } = useRadio()
-  const { currentSymbol, decodedMessage, status } = useMorseDecoder()
+  const { currentSymbol, decodedMessage, status, isReceiving } = useMorseDecoder()
   const freqText = formatFrequency(frequency)
 
   return (
@@ -44,7 +44,7 @@ export default function LCDDisplay() {
 
           <div className="lcd__divider" aria-hidden="true" />
 
-          <div className="lcd__row lcd__row--buffer" data-status={status}>
+          <div className="lcd__row lcd__row--buffer" data-status={status} data-receiving={isReceiving}>
             <span className="lcd__stack">
               <span className="lcd__ghost lcd__ghost--matrix" aria-hidden="true" />
               {/* viewport pins the newest text to the right edge once it overflows */}
