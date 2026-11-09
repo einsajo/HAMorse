@@ -5,7 +5,7 @@ import MetalPlate from './MetalPlate'
 import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
 import { DETENTS } from '../constants'
 import type { Detent } from '../constants'
-import { playEncoderThud } from '../utils/audioEngine'
+import { playEncoderThud, pushTrapRumble } from '../utils/audioEngine'
 import { usePowerHint } from '../hooks/usePowerHint'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
@@ -178,7 +178,17 @@ interface DragState {
   angle: number
   /** detent the drag is currently held in, if any */
   captured: Detent | null
+  /** trapped: how far the knob has been forced round while the frequency stays locked (deg) */
+  slip: number
 }
+
+/* --- The trap: a slipping clutch ---------------------------------------------
+   While the ghost holds the frequency (isTrapped), the knob still turns under
+   your finger, but nothing it is connected to moves: the LCD stays on the
+   ghost. Every degree you fight it feeds a rumble from inside the cabinet;
+   let go and the knob springs back to where the ghost holds it. */
+/** degrees of forced travel that make one full-strength rumble push */
+const RUMBLE_PER_DEG = 1 / 240
 
 /** Apply the detents: returns the frequency to publish for a raw drag position */
 function applyGravity(d: DragState, raw: number, targets: readonly Detent[]): number {
@@ -210,7 +220,14 @@ function useVfoDrag(
   setFrequency: (mhz: number) => void,
   targets: readonly Detent[] = TARGET_DETENTS,
   onRelease?: () => void,
+  /** trapped: the knob slips (onSlip reports the forced angle; 0 = let go) */
+  locked = false,
+  onSlip?: (deg: number) => void,
 ) {
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
+  const onSlipRef = useRef(onSlip)
+  onSlipRef.current = onSlip
   const [dragging, setDragging] = useState(false)
   const onReleaseRef = useRef(onRelease)
   onReleaseRef.current = onRelease
@@ -243,6 +260,7 @@ function useVfoDrag(
         angle: freqToAngle(freqRef.current),
         // starting a drag while parked on a station: it begins held in the detent
         captured: targets.find((t) => isTunedTo(freqRef.current, t.frequency)) ?? null,
+        slip: 0,
       }
 
       const onMove = (ev: PointerEvent) => {
@@ -253,7 +271,13 @@ function useVfoDrag(
           return
         }
         const b = bearing(ev.clientX, ev.clientY, d.cx, d.cy)
-        if (d.last !== null) {
+        if (d.last !== null && lockedRef.current) {
+          // trapped: the knob turns, the frequency doesn't, something in the cabinet groans
+          const delta = wrap(b - d.last)
+          d.slip = Math.max(-540, Math.min(540, d.slip + delta))
+          onSlipRef.current?.(d.slip)
+          pushTrapRumble(Math.abs(delta) * RUMBLE_PER_DEG)
+        } else if (d.last !== null) {
           const next = clampAngle(d.angle + wrap(b - d.last))
           if (next !== d.angle) {
             d.angle = next
@@ -267,6 +291,7 @@ function useVfoDrag(
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onEnd)
         window.removeEventListener('pointercancel', onEnd)
+        if (dragRef.current && dragRef.current.slip !== 0) onSlipRef.current?.(0) // let go: it springs back
         dragRef.current = null
         stopRef.current = null
         setDragging(false)
@@ -295,13 +320,28 @@ function useVfoDrag(
  * and shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
-  const { frequency, setFrequency, isPowerOn } = useRadio()
+  const { frequency, setFrequency, isPowerOn, isTrapped } = useRadio()
+  const vfoRef = useRef<HTMLDivElement>(null)
+  // the forced (slipping) angle is a direct style write: it changes every frame of the drag
+  const onSlip = useCallback((deg: number) => {
+    const el = vfoRef.current
+    if (!el) return
+    el.style.setProperty('--vfo-slip', `${deg.toFixed(1)}deg`)
+    el.dataset.slipping = deg === 0 ? 'false' : 'true'
+  }, [])
   const { nudge } = usePowerHint()
   // the dial turns with the power off (it is mechanical); on release, before
   // the first power-on, the Quick Start guide explains why nothing shows
-  const { dragging, onPointerDown } = useVfoDrag(frequency, setFrequency, TARGET_DETENTS, () => {
-    if (!isPowerOn) nudge()
-  })
+  const { dragging, onPointerDown } = useVfoDrag(
+    frequency,
+    setFrequency,
+    TARGET_DETENTS,
+    () => {
+      if (!isPowerOn) nudge()
+    },
+    isTrapped,
+    onSlip,
+  )
   const angle = freqToAngle(frequency)
 
   // tick whenever the frequency crosses into a new 0.05 MHz step (any cause: drag or keys)
@@ -321,9 +361,10 @@ export default function TuningDial() {
       else if (e.key === 'End') next = FREQ_MAX
       if (next === null) return
       e.preventDefault()
+      if (isTrapped) pushTrapRumble(0.18) // the keys don't help either
       setFrequency(next)
     },
-    [frequency, setFrequency],
+    [frequency, setFrequency, isTrapped],
   )
 
   return (
@@ -340,7 +381,7 @@ export default function TuningDial() {
       </MetalPlate>
 
       {/* --vfo-angle is derived from the global frequency, so knob and LCD always agree */}
-      <div className="vfo" style={{ '--vfo-angle': `${angle}deg` } as CSSProperties}>
+      <div ref={vfoRef} className="vfo" data-trapped={isTrapped} style={{ '--vfo-angle': `${angle}deg` } as CSSProperties}>
         <FrequencyScale />
         <div className="vfo__well">
           <div

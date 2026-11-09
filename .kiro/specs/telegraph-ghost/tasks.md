@@ -117,12 +117,12 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 16.3 Quick Start note before the first power-on: spotlight on the breaker, THROW MAIN POWER / GOT IT
   - _Requirements: 2f, 3_
 
-## Phase 4: The 104.40 MHz haunt sequence
+## Phase 4: The haunt sequence
 
 - [x] 18. Interactive reply engine
   - [x] 18.1 `simulateReply(message, isGhost)`: recursive-timeout auto-typer that keys each character's dits/dahs out loud and types it onto the LCD; paddles locked while receiving
   - [x] 18.2 Tutor on 101.00: `HI` -> `GUD COPY. SEND SOS`, `SOS` -> `FB. 73.`
-  - [x] 18.3 Ghost on 104.40: `CQ` -> ` I C U ` (slow, distorted tone); sets global `isHaunted`
+  - [x] 18.3 Ghost on 104.40: `CQ` -> ` I C U ` (slow, distorted tone); sets global `isHaunted` (superseded by 19a)
   - [ ] 18.4* AI replies (optional), with the scripted replies as the fallback
   - [x] 18.5 DECODER OFF is display-only: taps are keyed and decoded and stations still answer; only the LCD text is hidden
   - _Requirements: 3a, 4_
@@ -140,7 +140,16 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 18a.9 Verified: 16 Node unit tests of the station logic; browser runs of the Elmer conversation (with DECODER OFF), a full QSO with Bob, Sam (fast keying, QRQ / QRS) and the bulletin
   - _Requirements: 2a, 2c, 2e, 2f, 3, 3a, 3b_
 
-- [ ] 19. Liquid Crystal Bleed (final reply line)
+- [x] 19a. Agentic haunt engine
+  - [x] 19a.1 Wandering `GHOST_FREQUENCY` (random per session, 0.50 MHz from every station, 1.00 from power-on, 0.05 grid)
+  - [x] 19a.2 Proximity audio: static fades, detuned drone rises within 0.80 MHz; stops exactly on it
+  - [x] 19a.3 `ghostAgent.ts`: pluggable brain (live agent endpoint NDJSON/SSE, runtime-registered, scripted persona fallback), session rules, souring voice
+  - [x] 19a.4 `streamReply`: agent tokens keyed live as they stream; timing jitter; the ghost hears your whole over
+  - [x] 19a.5 `isTrapped` after the first exchange: VFO lock (slipping knob + growing rumble), power lock (snaps off, back on after 1s)
+  - [x] 19a.6 Climax: 800ms blackout + silence, single white flash with metallic BANG + 2 kHz screech, red corrupted LCD, shattered glass SVG, dripping #050505 liquid, card ejected
+  - _Requirements: 3c, 4_
+
+- [ ] 19. Liquid Crystal Bleed: remaining parts
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
   - [ ] 19.2 Viscous black SVG/CSS fluid leaks down from a cracked LCD over the chassis
   - [ ] 19.3 The serial plate text scrambles to `SER: D34D-S0UL`

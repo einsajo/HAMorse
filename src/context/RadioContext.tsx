@@ -1,15 +1,16 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { DIAL_MAX_MHZ, DIAL_MIN_MHZ, DIAL_START_MHZ } from '../constants'
 
 /* --- Band limits ---------------------------------------------------------- */
-export const FREQ_MIN = 88.0
-export const FREQ_MAX = 108.0
+export const FREQ_MIN = DIAL_MIN_MHZ
+export const FREQ_MAX = DIAL_MAX_MHZ
 /**
  * Power-on frequency: a dead spot near the bottom of the band, well clear of
- * the ghost station's capture zone, so the player has to physically search
+ * the ghost's drone (see GHOST_START_BUFFER_MHZ), so the player has to physically search
  * the dial to find the signal. Always passed through clampFrequency().
  */
-export const FREQ_DEFAULT = 88.5
+export const FREQ_DEFAULT = DIAL_START_MHZ
 // band layout (stations, ham band, ghost) lives in src/constants.ts; re-exported for convenience
 export { GHOST_FREQUENCY, isTunedTo } from '../constants'
 
@@ -24,7 +25,7 @@ if (import.meta.env.DEV && clampFrequency(FREQ_DEFAULT) !== FREQ_DEFAULT) {
   console.warn(`FREQ_DEFAULT ${FREQ_DEFAULT} is outside ${FREQ_MIN}-${FREQ_MAX} MHz; it will be clamped.`)
 }
 
-/** Always two decimal places, e.g. 104.40 */
+/** Always two decimal places, e.g. 104.45 */
 export function formatFrequency(mhz: number): string {
   return clampFrequency(mhz).toFixed(2)
 }
@@ -37,13 +38,20 @@ export interface RadioState {
   isPowerOn: boolean
   /** DECODER slide switch */
   isDecoderOn: boolean
-  /** The ghost on 104.40 has answered: the haunt has begun */
+  /** The ghost has struck: the climax (blackout, flash, corrupted LCD) */
   isHaunted: boolean
+  /**
+   * The ghost has you: set after your first exchange with it. The VFO no
+   * longer changes the frequency (setFrequency refuses), and the breaker
+   * won't stay off.
+   */
+  isTrapped: boolean
   /** Set the frequency; out-of-band values are clamped, non-finite values ignored */
   setFrequency: (mhz: number | ((prev: number) => number)) => void
   setIsPowerOn: (on: boolean) => void
   setIsDecoderOn: (on: boolean) => void
   setIsHaunted: (haunted: boolean) => void
+  setIsTrapped: (trapped: boolean) => void
   togglePower: () => void
   toggleDecoder: () => void
 }
@@ -60,8 +68,16 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
   const [isPowerOn, setIsPowerOn] = useState(false)
   const [isDecoderOn, setIsDecoderOn] = useState(false)
   const [isHaunted, setIsHaunted] = useState(false)
+  const [isTrapped, setIsTrappedState] = useState(false)
+  // read synchronously by setFrequency, so a drag can't slip a change in before a re-render
+  const trappedRef = useRef(false)
+  const setIsTrapped = useCallback((trapped: boolean) => {
+    trappedRef.current = trapped
+    setIsTrappedState(trapped)
+  }, [])
 
   const setFrequency = useCallback<RadioState['setFrequency']>((next) => {
+    if (trappedRef.current) return // locked on the ghost: the dial turns, nothing changes
     setFrequencyRaw((prev) => {
       const mhz = typeof next === 'function' ? next(prev) : next
       return Number.isFinite(mhz) ? clampFrequency(mhz) : prev // ignore NaN / Infinity
@@ -76,14 +92,16 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       isPowerOn,
       isDecoderOn,
       isHaunted,
+      isTrapped,
       setFrequency,
       setIsPowerOn,
       setIsDecoderOn,
       setIsHaunted,
+      setIsTrapped,
       togglePower,
       toggleDecoder,
     }),
-    [frequency, isPowerOn, isDecoderOn, isHaunted, setFrequency, togglePower, toggleDecoder],
+    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, setFrequency, setIsTrapped, togglePower, toggleDecoder],
   )
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>

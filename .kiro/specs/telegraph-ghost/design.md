@@ -50,7 +50,7 @@ main.tsx
 
 - **Exports:** `RadioProvider`, `useRadio()`, `clampFrequency()`,
   `formatFrequency()` (always 2 decimals), `isTunedTo()` (equal at 0.01 MHz),
-  `FREQ_MIN` / `FREQ_MAX` / `FREQ_DEFAULT` / `GHOST_FREQUENCY` (`104.40`).
+  `FREQ_MIN` / `FREQ_MAX` / `FREQ_DEFAULT` / `GHOST_FREQUENCY` (random per session, see 2.2c).
 - **Single source of truth:** components never keep a parallel copy of
   frequency. The VFO's angle is *derived* from it, so knob and LCD cannot drift.
 - **Local UI state** that nothing else needs stays local: REF card open state
@@ -71,7 +71,7 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
 | `draftFrom` | Index in `decodedMessage` where your unsent draft begins (the engine's draft anchor; moves with history trimming, set by `markSent()` on delivery and at both ends of a reply) |
 | `sendOver()` | TX SEND: `flush()` the half-keyed letter and the word now (the station hears it at once), then `station.onOver?.()` (Bob ends his over), and drive `txStatus` |
 | `txStatus` | `idle` / `sending` / `no-reply` / `inhibit` / `busy` / `empty`, for the LCD annunciator |
-| `isActive` | Power ON on the ham band or 104.40 (taps keyed and decoded) |
+| `isActive` | Power ON on the ham band or the ghost's frequency (taps keyed and decoded) |
 | `isReceiving` | Another station is sending; paddles locked |
 | `station` | `HamStationId` exactly on this frequency, or `null` |
 | `status` | `off` (power or DECODER OFF: LCD blank) / `rx-only` / `dead-band` / `ready` |
@@ -126,8 +126,18 @@ a single engine lives in `MorseDecoderProvider` and both use `useMorseDecoder()`
   `GHOST_TIMING` are fixed; `timingForWpm(charWpm, effectiveWpm, leadIn, hz)`
   builds PARIS timing (dit = 1200/WPM) with ARRL Farnsworth spacing when
   effective < character speed. Re-exported from the hook for compatibility.
-- **Ghost** stays special-cased in the provider: `CQ` -> `GHOST_REPLY` with
-  the ghost tone; `onReplyEnd` sets `isHaunted` in `RadioContext`.
+- **Streaming (`streamReply(chunks, isGhost, timing)`):** the same auto-typer
+  fed by an `AsyncIterable<string>`: characters are keyed as they arrive, and
+  when the keying catches up it waits (`waiting`) until the next chunk wakes
+  it. A generation counter (`replyGen`) makes a cut-off stream inert; the
+  promise resolves `true` when everything was keyed, `false` if cut off
+  (CLR, retune, power off, another reply). `simulateReply` is a one-chunk
+  stream. Every reply ends with a word space. `ReplyTiming.jitter` (0..1)
+  stretches or squeezes each element and gap: an irregular fist.
+- **Ghost** (see 2.2c) is special-cased in the provider: words on its frequency
+  collect into an over (`ghostOver`), sent to the agent on K / KN / AR / SK /
+  BK, TX SEND, or 2.5s of silence (`GHOST_OVER_SILENCE_MS`, re-armed while
+  you're still keying).
 - **Interruptions:** `clear()` (CLR, retune, power off) also stops a reply.
 
 ### 2.2b Ham operators (`src/utils/stations.ts`)
@@ -169,6 +179,45 @@ interface Transmission { text: string; timing: ReplyTiming }
 - **S-meter:** `TopPanel` reads `isReceiving`; on the ham band the needle
   switches to `keying` (S8 with fast kicks) for the transmission.
 
+### 2.2c The agentic ghost (`src/utils/ghostAgent.ts`, provider, `RadioContext`)
+
+```
+your over ──► askGhost(heard) ──► GhostSession.turn() ──► GhostBrain.respond() ──► { text } … { climax }
+                                     (keyable, ≤64 chars,        live agent (VITE_GHOST_AGENT_URL, NDJSON/SSE)
+                                      climax by reply 4)         | registered / window.__ghostBrain
+                                                                 | scripted persona (always the fallback)
+      tokens ──► streamReply(…, ghostVoice(exchange)) ──► keyed live ──► resolved:
+                                                                         reply 1 → setIsTrapped(true)
+                                                                         climax  → setIsHaunted(true)
+```
+
+- **Wandering frequency:** `GHOST_SPOTS` = every 0.05 MHz step in 88-108
+  passing `isGhostSpot` (≥0.50 MHz from `OCCUPIED_FREQUENCIES`, ≥1.00 MHz from
+  `DIAL_START_MHZ`); `GHOST_FREQUENCY = pickGhostFrequency()` at module load.
+  `ghostProximity(mhz)` = 1 − d/0.80 inside 0.80 MHz, 0 outside and exactly on it.
+- **Proximity audio (`RadioAudio`):** static × (1 − closeness), `setGhostProximity(closeness)`
+  → drone gain = closeness² × 0.34 (τ 120ms). The drone and the trap rumble are
+  continuous voices built with the engine, silent until raised.
+- **Trap:** `isTrapped` + a ref read synchronously by `setFrequency` (refuses).
+  `useVfoDrag(…, locked, onSlip)`: while locked, pointer travel goes to `slip`
+  (±540°), written as `--vfo-slip` on `.vfo` (direct DOM write) with
+  `data-slipping`; `pushTrapRumble(|Δ°| / 240)` accumulates a level that decays
+  with τ 0.9s. Released: slip 0, a 750ms overshooting spring back (CSS, only
+  while trapped). `TopPanel.onPower`: trapped + ON → off, then after
+  `POWER_LOCK_OFF_MS` (1000) back on with `data-forced` (`mcb-jolt`) for
+  `POWER_LOCK_JOLT_MS` (450); presses ignored meanwhile.
+- **Climax (`useHauntSequence`):** `none → blackout (800ms, setHauntSilence(true))
+  → flash (700ms, playHauntBang(), card ejected) → corrupt`. `.stage[data-haunt]`
+  drives the LCD (red glass, `HauntGlass`: deterministic seeded cracks + goo-filtered
+  drips) and `.haunt-veil[data-phase]` the blackout / flash. The card gets
+  `data-eject` → `refcard-eject`.
+- **Verified:** unit tests (spots, buffers, grid, randomness, proximity, the
+  persona over 4 exchanges, early strike, keyable/short output, remote NDJSON/SSE
+  with fallback, registered brain, abort, voice); in the browser with the real
+  scripted ghost (proximity levels, live keying, trap, VFO lock + rumble,
+  `setFrequency` refused, power lock, the whole-over rule) and with an injected
+  brain for the climax (phase timings 800 / 700ms, silence, eject, cracks, drips).
+
 ### 2.3 The dial (`src/constants.ts`)
 
 | Band | Frequencies | S-meter | Decoder | LCD status |
@@ -176,7 +225,7 @@ interface Transmission { text: string; timing: ReplyTiming }
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
 | `reserved` | 100.65 / 101.35 / 102.05 / 102.75 (exact) | steady S5 carrier | blocked | `RX ONLY` |
 | `ham` | 100.00 – 103.50 inclusive (operators 0.70 apart: Elmer 100.30, practice 101.00, bulletin 101.70, Bob 102.40, Sam 103.10) | flutters S4–S7; S8 while an operator sends | open | cursor |
-| `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
+| `ghost` | `GHOST_FREQUENCY`, random per session (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
 
 `getBandInfo(mhz)` classifies a frequency (exact stations first, then the

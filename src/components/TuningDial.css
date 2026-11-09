@@ -162,7 +162,8 @@
   inset: 0;
   border-radius: 50%;
   /* rotation hook for the future drag logic */
-  transform: rotate(var(--vfo-angle, 0deg));
+  /* --vfo-slip: forced travel while the ghost holds the frequency (trapped) */
+  transform: rotate(calc(var(--vfo-angle, 0deg) + var(--vfo-slip, 0deg)));
   will-change: transform;
 
   background:
@@ -220,7 +221,7 @@
   left: 39%; /* (100% - 22%) / 2: horizontally centred */
   top: 9%; /* near the rim of the face, at 12 o'clock */
   border-radius: 50%;
-  transform: rotate(calc(var(--vfo-angle, 0deg) * -1));
+  transform: rotate(calc((var(--vfo-angle, 0deg) + var(--vfo-slip, 0deg)) * -1));
   background:
     /* polished floor of the cup catching light on its lower wall */
     radial-gradient(circle at 60% 68%, #7a7f87 0%, #3a3d42 30%, #141517 62%, #050506 100%);
@@ -301,4 +302,16 @@
   /* outline (not box-shadow) so the knob's side wall and cast shadow stay intact */
   outline: 1px solid rgba(222, 216, 198, 0.45);
   outline-offset: 4px;
+}
+
+/* Trapped: let go of the slipping knob and it springs back, overshooting, to
+   where the ghost holds it (only while trapped, so normal tuning stays 1:1) */
+.vfo[data-trapped='true']:not([data-slipping='true']) .vfo__knob {
+  transition: transform 750ms cubic-bezier(0.25, 1.6, 0.45, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vfo[data-trapped='true']:not([data-slipping='true']) .vfo__knob {
+    transition: none;
+  }
 }

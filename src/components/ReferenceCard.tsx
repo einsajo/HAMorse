@@ -55,6 +55,8 @@ const MOTION_STYLE = {
 
 interface ReferenceCardProps {
   open: boolean
+  /** blown out of its slot by the haunt's blast (a violent, fast eject) */
+  ejected?: boolean
   onClose: () => void
 }
 
@@ -140,7 +142,7 @@ const RIM_TEXT_PATH = 'M 50 50 m -46.4 0 a 46.4 46.4 0 1 1 92.8 0 a 46.4 46.4 0 
  * Slides out on REF; tap it, or drag it back toward the radio, to put it away;
  * hold it (touch) or hover it (mouse) to read it through the loupe.
  */
-export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
+export default function ReferenceCard({ open, ejected = false, onClose }: ReferenceCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const loupeRef = useRef<HTMLDivElement>(null)
@@ -365,6 +367,7 @@ export default function ReferenceCard({ open, onClose }: ReferenceCardProps) {
         style={MOTION_STYLE}
         data-open={open}
         data-armed={armedRef.current}
+        data-eject={ejected && open}
         aria-hidden={!open}
         onAnimationStart={onAnimationStart}
         onAnimationEnd={() => {

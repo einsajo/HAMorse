@@ -128,7 +128,7 @@ export function createSidetone(ctx: BaseAudioContext, destination: AudioNode, pe
 
 /* --- The ghost's tone ------------------------------------------------------------ */
 /**
- * What the thing on 104.40 sounds like: not a clean 700 Hz sidetone but a
+ * What the ghost sounds like (once the mask slips): not a clean 700 Hz sidetone but a
  * lower, sagging, beating tone. Two detuned oscillators (~7 Hz beat) share a
  * slow wobbling vibrato, the pitch sags as each element is held, and the
  * whole lot is lightly overdriven and band-limited like a failing receiver.
@@ -824,16 +824,233 @@ export function schedulePaperScrape(
   s.done()
 }
 
+/* --- The ghost's drone (proximity) ------------------------------------------------ */
+/**
+ * What you hear as you tune close to the wandering ghost: the static drains
+ * away and something low and wrong rises in its place. Two saws a hair apart
+ * (55 / 55.7 Hz: a slow, queasy beat), a fifth tuned flat (82.1 Hz), a sub
+ * (36.7 Hz), a tritone (77.8 Hz) that fades in and out, and a thin detuned
+ * hum two octaves up (220 / 221.3 Hz) so phone speakers, which can't play
+ * the low end, still hear it, all through a resonant low-pass that slowly
+ * breathes (~340-780 Hz), with a slow swell on the whole thing.
+ * Continuous and silent until `gain` is raised.
+ */
+export interface Drone {
+  gain: GainNode
+}
+
+const DRONE_VOICES: readonly (readonly [OscillatorType, number, number])[] = [
+  ['sawtooth', 55, 0.32],
+  ['sawtooth', 55.7, 0.3],
+  ['sawtooth', 82.1, 0.18],
+  ['sine', 36.7, 0.22],
+  // a thin, detuned hum higher up: what a phone speaker actually plays
+  ['sawtooth', 220, 0.08],
+  ['sawtooth', 221.3, 0.07],
+]
+
+export function createGhostDrone(ctx: BaseAudioContext, destination: AudioNode): Drone {
+  const gain = ctx.createGain()
+  gain.gain.value = 0
+  gain.connect(destination)
+
+  const swell = ctx.createGain()
+  swell.gain.value = 0.8
+  swell.connect(gain)
+  const swellLfo = ctx.createOscillator()
+  swellLfo.frequency.value = 0.23
+  const swellDepth = ctx.createGain()
+  swellDepth.gain.value = 0.2
+  swellLfo.connect(swellDepth).connect(swell.gain)
+
+  const lp = ctx.createBiquadFilter()
+  lp.type = 'lowpass'
+  lp.frequency.value = 560
+  lp.Q.value = 3.5
+  lp.connect(swell)
+  const breath = ctx.createOscillator()
+  breath.frequency.value = 0.09
+  const breathDepth = ctx.createGain()
+  breathDepth.gain.value = 220
+  breath.connect(breathDepth).connect(lp.frequency)
+
+  const sources: OscillatorNode[] = [swellLfo, breath]
+  for (const [type, hz, level] of DRONE_VOICES) {
+    const o = ctx.createOscillator()
+    o.type = type
+    o.frequency.value = hz
+    const g = ctx.createGain()
+    g.gain.value = level
+    o.connect(g).connect(lp)
+    sources.push(o)
+  }
+  // the tritone, drifting in and out
+  const tri = ctx.createOscillator()
+  tri.type = 'triangle'
+  tri.frequency.value = 77.8
+  const triGain = ctx.createGain()
+  triGain.gain.value = 0.08
+  const triLfo = ctx.createOscillator()
+  triLfo.frequency.value = 0.061
+  const triDepth = ctx.createGain()
+  triDepth.gain.value = 0.08
+  triLfo.connect(triDepth).connect(triGain.gain)
+  tri.connect(triGain).connect(lp)
+  sources.push(tri, triLfo)
+
+  for (const o of sources) o.start()
+  return { gain }
+}
+
+/* --- The trap rumble (fighting a locked dial) -------------------------------------- */
+/**
+ * Turning the VFO while the ghost holds the frequency: a low, grinding
+ * rumble, as if something heavy in the cabinet were resisting. Brown noise
+ * through a low-pass, a groan band, and a 41 Hz growl chopped at 7 Hz.
+ * Continuous and silent until `gain` is raised.
+ */
+export interface Rumble {
+  gain: GainNode
+}
+
+export function createTrapRumble(ctx: BaseAudioContext, destination: AudioNode): Rumble {
+  const gain = ctx.createGain()
+  gain.gain.value = 0
+  gain.connect(destination)
+
+  // brown noise: integrated white, normalised
+  const length = Math.floor(ctx.sampleRate * 3)
+  const buf = ctx.createBuffer(1, length, ctx.sampleRate)
+  const d = buf.getChannelData(0)
+  let last = 0
+  let peak = 1e-6
+  for (let i = 0; i < length; i++) {
+    last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02
+    d[i] = last
+    peak = Math.max(peak, Math.abs(last))
+  }
+  for (let i = 0; i < length; i++) d[i] /= peak
+  const noise = ctx.createBufferSource()
+  noise.buffer = buf
+  noise.loop = true
+
+  const low = ctx.createBiquadFilter()
+  low.type = 'lowpass'
+  low.frequency.value = 150
+  const groan = ctx.createBiquadFilter()
+  groan.type = 'bandpass'
+  groan.frequency.value = 230
+  groan.Q.value = 2.5
+  const groanGain = ctx.createGain()
+  groanGain.gain.value = 0.9
+  noise.connect(low).connect(gain)
+  noise.connect(groan).connect(groanGain).connect(gain)
+
+  const growl = ctx.createOscillator()
+  growl.type = 'sawtooth'
+  growl.frequency.value = 41
+  const growlLp = ctx.createBiquadFilter()
+  growlLp.type = 'lowpass'
+  growlLp.frequency.value = 320
+  const chop = ctx.createGain()
+  chop.gain.value = 0.25
+  const chopLfo = ctx.createOscillator()
+  chopLfo.frequency.value = 7
+  const chopDepth = ctx.createGain()
+  chopDepth.gain.value = 0.22
+  chopLfo.connect(chopDepth).connect(chop.gain)
+  growl.connect(growlLp).connect(chop).connect(gain)
+
+  noise.start()
+  growl.start()
+  chopLfo.start()
+  return { gain }
+}
+
+/* --- The climax: BANG + feedback screech ------------------------------------------- */
+/** Metal panel modes for the bang's ring: [Hz, level, decay s] */
+const BANG_RING = [
+  [143, 0.22, 1.6], [387, 0.16, 1.9], [811, 0.12, 1.5], [1263, 0.1, 1.3], [1879, 0.08, 1.1],
+  [2643, 0.06, 0.9], [3512, 0.045, 0.7], [4987, 0.03, 0.5],
+] as const
+const BANG_LEVEL = 1.6
+/** The feedback howl, Hz */
+export const SCREECH_HZ = 2000
+const SCREECH_SECONDS = 3.2
+
+/**
+ * The flash: a huge metallic BANG (a heavy impact through the cabinet, a
+ * crack of noise, a long inharmonic ring of steel) with a 2 kHz feedback
+ * screech that howls in, beats against itself, drifts sharp and dies away.
+ * It is meant to be startling, not harmful: the master limiter caps it.
+ */
+export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), BANG_LEVEL)
+
+  // the impact: a heavy body blow through the cabinet
+  const thump = excite(s, when, { len: 0.03, peak: 1.6, lp: 300 })
+  resonate(s, thump, [[58, 1.4, 1.2], [96, 2, 0.9], [178, 3, 0.6], [310, 4, 0.35]], out)
+  // the crack
+  const crack = excite(s, when, { len: 0.012, peak: 1.2, hp: 700 })
+  resonate(s, crack, [[1130, 9, 0.7], [1870, 12, 0.6], [2710, 14, 0.5], [3960, 18, 0.35], [5530, 22, 0.2]], out)
+  edge(s, crack, out, 0.9, 1500)
+  // debris: a burst of noise falling away
+  const debris = s.source(noiseBurst(ctx, when, 0.5))
+  debris.connect(s.node(filter(ctx, 'bandpass', 1800, 0.5))).connect(s.node(hit(ctx, when, 0.5, 0.002, 0.35))).connect(out)
+  // the steel ringing on
+  ring(s, when + 0.002, BANG_RING, out)
+
+  // the feedback screech: two sines beating, a little overdriven, howling in and drifting sharp
+  const scr = s.node(ctx.createGain())
+  scr.gain.value = 0
+  scr.gain.setValueAtTime(0, when)
+  scr.gain.linearRampToValueAtTime(0.32, when + 0.035)
+  scr.gain.linearRampToValueAtTime(0.24, when + 0.4)
+  scr.gain.linearRampToValueAtTime(0.36, when + 1.4) // the howl builds
+  scr.gain.setTargetAtTime(0, when + 1.8, 0.45)
+  const drive = s.node(ctx.createWaveShaper())
+  drive.curve = driveCurve ?? (driveCurve = makeDriveCurve())
+  scr.connect(drive).connect(out)
+  const vib = s.source(ctx.createOscillator())
+  vib.frequency.value = 6.2
+  const vibDepth = s.node(ctx.createGain())
+  vibDepth.gain.value = 9
+  vib.connect(vibDepth)
+  for (const [hz, level] of [[SCREECH_HZ, 0.7], [SCREECH_HZ * 1.0035, 0.45], [SCREECH_HZ * 2, 0.08]] as const) {
+    const o = s.source(ctx.createOscillator())
+    o.type = 'sine'
+    o.frequency.setValueAtTime(hz, when)
+    o.frequency.linearRampToValueAtTime(hz * 1.04, when + SCREECH_SECONDS) // feedback creeping sharp
+    vibDepth.connect(o.frequency)
+    const g = s.node(ctx.createGain())
+    g.gain.value = level
+    o.connect(g).connect(scr)
+    o.start(when)
+    o.stop(when + SCREECH_SECONDS)
+  }
+  vib.start(when)
+  vib.stop(when + SCREECH_SECONDS)
+  s.done()
+}
+
 /* --- The live engine ------------------------------------------------------------ */
 interface Engine {
   ctx: AudioContext
   master: GainNode
   staticChain: StaticChain
   sidetone: Sidetone
+  drone: Drone
+  rumble: Rumble
 }
 
 let engine: Engine | null = null
 let staticLevel = 0
+/** ghost proximity, 0..1 (the drone's loudness); remembered until audio is unlocked */
+let droneLevel = 0
+let rumbleLevel = 0
+let rumbleAt = 0
+let hauntSilenced = false
 let resumeRequestedAt = Number.NEGATIVE_INFINITY
 
 /**
@@ -871,7 +1088,11 @@ function build(): Engine | null {
   const staticChain = createStaticChain(ctx, master)
   staticChain.gain.gain.value = staticLevel * STATIC_MAX_GAIN
   const sidetone = createSidetone(ctx, master)
-  return { ctx, master, staticChain, sidetone }
+  const drone = createGhostDrone(ctx, master)
+  drone.gain.gain.value = droneLevel * DRONE_MAX_GAIN
+  const rumble = createTrapRumble(ctx, master)
+  if (hauntSilenced) master.gain.value = 0
+  return { ctx, master, staticChain, sidetone, drone, rumble }
 }
 
 /** Run `fn` now if audio is running, or as soon as a just-requested resume completes. */
@@ -983,7 +1204,73 @@ export function playPaperScrape(isOpening: boolean, elapsedMs = 0): void {
   })
 }
 
+/* --- Public haunt API ----------------------------------------------------------- */
+const DRONE_MAX_GAIN = 0.34
+const RUMBLE_MAX_GAIN = 0.55
+/** how quickly the rumble dies away once you stop fighting the dial */
+const RUMBLE_DECAY_MS = 900
+const DRONE_RAMP_TC = 0.12
+
+/**
+ * How close you are to the ghost, 0..1 (see constants.ghostProximity): the
+ * drone rises as you near it (eased, so it creeps in), and is silent both far
+ * away and exactly on the frequency.
+ */
+export function setGhostProximity(closeness: number): void {
+  const c = Math.min(1, Math.max(0, Number.isFinite(closeness) ? closeness : 0))
+  droneLevel = c * c
+  const e = engine
+  if (!e) return
+  e.drone.gain.gain.setTargetAtTime(droneLevel * DRONE_MAX_GAIN, e.ctx.currentTime, DRONE_RAMP_TC)
+}
+
+/**
+ * Fighting the locked VFO: each bit of dial travel (`amount`, ~0..0.2 per
+ * move) builds the rumble up; it dies away when you stop. The longer you
+ * fight, the louder it gets (up to a cap).
+ */
+export function pushTrapRumble(amount: number): void {
+  if (!(amount > 0)) return
+  const now = performance.now()
+  rumbleLevel = Math.min(1, rumbleLevel * Math.exp(-(now - rumbleAt) / RUMBLE_DECAY_MS) + amount)
+  rumbleAt = now
+  const level = rumbleLevel
+  whenRunning((e) => {
+    const g = e.rumble.gain.gain
+    const t = e.ctx.currentTime
+    if (typeof g.cancelAndHoldAtTime === 'function') g.cancelAndHoldAtTime(t)
+    else g.cancelScheduledValues(t)
+    g.setTargetAtTime(level * RUMBLE_MAX_GAIN, t, 0.06)
+    g.setTargetAtTime(0, t + 0.25, RUMBLE_DECAY_MS / 1000 / 2)
+  })
+}
+
+/** The blackout: total silence (everything: static, drone, tones), or back to normal */
+export function setHauntSilence(silent: boolean): void {
+  hauntSilenced = silent
+  const e = engine
+  if (!e) return
+  const g = e.master.gain
+  const t = e.ctx.currentTime
+  g.cancelScheduledValues(t)
+  g.setValueAtTime(g.value, t)
+  g.linearRampToValueAtTime(silent ? 0 : MASTER_GAIN, t + (silent ? 0.015 : 0.004))
+}
+
+/** The flash: a deafening metallic BANG and a 2 kHz feedback screech (restores the sound first) */
+export function playHauntBang(): void {
+  setHauntSilence(false)
+  whenRunning((e) => scheduleHauntBang(e.ctx, e.master, e.ctx.currentTime))
+}
+
 /** Engine status, for debugging and tests */
-export function getAudioState(): { state: AudioContextState | 'locked'; staticLevel: number } {
-  return { state: engine ? engine.ctx.state : 'locked', staticLevel }
+export function getAudioState(): {
+  state: AudioContextState | 'locked'
+  staticLevel: number
+  droneLevel: number
+  rumbleLevel: number
+  silenced: boolean
+} {
+  const rumbleNow = rumbleLevel * Math.exp(-(performance.now() - rumbleAt) / RUMBLE_DECAY_MS)
+  return { state: engine ? engine.ctx.state : 'locked', staticLevel, droneLevel, rumbleLevel: rumbleNow, silenced: hauntSilenced }
 }
