@@ -84,8 +84,9 @@
    gliding the rest of the way. Animating the registered --p (not transform)
    lets the same keyframes drive both the portrait (Y) and wide (X) layouts.
    Only runs after the first REF press (data-armed), so nothing plays on load.
-   KEEP IN SYNC: the stick / release / settle percentages below are mirrored in
-   src/utils/cardMotion.ts, which times the paper-scrape sound to this motion. */
+   KEEP IN SYNC: these keyframes (offsets, --p values and timing functions)
+   are mirrored in src/utils/cardMotion.ts, which drives the paper-scrape
+   sound from the card's speed through them. */
 .refcard[data-armed='true'][data-open='true'] {
   /* duration comes from src/utils/cardMotion.ts (shared with the paper-scrape sound) */
   animation: refcard-out var(--refcard-out-dur, 1050ms) both;

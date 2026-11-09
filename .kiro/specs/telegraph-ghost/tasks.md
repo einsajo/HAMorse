@@ -104,6 +104,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 16. Sidetone and mechanical sounds
   - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
   - [x] 16.2 Distinct Foley: breaker KA-CHUNK, slider scrape, button snap, ball-bearing VFO thud, paper scrape synced to the card animation
+  - [x] 16.5 REF card sound driven by the card's real speed from the keyframes: pink-noise friction tracking speed, cabinet body, stick-slip judder, buckle, landing
   - [x] 16.4 Physically modelled Foley: contact-pulse strikes into resonator banks, stick-slip friction following the motion, per-play variation, a synthesised room; button release clicks
   - _Requirements: 3_
 
@@ -126,13 +127,14 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 - [x] 18a. Ham band operators, beginner to pro (`src/utils/stations.ts`)
   - [x] 18a.1 Station interface (`onTuneIn` / `onWord` / `onIdle`), `timingForWpm` with ARRL Farnsworth spacing, per-station beat note (`playTone(ms, hz)`)
-  - [x] 18a.2 100.20 code-practice bulletin (18/8 WPM, rotating texts)
-  - [x] 18a.3 100.60 Elmer: asks if you're new, coaches by conversation (varied praise, talk-through of mistakes, remarks, HI / 73 / welcome back), shortest-first characters with reviews, words after all 36 or for non-beginners, progress in localStorage
-  - [x] 18a.4 101.40 Bob: CQ, RST / name / QTH exchange with echoes, 73 SK, E E
-  - [x] 18a.5 101.80 Sam: calls CQ QRQ, explains on contact, 5-character groups, measured user WPM, QRQ / QRS / CLOSE, 15-40 WPM, 73 sign-off
+  - [x] 18a.2 101.70 code-practice bulletin (18/8 WPM, rotating texts)
+  - [x] 18a.3 100.30 Elmer: asks if you're new, coaches by conversation (varied praise, talk-through of mistakes, remarks, HI / 73 / welcome back), shortest-first characters with reviews, words after all 36 or for non-beginners, progress in localStorage
+  - [x] 18a.4 102.40 Bob: CQ, RST / name / QTH exchange with echoes, 73 SK, E E
+  - [x] 18a.5 103.10 Sam: calls CQ QRQ, explains on contact, 5-character groups, measured user WPM, QRQ / QRS / CLOSE, 15-40 WPM, 73 sign-off
   - [x] 18a.6 Provider wiring: tune-in, word routing, idle polling; per-station narrow detents (`DETENTS`)
   - [x] 18a.7 Adaptive letter / word gaps so fast operators aren't capped at ~12 WPM
   - [x] 18a.8 S-meter `keying` mode while an operator sends; Quick Start points at the Elmer; the REF card stays a pure Morse helper (operators are found by tuning)
+  - [x] 18a.10 Operators 0.70 MHz apart (ham band to 103.50) with open band between; Elmer introduces himself → asks Y/N → one-letter answer → chat → first letter; Sam says hello and offers before the drill; Elmer chats at 20/18 WPM, teaches at 20/15
   - [x] 18a.9 Verified: 16 Node unit tests of the station logic; browser runs of the Elmer conversation (with DECODER OFF), a full QSO with Bob, Sam (fast keying, QRQ / QRS) and the bulletin
   - _Requirements: 2a, 2c, 2e, 2f, 3, 3a, 3b_
 

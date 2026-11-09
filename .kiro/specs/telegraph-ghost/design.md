@@ -156,12 +156,15 @@ interface Transmission { text: string; timing: ReplyTiming }
   machine with varied phrasing (seeded `rng`), so practice happens *inside* a
   QSO. Bulletin = text index. Elmer = stage `greet → ask → lesson ⇄ paused`
   plus `learned` (persisted under `telegraph-ghost.elmer.learned`), `target`,
-  `isNew`, `reviewsLeft`, `misses`, `knowsCw`, `nudges`. Bob = stage
+  `isNew`, `reviewsLeft`, `misses`, `knowsCw`, `nudges`, and a `followUp`
+  transmission: the second half of what he's saying, sent by `onIdle` after
+  a 1.5s pause (cleared if you start sending). Chat lines use
+  `ELMER_CHAT_TIMING` (20/18), lesson lines `ELMER_TIMING` (20/15). Bob = stage
   `call → name → qth → closing` plus the words of the current over (ended by
-  K/KN/BK/AR/SK or 3.5s silence). Sam = stage `call ⇄ drill`, `wpm`, `group`,
-  `met`, `nudges`.
+  K/KN/BK/AR/SK or 3.5s silence). Sam = stage `call → offer → drill`, `wpm`, `group`,
+  `met`, `nudges`, `followUp` (1.2s).
 - **Discovery:** nothing in the UI lists the operators (the REF card stays a
-  Morse helper). The 100.20 bulletin, the Elmer and the Quick Start mention them.
+  Morse helper). The code-practice bulletin, the Elmer and the Quick Start mention them.
 - **Text** uses only characters in `CHAR_TO_MORSE` (unit-tested).
 - **S-meter:** `TopPanel` reads `isReceiving`; on the ham band the needle
   switches to `keying` (S8 with fast kicks) for the transmission.
@@ -171,7 +174,7 @@ interface Transmission { text: string; timing: ReplyTiming }
 | Band | Frequencies | S-meter | Decoder | LCD status |
 |---|---|---|---|---|
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
-| `ham` | 100.00 – 102.00 inclusive (operators at 100.20 / 100.60 / 101.00 / 101.40 / 101.80) | flutters S4–S7; S8 while an operator sends | open | cursor |
+| `ham` | 100.00 – 103.50 inclusive (operators 0.70 apart: Elmer 100.30, practice 101.00, bulletin 101.70, Bob 102.40, Sam 103.10) | flutters S4–S7; S8 while an operator sends | open | cursor |
 | `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
 
@@ -179,7 +182,7 @@ interface Transmission { text: string; timing: ReplyTiming }
 range, at 0.01 MHz resolution). Every station has a tuning detent (`DETENTS`:
 frequency, `captureMhz`, `escapeMhz`). Broadcasters and the ghost share the
 wide 0.20 / 0.32 MHz detent, so the ghost's is not a giveaway; the ham
-operators get 0.08 / 0.13 MHz so their zones never overlap. `hamStationAt(mhz)`
+operators (0.70 MHz apart) get 0.10 / 0.16 MHz, so most of the band between them stays open to tune through. `hamStationAt(mhz)`
 names the operator on an exact frequency.
 
 ### 2.4 Audio engine (`src/utils/audioEngine.ts`)
@@ -208,7 +211,7 @@ clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
 | `playBreakerThunk(on)` | MCB | handle rub (grains), latch crack ringing the case (1.2 / 2.3 / 3.6 / 5.2 / 7.6 kHz), stop knock through the rail (210 / 520 / 900 Hz), contacts 6–9ms later (ON), spring ring (2.9 / 4.3 / 6.2 kHz); OFF fires sooner and ~8% lower |
 | `playSliderScrape(on)` | DECODER | 55–75ms of stick-slip ticks (speed = sin^0.6) over a faint rub, a rail ring at ~2 kHz, then a detent click + knock |
 | `playButtonSnap()` / `playButtonRelease()` | REF, CLR, TX SEND (via `usePress` `onRelease`) | press: dome collapse (2.65 / 4.15 / 6.4 kHz) + two contact bounces + plunger knock; release: the dome popping back ~18% higher, ~0.6x level |
-| `playPaperScrape(opening)` | reference card | fibre ticks + soft rub driven by `cardSpeed()` through the friction keyframes; creaks while stuck; pop + flick on release; slap on landing |
+| `playPaperScrape(opening)` | reference card | driven every 4ms by `cardSpeedAt()` (speed from the keyframes): pink-noise friction through a band-pass that opens 600 → 2500 Hz with speed, with random roughness flutter; slot / cabinet body (340 / 780 / 1450 Hz); fibre sheen at speed; stick-slip judder (grains, ~75/s) when crawling; buckle thup + flick at release; landing slap; shaded by a 4.3 kHz low-pass (behind the chassis) |
 
 - **Foley toolkit (`audioEngine.ts`):** `excite()` = a half-sine contact pulse
   (width 0.5 / lowpass Hz: a soft contact is longer and duller; the same
@@ -223,8 +226,11 @@ clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
   variation), and the spectral balance stays within a few percent.
 
 - **Paper scrape sync:** `src/utils/cardMotion.ts` is the single timeline for the
-  card's motion. It sets the CSS animation durations, and its stick / release /
-  settle points mirror the keyframe percentages. The scrape is triggered by the
+  card's motion. It sets the CSS animation durations and mirrors the keyframes
+  themselves (offsets, `--p` values, timing functions), so `cardPositionAt()` /
+  `cardSpeedAt()` give the card's exact position and speed at any millisecond
+  (a CSS cubic-bezier evaluator; verified equal to the CSS values at every
+  keyframe). Measured: loudness follows speed (r = 0.88 open / 0.92 close). The scrape is triggered by the
   card's own `animationstart` and shifted back by the time the Web Animations API
   says the animation has already run, plus the audio output latency, so the
   silence and the snap land on the visual catch and release.
@@ -364,7 +370,7 @@ Stacking inside `.lcd__glass`, bottom to top:
 | Reference card | `1.05s` out / `0.95s` in | Friction keyframes: catches at ~40%, snaps to ~60% |
 | LCD warm-up | `420ms steps(1)` | Dying-bulb flicker |
 | S-meter needle | Damped spring: `SPRING 380`, `DAMPING 22`, `BOUNCE 0.6` | Twitchy, pegs and bounces |
-| VFO detent | per `Detent`: capture 0.20 / escape 0.32 MHz (stations, ghost), 0.08 / 0.13 (ham operators); nearest in range wins | Magnetic capture, harder release |
+| VFO detent | per `Detent`: capture 0.20 / escape 0.32 MHz (stations, ghost), 0.10 / 0.16 (ham operators); nearest in range wins | Magnetic capture, harder release |
 
 **Reduced motion:** the long animations (reference card, LCD warm-up, S-meter
 needle) honour `prefers-reduced-motion` (skipped or set instantly). The

@@ -1,16 +1,17 @@
 /**
- * The operators on the ham band (100.00-102.00 MHz), from beginner to pro.
+ * The operators on the ham band (100.00-103.50 MHz), in dial order, 0.70 MHz
+ * apart with empty band between them:
  *
- *   100.20  CODE PRACTICE  a slow bulletin to copy by ear (Farnsworth 18/8 WPM)
- *   100.60  ELMER          a mentor who asks if you're new, then teaches you by chatting
+ *   100.30  ELMER          a mentor: introduces himself, asks if you're new, then teaches by chatting
  *   101.00  PRACTICE       the original tutor: send HI, then SOS
- *   101.40  BOB            a real-feeling QSO: RST, name, QTH, 73
- *   101.80  SAM            an old-timer who runs high-speed copy practice
+ *   101.70  CODE PRACTICE  a slow bulletin to copy by ear (Farnsworth 18/8 WPM)
+ *   102.40  BOB            a real-feeling QSO: RST, name, QTH, 73
+ *   103.10  SAM            an old-timer who offers high-speed copy practice
  *
  * They are people, not levels: they greet you, ask questions, react to
  * what you send, remember you, and point you at each other. Nothing on the
  * radio lists them; you find them like a real ham does, by tuning around
- * (or by copying the bulletin on 100.20, which mentions them).
+ * (or by copying the code-practice bulletin, which mentions them).
  *
  * Everything here is plain logic with no React and no audio, so it can be
  * tested on its own: a station gets told when you tune in, when you finish a
@@ -22,7 +23,7 @@
  * callsigns belong to real people.
  */
 import { CHAR_TO_MORSE } from './morseDictionary'
-import { HAM_STATIONS } from '../constants'
+import { HAM_STATIONS, formatMhz } from '../constants'
 import type { HamStationId } from '../constants'
 
 /* --- Timing ------------------------------------------------------------------ */
@@ -180,7 +181,7 @@ const pick = <T,>(items: readonly T[], rng: () => number): T => items[Math.min(i
 /** Words that end an over: the other station's turn to talk */
 const OVER_ENDINGS = new Set(['K', 'KN', 'BK', 'AR', 'SK'])
 
-/* --- 100.20 code-practice bulletin (beginner: listening) ------------------------- */
+/* --- 101.70 code-practice bulletin (beginner: listening) ------------------------- */
 
 /**
  * A slow, steady practice transmission, like the bulletins hams have copied
@@ -198,7 +199,7 @@ export const BULLETIN_TEXTS: readonly string[] = Object.freeze([
   'QTH IS YOUR LOCATION. RST IS YOUR SIGNAL REPORT. AR',
   '73 MEANS BEST REGARDS. TNX MEANS THANKS. FB MEANS FINE. AR',
   'NUMBERS 1 2 3 4 5 6 7 8 9 0. AR',
-  'NEW TO CW? ELMER ON 100.60 HELPS. BOB ON 101.40 LIKES TO CHAT. SAM ON 101.80 SENDS FAST. AR',
+  `NEW TO CW? ELMER ON ${formatMhz(HAM_STATIONS.elmer)} HELPS. BOB ON ${formatMhz(HAM_STATIONS.ragchew)} LIKES TO CHAT. SAM ON ${formatMhz(HAM_STATIONS.speed)} SENDS FAST. AR`,
 ])
 /** Silence between bulletins */
 export const BULLETIN_PAUSE_MS = 4000
@@ -219,41 +220,64 @@ function createBulletin(): Station {
   }
 }
 
-/* --- 100.60 the Elmer (beginner: sending) ---------------------------------------- */
+/* --- 100.30 the Elmer (beginner: sending) ---------------------------------------- */
 
 /**
  * "Elmer" is ham slang for the experienced operator who takes a newcomer
- * under their wing. This one talks to you like a person, not a level screen:
+ * under their wing. This one behaves like a person on the air, not a lesson
+ * screen: he introduces himself, asks before he helps, waits for your answer,
+ * has a word with you, and only then starts teaching. Each step is its own
+ * short over, with a natural pause between them:
  *
- *   him: GE. DE ELMER. R U NEW TO CW? K
- *   you: Y            (or YES / R / C ... or NO; or say nothing at all)
- *   him: FB. WE START EASY. E IS 1 DIT. SEND E K
+ *   him: GE. DE ELMER. I AM AN OLD CW OP.
+ *        (pause)
+ *   him: I HELP NEW OPS. R U NEW TO CW? Y OR N K
+ *   you: Y                    (just one letter; YES / R / OK work too)
+ *   him: FB. GLAD U CAME BY. I SEND A LTR, U SEND IT BACK.
+ *        (pause)
+ *   him: 1ST LTR IS E. E IS 1 DIT. SEND E K
  *   you: E
  *   him: VY GUD. NEXT T. T IS DAH. T T T. UR TURN K
  *
- * He brings in one character at a time, shortest codes first, mixes in
- * earlier ones now and then, and talks you through mistakes ("NOT QUITE. A
- * IS DIDAH. TRY AGN K", then plays it to you again). Now and then he
- * remarks on how far you've come, and once you have a few letters he points
- * you at Bob and Sam. Say HI and he says hi back; send 73 and he signs off;
- * come back later and he welcomes you back where you left off (remembered
- * in localStorage). If you say you're not new, he sends you words instead
- * and suggests the other operators. A silent newcomer gets gentle help:
- * "NO PROBLEM. JUST SEND 1 DIT. THAT IS E K".
- * 18 WPM characters at 12 WPM effective (Farnsworth, as ARRL slow practice).
+ * Answer N and he suggests Bob and Sam, or words with him. Say nothing and
+ * he helps ("NO RUSH. IF U R NEW, TAP 1 DIT K": a dit is an E, which he takes
+ * as yes). He brings in one character at a time, shortest codes first, mixes
+ * in earlier ones, talks you through mistakes, remarks on your progress, says
+ * hi back, signs off on 73, and welcomes you back where you left off
+ * (remembered in localStorage). Like a real Elmer he chats at an easy pace
+ * (20 WPM characters, 18 effective) and slows right down for the letters he
+ * is teaching (20 / 15, Farnsworth), so you hear each one clearly.
  */
-export const ELMER_TIMING = timingForWpm(18, 12, 1200, 680)
+/** the lessons: the letter being taught, the prompts and corrections */
+export const ELMER_TIMING = timingForWpm(20, 15, 1200, 680)
+/** the chat: introductions, questions, welcome */
+export const ELMER_CHAT_TIMING = timingForWpm(20, 18, 1000, 680)
 export const ELMER_ORDER = 'ETIANMSURWDKGOHVFLPJBXCYZQ5432167890'
 export const ELMER_WORDS: readonly string[] = Object.freeze([
   'CQ', 'DE', 'THE', 'AND', 'RST', 'QTH', 'NAME', 'TNX', 'FB', '73',
   'HELLO', 'RADIO', 'MORSE', 'KEY', 'SOS', 'GHOST', 'NIGHT', 'WAVE', 'COPY', 'TEST',
 ])
 const ELMER_REVIEWS = 2
-/** how long he waits for an answer to "R U NEW TO CW?" before helping */
+/** the pause between one over and the next part of what he's saying */
+export const ELMER_FOLLOW_UP_MS = 1500
+/** how long he waits for an answer to "R U NEW?" before helping */
 export const ELMER_ASK_IDLE_MS = 15000
 export const ELMER_IDLE_MS = 25000
 const ELMER_MAX_NUDGES = 2
 const ELMER_STORAGE_KEY = 'telegraph-ghost.elmer.learned'
+
+export const ELMER_LINES = Object.freeze({
+  intro: 'GE. DE ELMER. I AM AN OLD CW OP. ',
+  ask: 'I HELP NEW OPS. R U NEW TO CW? Y OR N K ',
+  askAgain: 'R U NEW TO CW? SEND Y OR N K ',
+  notUnderstood: 'SRI, I NEED Y OR N. R U NEW? K ',
+  helpAnswer: 'NO RUSH. IF U R NEW, TAP 1 DIT K ',
+  welcome: 'FB. GLAD U CAME BY. I SEND A LTR, U SEND IT BACK. ',
+  welcomeBack: 'GE. WB. NICE TO HEAR U AGN. ',
+  signOff: '73 ES GL. CU AGN SK ',
+})
+const notNew = () =>
+  `FB OM. TRY BOB ON ${formatMhz(HAM_STATIONS.ragchew)} FOR A QSO, OR SAM ON ${formatMhz(HAM_STATIONS.speed)} FOR SPEED. OR WORDS WID ME. `
 
 const YES_WORDS = new Set(['Y', 'YES', 'YS', 'R', 'RR', 'C', 'OK', 'NEW', 'BEGINNER', 'YEP', 'YA', 'YEA', 'YEAH', 'E'])
 const NO_WORDS = new Set(['N', 'NO', 'NIL', 'NOT', 'NOPE', 'NEG'])
@@ -276,6 +300,8 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
   let nudges = 0
   /** said they already know CW: words only */
   let knowsCw = false
+  /** the rest of what he's saying, sent as its own over after a short pause */
+  let followUp: Transmission | null = null
   const inWords = () => target.length > 1
 
   const save = () => {
@@ -286,14 +312,27 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
     }
   }
 
+  /** a lesson line: slow, so the letter is clear */
   const reply = (text: string) => tx(text, ELMER_TIMING)
+  /** a chat line: an easy conversational pace */
+  const chat = (text: string) => tx(text, ELMER_CHAT_TIMING)
+  /** say `now` (a lesson line), pause, then `then` */
+  const say = (now: string, then: string | null = null) => {
+    followUp = then === null ? null : reply(then)
+    return reply(now)
+  }
+  /** chat `now`, pause, then `then` (a lesson line, unless `thenChat`) */
+  const talk = (now: string, then: string | null = null, thenChat = false) => {
+    followUp = then === null ? null : thenChat ? chat(then) : reply(then)
+    return chat(now)
+  }
 
   /** what he asks you to send next */
   const prompt = () => {
     if (inWords()) return `SEND ${target} K `
     if (isNew) {
       return learned === 1
-        ? `E IS 1 DIT. SEND E K `
+        ? '1ST LTR IS E. E IS 1 DIT. SEND E K '
         : `NEXT ${target}. ${target} IS ${spokenMorse(target)}. ${target} ${target} ${target}. UR TURN K `
     }
     return `${pick(['SEND', 'NOW', 'TRY'], rng)} ${target} K `
@@ -303,7 +342,7 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
   const milestone = () => {
     if (inWords()) return ''
     if (learned === 6) return 'U KNOW 6 LTRS NOW. '
-    if (learned === 12) return 'U CAN TRY BOB ON 101.40 SOMETIME. '
+    if (learned === 12) return `U CAN TRY BOB ON ${formatMhz(HAM_STATIONS.ragchew)} SOMETIME. `
     if (learned === 20) return 'HALF WAY HI. '
     if (learned === 27) return 'ALL LTRS DONE. NOW NUMBERS. '
     return ''
@@ -341,13 +380,32 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
   }
 
   const lessonWord = (w: string): Transmission | null => {
-    if (w === target) return reply(`${pick(PRAISE, rng)}. ${next()}${prompt()}`)
+    if (w === target) return say(`${pick(PRAISE, rng)}. ${next()}${prompt()}`)
     // procedure words aren't attempts (unless he asked for exactly that)
     if (OVER_ENDINGS.has(w) || w === 'DE') return null
     misses++
-    if (inWords()) return reply(misses >= 2 ? `NO PROBLEM. LISTEN. ${target} ${target}. SEND ${target} K ` : `NOT QUITE. AGN ${target} K `)
-    if (misses >= 2) return reply(`NO WORRIES. LISTEN. ${target} ${target} ${target}. SEND ${target} K `)
-    return reply(`NOT QUITE. ${target} IS ${spokenMorse(target)}. TRY AGN K `)
+    if (inWords()) return say(misses >= 2 ? `NO PROBLEM. LISTEN. ${target} ${target}. SEND ${target} K ` : `NOT QUITE. AGN ${target} K `)
+    if (misses >= 2) return say(`NO WORRIES. LISTEN. ${target} ${target} ${target}. SEND ${target} K `)
+    return say(`NOT QUITE. ${target} IS ${spokenMorse(target)}. TRY AGN K `)
+  }
+
+  /** your answer to "R U NEW?" */
+  const answer = (w: string): Transmission | null => {
+    if (YES_WORDS.has(w)) {
+      startLesson()
+      return talk(ELMER_LINES.welcome, prompt())
+    }
+    if (NO_WORDS.has(w)) {
+      knowsCw = true
+      startLesson()
+      isNew = false
+      target = pick(ELMER_WORDS, rng)
+      reviewsLeft = 1
+      return talk(notNew(), prompt())
+    }
+    if (GREETINGS.has(w)) return talk(`HI HI. ${ELMER_LINES.askAgain}`)
+    if (OVER_ENDINGS.has(w) || w === 'DE') return null
+    return talk(ELMER_LINES.notUnderstood)
   }
 
   return {
@@ -358,60 +416,52 @@ function createElmer(rng: () => number, storage?: StationStorage): Station {
       if (stage === 'greet') {
         if (returning) {
           startLesson()
-          return reply(`GE. WB. LAST TIME U GOT TO ${target}. ${prompt()}`)
+          return talk(`${ELMER_LINES.welcomeBack}LAST TIME U GOT TO ${target}. `, prompt())
         }
         stage = 'ask'
-        return reply('GE. DE ELMER. R U NEW TO CW? K ')
+        return talk(ELMER_LINES.intro, ELMER_LINES.ask, true)
       }
-      if (stage === 'ask') return reply('R U NEW TO CW? K ')
+      if (stage === 'ask') return talk(`WB. ${ELMER_LINES.askAgain}`)
       startLesson()
-      return reply(`WB. ${prompt()}`)
+      return say(`WB. ${prompt()}`)
     },
     onWord({ word }) {
       nudges = 0
       const w = normaliseWord(word)
       if (w === '') return null
+      followUp = null // you've taken the frequency: he answers you instead
       if (w === '?' || w === 'AGN' || w === 'QRZ' || w === 'QRS') {
-        return reply(stage === 'ask' ? 'R U NEW TO CW? SEND Y OR N K ' : prompt())
+        return stage === 'ask' ? talk(ELMER_LINES.askAgain) : say(prompt())
       }
       if (GOODBYES.has(w) && stage !== 'paused' && w !== target) {
         stage = 'paused'
-        return reply('73 ES GL. CU AGN SK ')
+        return talk(ELMER_LINES.signOff)
       }
       switch (stage) {
         case 'greet':
         case 'ask':
-          if (YES_WORDS.has(w)) {
-            startLesson()
-            return reply(`FB. WE START EASY. ${prompt()}`)
-          }
-          if (NO_WORDS.has(w)) {
-            knowsCw = true
-            startLesson()
-            isNew = false
-            target = pick(ELMER_WORDS, rng)
-            reviewsLeft = 1
-            return reply(`FB OM. TRY BOB ON 101.40 OR SAM ON 101.80. OR WORDS WID ME. ${prompt()}`)
-          }
-          if (GREETINGS.has(w)) return reply('HI HI. R U NEW TO CW? K ')
-          if (OVER_ENDINGS.has(w) || w === 'DE') return null
-          return reply('SRI. R U NEW TO CW? SEND Y OR N K ')
+          return answer(w)
         case 'paused':
           startLesson()
-          return reply(`WB. ${prompt()}`)
+          return say(`WB. ${prompt()}`)
         case 'lesson':
-          if (GREETINGS.has(w) && w !== target) return reply(`HI HI. ${prompt()}`)
+          if (GREETINGS.has(w) && w !== target) return say(`HI HI. ${prompt()}`)
           return lessonWord(w)
       }
     },
     onIdle(idleMs) {
+      // the second half of what he was saying, after a breath
+      if (followUp !== null) {
+        if (idleMs < ELMER_FOLLOW_UP_MS) return null
+        const next = followUp
+        followUp = null
+        return next
+      }
       if (stage === 'paused' || nudges >= ELMER_MAX_NUDGES) return null
       if (stage === 'ask') {
         if (idleMs < ELMER_ASK_IDLE_MS) return null
-        // a newcomer who can't answer yet: help them start
-        nudges++
-        startLesson()
-        return reply('NO PROBLEM. JUST SEND 1 DIT. THAT IS E K ')
+        nudges++ // a newcomer who doesn't know how to answer yet: show them
+        return chat(ELMER_LINES.helpAnswer)
       }
       if (stage !== 'lesson' || idleMs < ELMER_IDLE_MS) return null
       nudges++
@@ -439,7 +489,7 @@ function createTutor(): Station {
   }
 }
 
-/* --- 101.40 Bob, the ragchewer (intermediate: a real QSO) ------------------------ */
+/* --- 102.40 Bob, the ragchewer (intermediate: a real QSO) ------------------------ */
 
 /**
  * A complete, realistic contact. Bob calls CQ every half minute. Answer him
@@ -539,17 +589,29 @@ function createRagchew(): Station {
   }
 }
 
-/* --- 101.80 Sam, the high-speed operator (pro) ------------------------------------ */
+/* --- 103.10 Sam, the high-speed operator (pro) ------------------------------------ */
 
 /**
- * Sam is an old-timer who loves fast code and runs practice for anyone who
- * answers his call. He calls "CQ QRQ DE SAM K" (QRQ = "send faster"); answer
- * him and he explains, then sends a 5-character group (letters and numbers,
- * no context to guess from) for you to copy and send back. Copy it and he
- * tells you your speed and speeds up ("SOLID CPY. UR 21WPM. QRQ 22"); miss
- * it and he slows down ("CLOSE" if you were one character off) and sends it
- * again. 15-40 WPM, starting at 20. ? / AGN / QRS repeats; 73 ends the session.
- * Best with the DECODER OFF: then it's all ears.
+ * Sam is an old-timer who loves fast code. He calls "CQ QRQ DE SAM K" (QRQ =
+ * "send faster"). Answer him and he says hello and asks before anything
+ * starts, then explains:
+ *
+ *   him: CQ QRQ CQ QRQ DE SAM K
+ *   you: GE
+ *   him: GE OM. DE SAM. TNX FER CALL.
+ *        (pause)
+ *   him: WANT SOME SPEED PRACTICE? Y OR N K
+ *   you: Y
+ *   him: FB. I SEND 5 LTR GRPS, U SEND THEM BACK. 20 WPM.
+ *        (pause)
+ *   him: GRP 7KQ2M
+ *
+ * The groups are random letters and numbers (no context to guess from).
+ * Copy one and he tells you your speed and speeds up ("SOLID CPY. UR 21WPM.
+ * QRQ 22"); miss it and he slows down ("CLOSE" if you were one character off)
+ * and sends it again. 15-40 WPM, starting at 20. ? / AGN repeats, QRS slows
+ * him down, 73 ends the session; say N and he signs off politely. He
+ * remembers you. Best with the DECODER OFF: then it's all ears.
  */
 export const SPEED_START_WPM = 20
 export const SPEED_MIN_WPM = 15
@@ -558,6 +620,8 @@ export const SPEED_STEP_WPM = 2
 export const SPEED_NAME = 'SAM'
 const SPEED_TONE_HZ = 820
 const SPEED_CQ_EVERY_MS = 40000
+/** the pause before the second half of what he's saying */
+export const SPEED_FOLLOW_UP_MS = 1200
 const SPEED_IDLE_MS = 30000
 const SPEED_MAX_NUDGES = 2
 const GROUP_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -568,7 +632,7 @@ export const speedTiming = (wpm: number) => timingForWpm(wpm, wpm, 1200, SPEED_T
 /** same length, exactly one character different */
 const oneOff = (a: string, b: string) => a.length === b.length && [...a].filter((ch, i) => ch !== b[i]).length === 1
 
-type SpeedStage = 'call' | 'drill'
+type SpeedStage = 'call' | 'offer' | 'drill'
 
 function createSpeedDrill(rng: () => number): Station {
   let wpm = SPEED_START_WPM
@@ -577,8 +641,13 @@ function createSpeedDrill(rng: () => number): Station {
   let stage: SpeedStage = 'call'
   let met = false
   let nudges = 0
-  const send = (text: string) => tx(text, speedTiming(wpm))
+  let followUp: string | null = null
+  const send = (text: string, then: string | null = null) => {
+    followUp = then
+    return tx(text, speedTiming(wpm))
+  }
   const cq = () => send(`CQ QRQ CQ QRQ DE ${SPEED_NAME} K `)
+  const offer = 'WANT SOME SPEED PRACTICE? Y OR N K '
 
   return {
     id: 'speed',
@@ -586,23 +655,34 @@ function createSpeedDrill(rng: () => number): Station {
     onTuneIn() {
       nudges = 0
       if (stage === 'drill') return send(`WB. GRP ${group} `)
+      stage = 'call'
       return cq()
     },
     onWord({ word, wpm: yours }) {
       nudges = 0
       const w = normaliseWord(word)
       if (w === '' || OVER_ENDINGS.has(w) || w === 'DE') return null
+      followUp = null
       if (GOODBYES.has(w)) {
         stage = 'call'
         return send('TU FER PRACTICE. 73 SK ')
       }
       if (stage === 'call') {
-        stage = 'drill'
-        const intro = met
-          ? `WB. ${wpm} WPM. `
-          : `GE. DE ${SPEED_NAME}. I SEND 5 LTR GRPS. U SEND THEM BACK. ${wpm} WPM. `
+        stage = 'offer'
+        if (met) return send(`WB OM. ${offer}`)
         met = true
-        return send(`${intro}GRP ${group} `)
+        return send(`GE OM. DE ${SPEED_NAME}. TNX FER CALL. `, offer)
+      }
+      if (stage === 'offer') {
+        if (YES_WORDS.has(w)) {
+          stage = 'drill'
+          return send(`FB. I SEND 5 LTR GRPS, U SEND THEM BACK. ${wpm} WPM. `, `GRP ${group} `)
+        }
+        if (NO_WORDS.has(w)) {
+          stage = 'call'
+          return send('OK OM. TNX FER QSO. 73 SK ')
+        }
+        return send(`SRI. ${offer}`)
       }
       if (w === '?' || w === 'AGN' || w === 'QRZ') return send(`GRP ${group} `)
       if (w === 'QRS') {
@@ -620,10 +700,16 @@ function createSpeedDrill(rng: () => number): Station {
       return send(`${oneOff(w, group) ? 'CLOSE' : 'NIL'}. QRS ${wpm}. AGN GRP ${group} `)
     },
     onIdle(idleMs) {
+      if (followUp !== null) {
+        if (idleMs < SPEED_FOLLOW_UP_MS) return null
+        const text = followUp
+        followUp = null
+        return tx(text, speedTiming(wpm))
+      }
       if (stage === 'call') return idleMs >= SPEED_CQ_EVERY_MS ? cq() : null
       if (idleMs < SPEED_IDLE_MS || nudges >= SPEED_MAX_NUDGES) return null
       nudges++
-      return send(`QRZ? GRP ${group} `)
+      return send(stage === 'offer' ? offer : `QRZ? GRP ${group} `)
     },
   }
 }

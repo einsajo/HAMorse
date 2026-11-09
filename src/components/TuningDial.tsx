@@ -128,8 +128,8 @@ const DEAD_ZONE = 0.18 // fraction of the knob radius
    the drag must travel escapeMhz away before it pops out, so leaving the
    station takes a slightly harder pull than entering it. Broadcasters and the
    ghost have wide detents (0.20 / 0.32 MHz, so the ghost's is no giveaway: it
-   feels like one more station); the ham operators, 0.40 apart, have narrow
-   ones (0.08 / 0.13 MHz) so you can still tune the open band between them. */
+   feels like one more station); the ham operators, 0.70 apart, have narrow
+   ones (0.10 / 0.16 MHz) so you can still tune the open band between them. */
 const TARGET_DETENTS: readonly Detent[] = DETENTS
 
 /** Short haptic "click" when the dial drops into a detent (where supported) */

@@ -17,7 +17,7 @@
  * rendered offline (OfflineAudioContext) and measured in tests.
  */
 import type { Band } from '../constants'
-import { cardMotionPhasesMs } from './cardMotion'
+import { REF_CARD_MOTION, cardSpeedAt } from './cardMotion'
 
 /* --- Levels (linear gain) --------------------------------------------------- */
 /** Overall output; the limiter after it keeps peaks safe for headphones */
@@ -667,36 +667,78 @@ export function scheduleButtonRelease(ctx: Ctx, destination: AudioNode, when = c
 
 /* --- Foley: the reference card ------------------------------------------------------ */
 /**
- * Heavy cardstock dragged through the metal slot behind the chassis, locked
- * to the card's friction keyframes (src/utils/cardMotion.ts). The sound is
- * driven by the card's *speed* through each phase:
+ * Heavy cardstock dragged through the slot behind the chassis. Real paper
+ * friction isn't a stream of clicks or a steady hiss. It is a rough, broadband
+ * "shhh" whose loudness AND brightness follow how fast the card moves, heard
+ * through the hollow metal cabinet it's sliding along. So the sound is
+ * driven, millisecond by millisecond, by the card's actual speed, computed
+ * from the same keyframes the CSS animation uses (cardSpeedAt):
  *
- *   slide          fast start, easing into the catch: fibres ticking against
- *                  the slot (density + loudness follow the speed) over a soft
- *                  paper rub, with the metal lip ringing faintly
- *   stuck          silent but for two small creaks as the card strains
- *   breaks free    a paper "pop" as the card un-buckles and a flick off the lip,
- *                  then the fastest, loudest burst of friction
- *   glide          dying away as it slows
- *   lands          a soft slap as it settles (open) / tucks home (close)
+ *   friction   pink noise through a band-pass that opens up as the card speeds
+ *              up (dull when slow, airy when fast), roughened by the paper's
+ *              uneven surface (a fast random flutter in level)
+ *   body       the slot and cabinet resonating (~340 / 780 / 1450 Hz): what
+ *              makes it sound like a card *in a radio* rather than in the air
+ *   sheen      a little high fibre hiss, only at speed
+ *   judder     slow movement is stick-slip: as the card eases into the catch,
+ *              and during the tiny strain wobble while it's stuck, it
+ *              chatters ("rrrt") and creaks
+ *   buckle     breaking free: the bowed card snaps flat (a low "thup") and its
+ *              edge flicks off the lip
+ *   landing    a soft slap as it comes to rest out on the desk, or a duller
+ *              tap as it tucks home
  *
- * With prefers-reduced-motion the card moves instantly, so only a short
- * scrape plays.
+ * It all sits behind the chassis, so it's shaded (low-passed) a little, then
+ * goes into the shared room. With prefers-reduced-motion the card jumps, so
+ * a short, simple scrape plays instead.
  */
-const PAPER_LEVEL = 0.55
+const PAPER_LEVEL = 0.5
+/** card speed (card-lengths per second) that counts as "full speed" */
+const CARD_FULL_SPEED = 2.2
+/** envelope resolution: fine enough for the snap */
+const PAPER_STEP_S = 0.004
 
-/** The card's speed (0..1.6) at time `t` (s) for a given motion */
-function cardSpeed(t: number, stick: number, release: number, settle: number): number {
-  if (t < 0) return 0
-  if (t < stick) {
-    const u = t / stick
-    return Math.min(1, u / 0.07) * Math.pow(1 - u, 0.7) // quick start, easing into the catch
+const pinkCache = new WeakMap<Ctx, AudioBuffer>()
+
+/** 3 s of pink noise (equal energy per octave, like real friction), normalised */
+function pinkNoise(ctx: Ctx): AudioBuffer {
+  let buf = pinkCache.get(ctx)
+  if (!buf) {
+    const length = Math.floor(ctx.sampleRate * 3)
+    buf = ctx.createBuffer(1, length, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    // Paul Kellet's economy pink filter
+    let b0 = 0
+    let b1 = 0
+    let b2 = 0
+    let peak = 0
+    for (let i = 0; i < length; i++) {
+      const white = Math.random() * 2 - 1
+      b0 = 0.99765 * b0 + white * 0.099046
+      b1 = 0.963 * b1 + white * 0.2965164
+      b2 = 0.57 * b2 + white * 1.0526913
+      d[i] = b0 + b1 + b2 + white * 0.1848
+      peak = Math.max(peak, Math.abs(d[i]))
+    }
+    for (let i = 0; i < length; i++) d[i] /= peak
+    pinkCache.set(ctx, buf)
   }
-  if (t < release) return 0 // stuck on the lip
-  const d = t - release
-  if (t < settle) return 1.6 * Math.min(1, d / 0.008) * Math.exp(-d / ((settle - release) / 3.4))
-  return 0
+  return buf
 }
+
+function pinkBurst(ctx: Ctx, when: number, seconds: number): AudioBufferSourceNode {
+  const src = ctx.createBufferSource()
+  src.buffer = pinkNoise(ctx)
+  const len = Math.min(2.9, seconds)
+  src.start(when, Math.random() * Math.max(0, 3 - len - 0.01), len + 0.005)
+  return src
+}
+
+/** 0..1 speed, gently compressed (friction gets louder with speed, but not linearly) */
+const speedLevel = (cardsPerSecond: number) => Math.min(1.25, Math.pow(cardsPerSecond / CARD_FULL_SPEED, 0.7))
+
+/** how much a card moving at speed level `v` judders (only when it's slow, but moving) */
+const judderAt = (v: number) => (v < 0.02 ? 0 : Math.min(1, v / 0.08) * Math.max(0, 1 - v / 0.45))
 
 export function schedulePaperScrape(
   ctx: Ctx,
@@ -706,49 +748,77 @@ export function schedulePaperScrape(
   reducedMotion = false,
 ): void {
   const s = oneShot(ctx)
-  const out = bus(s, room(ctx, destination), PAPER_LEVEL * vary(isOpening ? 1 : 0.88, 0.08))
-  const ph = cardMotionPhasesMs(isOpening)
-  const total = reducedMotion ? 0.14 : ph.durationMs / 1000
-  const stick = ph.stickMs / 1000
-  const release = ph.releaseMs / 1000
-  const settle = ph.settleMs / 1000
-  const speedAt = reducedMotion
-    ? (u: number) => Math.pow(Math.sin(Math.PI * u), 0.7)
-    : (u: number) => cardSpeed(u * total, stick, release, settle)
+  // behind the chassis: the radio shades the top end a little
+  const shade = s.node(filter(ctx, 'lowpass', vary(4300, 0.05), 0.5))
+  shade.connect(room(ctx, destination))
+  const out = bus(s, shade, PAPER_LEVEL * vary(isOpening ? 1 : 0.9, 0.08))
 
-  // fibres catching on the slot: the texture of paper
-  const fibres = grains(s, when, total, { rate: 2600, peak: 0.5, tau: 0.0005, profile: speedAt })
-  fibres.connect(s.node(filter(ctx, 'highpass', 1300, 0.7))).connect(s.node(filter(ctx, 'lowpass', 7500, 0.7))).connect(out)
-  resonate(s, fibres, [[vary(1350), 9, 0.1], [vary(2650), 12, 0.05]], out) // the metal lip
+  const motion = isOpening ? REF_CARD_MOTION.open : REF_CARD_MOTION.close
+  const total = reducedMotion ? 0.14 : motion.durationMs / 1000
+  /** speed level 0..1.25 at `t` seconds */
+  const v = reducedMotion
+    ? (t: number) => 0.9 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t / total))), 0.7)
+    : (t: number) => speedLevel(cardSpeedAt(isOpening, t * 1000))
 
-  // the soft rub of the card's face sliding on the chassis
-  const rubSrc = s.source(noiseBurst(ctx, when, total + 0.03))
-  const rubEnv = contour(s, when, total, 0.13, speedAt)
-  rubSrc
-    .connect(s.node(filter(ctx, 'highpass', 500, 0.7)))
-    .connect(s.node(filter(ctx, 'bandpass', vary(isOpening ? 2100 : 1800, 0.05), 0.55)))
-    .connect(rubEnv)
-    .connect(out)
+  /** drive an AudioParam from the speed, every PAPER_STEP_S */
+  const track = (param: AudioParam, f: (v: number) => number, endValue: number) => {
+    param.setValueAtTime(f(v(0)), when)
+    for (let t = PAPER_STEP_S; t <= total + 1e-9; t += PAPER_STEP_S) param.linearRampToValueAtTime(f(v(t)), when + t)
+    param.linearRampToValueAtTime(endValue, when + total + 0.015)
+  }
+  const level = (n: AudioNode, f: (v: number) => number) => {
+    const g = s.node(ctx.createGain())
+    g.gain.value = 0
+    track(g.gain, f, 0)
+    n.connect(g)
+    return g
+  }
+
+  // 1. friction: pink noise, brighter and louder the faster it goes, roughened by the paper's surface
+  const fr = s.source(pinkBurst(ctx, when, total + 0.05))
+  const frBand = s.node(filter(ctx, 'bandpass', 900, 0.65))
+  const frBase = vary(isOpening ? 620 : 560, 0.06)
+  track(frBand.frequency, (x) => frBase + 1900 * Math.min(1, x) ** 0.85, frBase)
+  const rough = s.node(ctx.createGain())
+  rough.gain.value = 1
+  for (let t = 0; t < total; t += rand(0.009, 0.026)) rough.gain.setTargetAtTime(rand(0.45, 1), when + t, rand(0.003, 0.01))
+  fr.connect(s.node(filter(ctx, 'highpass', 260, 0.6))).connect(frBand).connect(rough)
+  level(rough, (x) => 1.25 * x).connect(out)
+
+  // 2. body: the slot and the cabinet resonating behind it
+  const bodySrc = s.source(noiseBurst(ctx, when, total + 0.05))
+  const bodyIn = bodySrc.connect(s.node(filter(ctx, 'lowpass', 1800, 0.6)))
+  const bodyMix = s.node(ctx.createGain())
+  resonate(s, bodyIn, [[vary(340), 1.6, 0.8], [vary(780), 2.2, 0.55], [vary(1450), 3, 0.3]], bodyMix, 0.35)
+  level(bodyMix, (x) => 1.5 * x ** 0.9).connect(out)
+
+  // 3. sheen: a little fibre hiss at speed
+  const sheenSrc = s.source(noiseBurst(ctx, when, total + 0.05))
+  const sheen = sheenSrc.connect(s.node(filter(ctx, 'highpass', 3600, 0.7)))
+  level(sheen, (x) => 0.06 * x * x).connect(out)
 
   if (!reducedMotion) {
-    // straining on the lip: two small creaks
-    for (const f of [0.35, 0.72]) {
-      const at = when + stick + (release - stick) * f + rand(-0.006, 0.006)
-      const creak = grains(s, at, rand(0.01, 0.016), { rate: 1800, peak: 0.3, tau: 0.0006, profile: (u) => Math.sin(Math.PI * u) })
-      resonate(s, creak, [[vary(900), 4, 0.6], [vary(1900), 6, 0.3]], out)
-      creak.connect(s.node(filter(ctx, 'highpass', 2000, 0.7))).connect(out)
-    }
+    // 4. judder: stick-slip chatter whenever the card crawls (into the catch, straining on the lip)
+    const jd = grains(s, when, total, {
+      rate: 75,
+      peak: 0.75,
+      tau: 0.0022,
+      profile: (u) => judderAt(v(u * total)),
+    })
+    const jdLow = jd.connect(s.node(filter(ctx, 'lowpass', 2000, 0.7)))
+    resonate(s, jdLow, [[vary(470), 3, 0.8], [vary(1050), 4, 0.45], [vary(1900), 6, 0.2]], out, 0.8)
 
-    // breaking free: the card un-buckles ("pop") and flicks off the lip
-    const pop = excite(s, when + release, { len: 0.006, peak: 0.7, lp: 3200 })
-    resonate(s, pop, [[vary(700), 2.5, 0.9], [vary(1600), 4, 0.45]], out)
-    const flick = excite(s, when + release + 0.002, { len: 0.0015, peak: 0.5, hp: 2500 })
-    edge(s, flick, out, 0.5, 2500)
+    // 5. buckle: the bowed card snapping flat as it breaks free, its edge flicking off the lip
+    const releaseAt = when + motion.durationMs * motion.releaseAt / 1000
+    const thup = excite(s, releaseAt, { len: 0.008, peak: 0.9, lp: 700 })
+    resonate(s, thup, [[vary(210), 1.8, 1], [vary(520), 2.6, 0.55], [vary(1150), 4, 0.2]], out)
+    const flick = excite(s, releaseAt + rand(0.003, 0.006), { len: 0.002, peak: 0.35, hp: 2200 })
+    resonate(s, flick, [[vary(2600), 6, 0.4], [vary(4100), 9, 0.2]], out)
 
-    // landing: a soft slap of cardstock
-    const landAt = when + (isOpening ? settle : total) - 0.004
-    const slap = excite(s, landAt, { len: 0.01, peak: isOpening ? 0.4 : 0.3, lp: 1400 })
-    resonate(s, slap, [[vary(320), 1.8, 0.8], [vary(760), 3, 0.35]], out)
+    // 6. landing: a soft slap out on the desk, or a duller tap as it tucks home
+    const landAt = when + (isOpening ? motion.durationMs * motion.settleAt : motion.durationMs - 8) / 1000
+    const slap = excite(s, landAt, { len: 0.012, peak: isOpening ? 0.45 : 0.35, lp: isOpening ? 1300 : 800 })
+    resonate(s, slap, [[vary(300), 1.8, 0.9], [vary(720), 2.6, 0.35]], out)
   }
   s.done()
 }
