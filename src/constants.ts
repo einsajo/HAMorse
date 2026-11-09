@@ -8,6 +8,7 @@
  *   Ham band operators, 0.70 MHz apart with open band between them:
  *   100.30 Elmer (mentor) · 101.00 practice (HI / SOS) · 101.70 code-practice
  *   bulletin · 102.40 Bob (QSO) · 103.10 Sam (high speed)
+ *   Reserved, receive-only (not mapped yet): 100.65 · 101.35 · 102.05 · 102.75
  *
  * Everything not listed is dead air. The ghost station is deliberately
  * indistinguishable from the broadcasters until you are on it.
@@ -65,6 +66,15 @@ export const HAM_STATIONS = Object.freeze({
   speed: 103.1,
 })
 
+/**
+ * Receive-only slots, reserved for future content (beacons, nets, a numbers
+ * station...). One sits midway in each gap between two operators. For now
+ * each is an unmodulated carrier: the S-meter shows a steady signal, the
+ * LCD says RX ONLY and you can't transmit. Map one by giving it content
+ * (and, if it should answer, moving it to HAM_STATIONS).
+ */
+export const RESERVED_RX_FREQUENCIES = Object.freeze([100.65, 101.35, 102.05, 102.75] as const)
+
 /** "100.30": how operators say a frequency on the air */
 export const formatMhz = (mhz: number) => mhz.toFixed(2)
 
@@ -72,7 +82,14 @@ export type HamStationId = keyof typeof HAM_STATIONS
 
 /* --- Classification --------------------------------------------------------- */
 
-export type Band = 'broadcast' | 'ham' | 'ghost' | 'dead'
+/**
+ * broadcast  a commercial station: listen only
+ * reserved   a receive-only slot not mapped yet: a silent carrier
+ * ham        the amateur band: two-way Morse
+ * ghost      104.40
+ * dead       nothing there
+ */
+export type Band = 'broadcast' | 'reserved' | 'ham' | 'ghost' | 'dead'
 
 export interface BandInfo {
   band: Band
@@ -87,6 +104,7 @@ export function getBandInfo(mhz: number): BandInfo {
   if (isTunedTo(mhz, GHOST_FREQUENCY)) return { band: 'ghost', canTransmit: true }
   const station = BROADCAST_STATIONS.find((f) => isTunedTo(mhz, f))
   if (station !== undefined) return { band: 'broadcast', kind: BROADCAST_KINDS[station], canTransmit: false }
+  if (RESERVED_RX_FREQUENCIES.some((f) => isTunedTo(mhz, f))) return { band: 'reserved', canTransmit: false }
   if (mhz >= HAM_BAND_START - FREQ_EPSILON && mhz <= HAM_BAND_END + FREQ_EPSILON) {
     return { band: 'ham', canTransmit: true }
   }
@@ -119,6 +137,7 @@ const NARROW_DETENT = { captureMhz: 0.1, escapeMhz: 0.16 } as const
 export const DETENTS: readonly Detent[] = Object.freeze([
   ...BROADCAST_STATIONS.map((frequency) => ({ frequency, ...WIDE_DETENT })),
   ...Object.values(HAM_STATIONS).map((frequency) => ({ frequency, ...NARROW_DETENT })),
+  ...RESERVED_RX_FREQUENCIES.map((frequency) => ({ frequency, ...NARROW_DETENT })),
   { frequency: GHOST_FREQUENCY, ...WIDE_DETENT },
 ])
 

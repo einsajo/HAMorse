@@ -52,7 +52,7 @@ export type MorseTap = '.' | '-'
  *   off        power or DECODER is OFF: show nothing (the radio still works:
  *              taps are keyed and decoded, stations still answer; only the
  *              screen is blank, for copying and sending by ear)
- *   rx-only    on a broadcaster: you can listen but not transmit
+ *   rx-only    on a broadcaster or a reserved slot: you can listen but not transmit
  *   dead-band  dead air: nobody to talk to
  *   ready      ham band or the ghost frequency: taps are shown as they decode
  */
@@ -672,7 +672,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
     ? 'off'
-    : band === 'broadcast'
+    : band === 'broadcast' || band === 'reserved'
       ? 'rx-only'
       : band === 'dead'
         ? 'dead-band'

@@ -174,6 +174,7 @@ interface Transmission { text: string; timing: ReplyTiming }
 | Band | Frequencies | S-meter | Decoder | LCD status |
 |---|---|---|---|---|
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
+| `reserved` | 100.65 / 101.35 / 102.05 / 102.75 (exact) | steady S5 carrier | blocked | `RX ONLY` |
 | `ham` | 100.00 – 103.50 inclusive (operators 0.70 apart: Elmer 100.30, practice 101.00, bulletin 101.70, Bob 102.40, Sam 103.10) | flutters S4–S7; S8 while an operator sends | open | cursor |
 | `ghost` | 104.40 (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
@@ -235,6 +236,7 @@ clicks: triangle thump (pitch ×0.3 in 30 ms) + highpassed noise ──┘
   says the animation has already run, plus the audio output latency, so the
   silence and the snap land on the visual catch and release.
 
+- **Reading loupe (`ReferenceCard.tsx`):** the card's contents are one `CardSheet` rendered twice: on the card, and inside `.loupe__paper`, a box sized to the card's own `offsetWidth/Height` with `container: refcard / size` (and the card's `--tuck`), so the copy wraps exactly like the card. The loupe is a stage child at z 5 (over the chassis), `pointer-events: none`. Everything during a gesture is a direct DOM write (CSS vars `--lx/--ly/--d/--rim`, the copy's `translate(r - px·z, r - py·z) scale(z)`): no React state, so pointer capture and 60fps tracking are never disturbed by a re-render. Gesture modes: `pending` (touch down) → `loupe` after 170ms without moving beyond 6px, or `drag` if it moves first; mouse presses go straight to `drag`, and mouse hover (buttons 0) drives the loupe. Verified with CDP touch input: the entry under the finger is the entry in the middle of the glass at every point.
 - **Testability:** the building blocks take any `BaseAudioContext`, so they are
   verified by rendering into an `OfflineAudioContext` and measuring the samples.
 

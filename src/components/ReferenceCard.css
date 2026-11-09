@@ -382,3 +382,219 @@
     transform: rotate(-3deg);
   }
 }
+
+/* --- The factory's rubber stamp: how to read the small print ------------- */
+.refcard__stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.14em 0.42em 0.1em;
+  font-size: 0.66em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  /* red stamp-pad ink, a little uneven, sitting in the paper */
+  color: rgba(152, 36, 26, 0.66);
+  border: 1px solid rgba(152, 36, 26, 0.52);
+  border-radius: 2px;
+  text-shadow: none;
+  mix-blend-mode: multiply;
+  transform: rotate(-2.5deg);
+  -webkit-mask-image: linear-gradient(100deg, #000 0 58%, rgba(0, 0, 0, 0.72) 74%, #000 90%);
+  mask-image: linear-gradient(100deg, #000 0 58%, rgba(0, 0, 0, 0.72) 74%, #000 90%);
+}
+
+.refcard__stamp-icon {
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+}
+
+/* touch screens hold; a mouse hovers */
+.refcard__stamp-hover {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .refcard__stamp-touch {
+    display: none;
+  }
+
+  .refcard__stamp-hover {
+    display: inline;
+  }
+}
+
+@container refcard (aspect-ratio < 1) {
+  .refcard__stamp {
+    align-self: flex-start;
+    margin: 0.25em 0 0.1em;
+  }
+}
+
+/* the loupe is the pointer while it reads */
+.refcard[data-loupe='mouse'] {
+  cursor: none;
+}
+
+/* ==========================================================================
+   Reading loupe
+   A round magnifier that floats above everything (z 5 in the isolated stage,
+   over the chassis at z 1) and never takes the pointer. Inside, a second copy
+   of the card is laid out at the card's exact size (same size container, so
+   it wraps identically) and scaled, so the glass shows the real card, sharp.
+   Position (--lx / --ly, stage coordinates), size (--d, --rim) and the copy's
+   transform are written by ReferenceCard.tsx as the finger moves.
+   ========================================================================== */
+.loupe {
+  --d: 190px;
+  --rim: 10px;
+  --lx: 0px;
+  --ly: 0px;
+  --silk: rgba(228, 220, 200, 0.62); /* the radio's faded silkscreen */
+
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: var(--d);
+  height: var(--d);
+  border-radius: 50%;
+  pointer-events: none;
+  /* individual transforms: the position follows the finger instantly; only the pop is animated */
+  translate: calc(var(--lx) - 50%) calc(var(--ly) - 50%);
+  scale: 0.82;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 110ms ease-out,
+    scale 170ms cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    visibility 0s linear 170ms;
+
+  /* the rim: blackened, worn gunmetal, turned on a lathe */
+  background:
+    /* the seat the glass sits in */
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(0, 0, 0, 0) calc(50% - var(--rim) - 1px),
+      rgba(0, 0, 0, 0.7) calc(50% - var(--rim)),
+      rgba(0, 0, 0, 0) calc(50% - var(--rim) + 3px)
+    ),
+    /* fine turning rings */
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0 1px, rgba(0, 0, 0, 0.07) 1px 2px),
+    /* light sweeping round the bevel */
+    conic-gradient(
+      from 205deg,
+      #2a2b2d,
+      #6e7074 11%,
+      #3b3c3f 23%,
+      #1c1d1f 40%,
+      #47484c 54%,
+      #8d8f93 62%,
+      #34353a 74%,
+      #1f2022 88%,
+      #2a2b2d
+    );
+  box-shadow:
+    /* floating above the card: a soft, offset shadow */
+    0 18px 30px rgba(0, 0, 0, 0.5),
+    0 4px 9px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    /* the rim's machined edges */
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.75);
+}
+
+.loupe[data-show='true'] {
+  scale: 1;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 110ms ease-out,
+    scale 170ms cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    visibility 0s;
+}
+
+.loupe__view,
+.loupe__glass {
+  position: absolute;
+  inset: var(--rim);
+  border-radius: 50%;
+}
+
+.loupe__view {
+  overflow: hidden;
+  clip-path: circle(50%); /* Safari: clip the scaled copy to the circle too */
+  /* beyond the card's edge: the dark desk */
+  background: radial-gradient(circle at 50% 45%, #26241f 0%, #141311 100%);
+}
+
+/* the magnified copy, laid out exactly like the card (same named size container) */
+.loupe__paper {
+  --tuck: 14px; /* must match .refcard */
+  --hide: 18px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  container: refcard / size;
+  transform-origin: 0 0;
+}
+
+/* the glass: glare, edge darkening and a whisper of colour fringing */
+.loupe__glass {
+  background:
+    radial-gradient(ellipse 50% 34% at 33% 23%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(ellipse 30% 13% at 67% 85%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 58%, rgba(40, 28, 10, 0.12) 80%, rgba(0, 0, 0, 0.48) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 0 0 2px rgba(120, 170, 255, 0.1),
+    inset 0 0 0 3px rgba(255, 170, 90, 0.06),
+    inset 0 10px 16px rgba(0, 0, 0, 0.3),
+    inset 0 -4px 10px rgba(255, 255, 255, 0.05);
+}
+
+/* our marks, engraved in the rim and filled with silkscreen paint */
+.loupe__marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.loupe__engrave {
+  font-family: 'Roboto Condensed', 'Arial Narrow', 'Liberation Sans Narrow', Arial, sans-serif;
+  font-size: 3.4px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  fill: var(--silk);
+}
+
+/* the cut's dark upper wall shows as a hairline above the paint */
+.loupe__engrave--lip {
+  fill: rgba(0, 0, 0, 0.7);
+  transform: translateY(-0.28px);
+}
+
+.loupe__ticks {
+  fill: none;
+  stroke: var(--silk);
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+
+/* the S-meter needle's red, at 12 o'clock */
+.loupe__index {
+  fill: rgba(196, 44, 32, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loupe,
+  .loupe[data-show='true'] {
+    transition: none;
+  }
+}

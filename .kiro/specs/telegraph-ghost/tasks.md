@@ -104,6 +104,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 16. Sidetone and mechanical sounds
   - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
   - [x] 16.2 Distinct Foley: breaker KA-CHUNK, slider scrape, button snap, ball-bearing VFO thud, paper scrape synced to the card animation
+  - [x] 11.5 Reading loupe on the REF card: hold (touch) / hover (mouse), real card copy magnified to ~22px type, engraved rim marks, rubber-stamp hint; tap / swipe / click still close the card
+  - [x] 18a.11 Reserved receive-only slots midway in each operator gap (silent S5 carrier, RX ONLY, INHIBIT), to be mapped later
   - [x] 16.5 REF card sound driven by the card's real speed from the keyframes: pink-noise friction tracking speed, cabinet body, stick-slip judder, buckle, landing
   - [x] 16.4 Physically modelled Foley: contact-pulse strikes into resonator banks, stick-slip friction following the motion, per-play variation, a synthesised room; button release clicks
   - _Requirements: 3_

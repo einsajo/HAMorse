@@ -35,6 +35,7 @@ export const STATIC_LEVELS: Readonly<Record<Band, number>> = Object.freeze({
   dead: 1, // nothing on frequency: full hiss
   ham: 0.5, // live amateur band
   broadcast: 0.2, // strong commercial carrier masks the noise
+  reserved: 0.35, // a steady carrier, nothing on it yet
   ghost: 0.1, // unnaturally clean
 })
 
