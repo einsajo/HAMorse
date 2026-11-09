@@ -2,6 +2,8 @@ import { createContext, createElement, useCallback, useContext, useEffect, useMe
 import type { ReactNode } from 'react'
 import { decodeSymbol } from '../utils/morseDictionary'
 import { useRadio } from '../context/RadioContext'
+import { getBandInfo } from '../constants'
+import type { Band } from '../constants'
 
 /* --- Timing ---------------------------------------------------------------
    Gaps are measured from the most recent tap. They are deliberately longer
@@ -17,17 +19,30 @@ const MAX_MESSAGE_LENGTH = 160
 
 export type MorseTap = '.' | '-'
 
+/**
+ * What the decoder is doing, for the LCD:
+ *   off        power or DECODER is OFF: show nothing
+ *   rx-only    on a broadcaster: you can listen but not transmit
+ *   dead-band  dead air: nobody to talk to
+ *   ready      ham band or the ghost frequency: taps are decoded
+ */
+export type DecoderStatus = 'off' | 'rx-only' | 'dead-band' | 'ready'
+
 export interface MorseDecoderState {
   /** Dits and dahs of the letter currently being keyed, e.g. ".-" */
   currentSymbol: string
   /** Everything decoded so far */
   decodedMessage: string
-  /** Record a paddle tap. Ignored unless the radio is powered and the DECODER is ON. */
+  /** Record a paddle tap. Ignored unless powered, DECODER ON and on a transmit frequency. */
   handleTap: (type: MorseTap) => void
   /** Wipe the buffer and anything in progress (the CLR button) */
   clear: () => void
-  /** True when taps are being decoded (power ON and DECODER ON) */
+  /** True when taps are being decoded (power ON, DECODER ON, ham band or ghost frequency) */
   isActive: boolean
+  /** Band the radio is tuned to */
+  band: Band
+  /** Decoder state for the LCD status line */
+  status: DecoderStatus
 }
 
 interface DecoderOptions {
@@ -49,7 +64,7 @@ const trimHistory = (text: string) => (text.length > MAX_MESSAGE_LENGTH ? text.s
 function useMorseDecoderEngine(
   isActive: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
-): MorseDecoderState {
+): Omit<MorseDecoderState, 'band' | 'status'> {
   const [currentSymbol, setCurrentSymbol] = useState('')
   const [decodedMessage, setDecodedMessage] = useState('')
 
@@ -137,22 +152,44 @@ interface MorseDecoderProviderProps extends DecoderOptions {
   children?: ReactNode
 }
 
-/** Must sit inside <RadioProvider>: decoding needs power and the DECODER switch. */
+/**
+ * Must sit inside <RadioProvider>. Taps are only decoded when the radio is
+ * powered, the DECODER is ON and the dial is on a frequency you can transmit
+ * on (the ham band or the ghost frequency). Broadcasters are receive-only and
+ * dead air has nobody listening; the paddles still move there, but nothing is keyed.
+ */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
-  const { isPowerOn, isDecoderOn } = useRadio()
+  const { isPowerOn, isDecoderOn, frequency } = useRadio()
+  const { band, canTransmit } = getBandInfo(frequency)
   const { currentSymbol, decodedMessage, handleTap, clear, isActive } = useMorseDecoderEngine(
-    isPowerOn && isDecoderOn,
+    isPowerOn && isDecoderOn && canTransmit,
     options,
   )
+
+  const status: DecoderStatus = !isPowerOn || !isDecoderOn
+    ? 'off'
+    : band === 'broadcast'
+      ? 'rx-only'
+      : band === 'dead'
+        ? 'dead-band'
+        : 'ready'
 
   // the buffer is volatile memory: losing power wipes it
   useEffect(() => {
     if (!isPowerOn) clear()
   }, [isPowerOn, clear])
 
+  // retuning lands you in a different conversation: wipe the buffer instantly
+  const lastFrequency = useRef(frequency)
+  useEffect(() => {
+    if (lastFrequency.current === frequency) return
+    lastFrequency.current = frequency
+    clear()
+  }, [frequency, clear])
+
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive }),
-    [currentSymbol, decodedMessage, handleTap, clear, isActive],
+    () => ({ currentSymbol, decodedMessage, handleTap, clear, isActive, band, status }),
+    [currentSymbol, decodedMessage, handleTap, clear, isActive, band, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

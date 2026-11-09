@@ -22,8 +22,10 @@
   - An arched printed scale: black S1 to S9 (labelled 1, 3, 5, 7, 9) and a red `+20` / `+40` band.
   - A thin, physical red needle driven by a damped-spring model with bouncing end stops (`--needle-angle`):
     - **Power OFF:** rests at zero on the left stop.
-    - **Power ON:** flutters randomly around S3-S4 (band noise).
-    - **Tuned exactly to 104.40 MHz:** slams to the +40 dB stop, bounces, then stays pinned. Tuning away drops it back to static.
+    - **Broadcast stations (89.30 / 93.50 / 98.10):** pinned at S9 with a slight carrier waver.
+    - **Ham band (100.00-102.00):** flutters actively around S4-S7.
+    - **Ghost frequency (104.40):** slams to the +40 dB stop, bounces, then stays pinned.
+    - **Dead air (everywhere else):** drops to around S1, dipping toward 0.
     - Later (Phase 3): tracks the received audio level.
 - **Right (Decoder Switch):** A horizontal slide switch labelled `DECODER` above it, with `OFF` on the left and `ON` on the right.
   - A ribbed, tarnished-aluminium actuator **slides horizontally** in a deep slot on a raised steel plate between the two states (`--slide`: 0 = OFF, 1 = ON).
@@ -92,6 +94,9 @@
 - **Audio Engine:** `AudioContext` remains suspended until the MAIN POWER MCB is thrown ON.
 - **Static:** Generate continuous background white noise routed through a bandpass filter.
 - **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are only decoded when the radio is powered and the DECODER is ON.
+- **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-102.00 (inclusive) and the ghost frequency 104.40 allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
+- **Decoder gating:** taps are decoded only on the ham band or exactly on 104.40, with the power and DECODER ON. On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
+- **Retuning:** any frequency change instantly clears the decoded message and the half-keyed letter.
 - **Timing:** Gaps are measured from the last tap: 600ms of silence ends a letter, 1400ms ends a word (one space, never leading or doubled).
 - **Dictionary:** `src/utils/morseDictionary.ts` is the single source of truth (ITU A-Z, 0-9, plus the CQ / QRT Q-codes). The decoder and the reference card both read it, and the `morse-validator` power checks it on every save.
 - **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD, followed by the live dits/dahs of the letter being keyed and a blinking cursor. Unknown codes show as `?`. Once the text is wider than the glass, the oldest characters are hidden on the left so the newest are always visible. When it is OFF, the LCD text area remains blank and the half-keyed letter is dropped. `CLR` clears the buffer; power OFF wipes it.

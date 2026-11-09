@@ -237,6 +237,19 @@
   letter-spacing: 0.02em;
 }
 
+/* blocked-frequency status: faint, slowly blinking */
+.lcd__warning {
+  flex: 1 0 auto;
+  opacity: 0.5;
+  letter-spacing: 0.2em;
+  animation: lcd-warning 1.6s steps(1, end) infinite;
+}
+
+@keyframes lcd-warning {
+  0%, 62% { opacity: 0.5; }
+  63%, 100% { opacity: 0.12; }
+}
+
 /* blinking block cursor */
 .lcd__cursor {
   display: inline-block;
@@ -254,7 +267,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lcd__cursor {
+  .lcd__cursor,
+  .lcd__warning {
     animation: none;
   }
 }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import './TuningDial.css'
 import MetalPlate from './MetalPlate'
-import { FREQ_MAX, FREQ_MIN, GHOST_FREQUENCY, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
+import { FREQ_MAX, FREQ_MIN, formatFrequency, isTunedTo, useRadio } from '../context/RadioContext'
+import { DETENT_FREQUENCIES } from '../constants'
 
 /* --- Silk-screen scale geometry (SVG user units, matches .vfo 132 x 116) --- */
 /*
@@ -123,7 +124,9 @@ const DEAD_ZONE = 0.18 // fraction of the knob radius
    snaps the frequency onto it exactly. The pull has hysteresis: once captured,
    the drag must travel SNAP_RANGE + SNAP_STICKINESS away before it pops out,
    so leaving the station takes a slightly harder pull than entering it. */
-const TARGET_FREQUENCIES: readonly number[] = [GHOST_FREQUENCY]
+// every station has a detent, broadcasters and the ghost alike, so the ghost's
+// detent is no giveaway: it feels like one more station on the dial
+const TARGET_FREQUENCIES: readonly number[] = DETENT_FREQUENCIES
 const SNAP_RANGE = 0.2 // MHz: capture zone either side of a target
 const SNAP_STICKINESS = 0.12 // MHz: extra travel needed to break free
 
