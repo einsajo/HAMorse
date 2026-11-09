@@ -5,6 +5,7 @@ import TuningDial from './components/TuningDial'
 import TelegraphDesk from './components/TelegraphDesk'
 import ReferenceCard from './components/ReferenceCard'
 import TopPanel from './components/TopPanel'
+import RadioAudio from './components/RadioAudio'
 import { RadioProvider } from './context/RadioContext'
 import { MorseDecoderProvider } from './hooks/useMorseDecoder'
 
@@ -20,6 +21,8 @@ export default function App() {
     // in here *behind* the radio; the chassis itself never moves.
     <RadioProvider>
       <MorseDecoderProvider>
+        {/* the synthesised static follows power + band; renders nothing */}
+        <RadioAudio />
         <div className="stage">
           <ReferenceCard open={isRefCardOpen} onClose={closeRefCard} />
 
