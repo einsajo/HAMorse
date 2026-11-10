@@ -7,6 +7,8 @@ import { playPaperScrape } from '../utils/audioEngine'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import { useRadio } from '../context/RadioContext'
 import { formatMhz, getGhostFrequency } from '../constants'
+import { learnedChars } from '../utils/progress'
+import type { Progress } from '../utils/progress'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -236,8 +238,9 @@ function Grease({ idPrefix }: { idPrefix: string }) {
 }
 
 /** The printed card. Rendered twice: the card itself, and the copy the loupe magnifies. */
-function CardSheet({ idPrefix, rot, name, ghostMhz }: { idPrefix: string; rot: CardRot; name: string | null; ghostMhz: number }) {
+function CardSheet({ idPrefix, rot, name, ghostMhz, progress }: { idPrefix: string; rot: CardRot; name: string | null; ghostMhz: number; progress: Progress }) {
   const id = (k: string) => `${idPrefix}-${k}`
+  const learned = new Set(learnedChars(progress.learned))
   return (
     <div className="refcard__sheet" data-rot={rot}>
       {/* the stains are under the type: ink sits on top of the damage */}
@@ -284,7 +287,7 @@ function CardSheet({ idPrefix, rot, name, ghostMhz }: { idPrefix: string; rot: C
         {MORSE.map(([ch, code]) => {
           const ring = (CIRCLED as readonly string[]).indexOf(ch)
           return (
-            <div key={ch} className="refcard__entry">
+            <div key={ch} className="refcard__entry" data-learned={learned.has(ch) || undefined}>
               <dt
                 className={ring >= 0 ? 'refcard__circled' : undefined}
                 style={ring >= 0 ? ({ '--i': ring } as CSSProperties) : undefined}
@@ -307,6 +310,12 @@ function CardSheet({ idPrefix, rot, name, ghostMhz }: { idPrefix: string; rot: C
       </dl>
 
       <div className="refcard__note">
+        {/* your own pencil: the best speed you've sent at */}
+        {progress.bestWpm !== null && (
+          <p className="refcard__line refcard__line--best" aria-label={`Your best sending speed: ${progress.bestWpm} words per minute`}>
+            BEST: {progress.bestWpm} WPM
+          </p>
+        )}
         <p className="refcard__line refcard__line--nevlin">
           {'Dial drifts below 90MHz in the cold. '}
           <span className="refcard__sig">- Nevlin</span>
@@ -354,7 +363,7 @@ const RIM_TEXT_PATH = 'M 50 50 m -46.4 0 a 46.4 46.4 0 1 1 92.8 0 a 46.4 46.4 0 
  * hold it (touch) or hover it (mouse) to read it through the loupe.
  */
 export default function ReferenceCard({ open, ejected = false, onClose }: ReferenceCardProps) {
-  const { dread, victimName } = useMorseDecoder()
+  const { dread, victimName, progress } = useMorseDecoder()
   const { isHaunted, sessionId } = useRadio()
   // the ghost's frequency this session (it moves on every hard reset)
   const ghostMhz = useMemo(() => getGhostFrequency(), [sessionId])
@@ -595,14 +604,14 @@ export default function ReferenceCard({ open, ejected = false, onClose }: Refere
         onPointerCancel={endDrag}
         onPointerLeave={onPointerLeave}
       >
-        <CardSheet idPrefix="refcard" rot={rot} name={victimName} ghostMhz={ghostMhz} />
+        <CardSheet idPrefix="refcard" rot={rot} name={victimName} ghostMhz={ghostMhz} progress={progress} />
       </div>
 
       {/* The reading loupe: above the radio, never takes the pointer */}
       <div ref={loupeRef} className="loupe" data-show="false" aria-hidden="true">
         <div className="loupe__view">
           <div ref={paperRef} className="loupe__paper">
-            <CardSheet idPrefix="loupe-card" rot={rot} name={victimName} ghostMhz={ghostMhz} />
+            <CardSheet idPrefix="loupe-card" rot={rot} name={victimName} ghostMhz={ghostMhz} progress={progress} />
           </div>
         </div>
         <div className="loupe__glass" />

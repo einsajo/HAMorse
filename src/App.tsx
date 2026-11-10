@@ -112,7 +112,14 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
       </div>
       {/* build-up flicker / blackout / flash (with the face): over everything, never takes the pointer */}
       <div className="haunt-veil" data-phase={phase} aria-hidden="true">
-        {phase === 'flash' && <GhostFace idPrefix="veil-face" className="haunt-veil__face" />}
+        {phase === 'flash' && (
+          // a double scare: it hits, pulls back for half a second, then it is ON you
+          <div className="haunt-veil__shake">
+            <GhostFace idPrefix="veil-face" className="haunt-veil__face" bleed />
+            {/* the picture tears, like a signal breaking up (a displaced slice of the same face) */}
+            <GhostFace idPrefix="veil-tear" className="haunt-veil__face haunt-veil__tear" />
+          </div>
+        )}
       </div>
       {ghosted && <GhostedNote report={ghosted} onPowerOn={powerOnAgain} onClose={closeGhosted} />}
     </>

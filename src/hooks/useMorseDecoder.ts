@@ -11,6 +11,8 @@ import { timingForWpm } from '../utils/stations'
 import { GHOST_QUIET_MAX_EXCHANGES, createAgentSession, createCast, ghostMaxExchanges, nameFrom, operatorWords } from '../utils/agentEngine'
 import type { AgentCast, AgentId, AgentSession, AgentVoice, HauntEvent } from '../utils/agentEngine'
 import { useGhostGlitches } from './useGhostGlitches'
+import { loadProgress, recordWpm } from '../utils/progress'
+import type { Progress } from '../utils/progress'
 import type { Glitch } from './useGhostGlitches'
 
 /* --- Timing ---------------------------------------------------------------
@@ -173,6 +175,8 @@ export interface MorseDecoderState {
   victimName: string | null
   /** This session's encounter so far: when the ghost first spoke to you, and what you said to it */
   ghostEncounter: () => GhostEncounter
+  /** What the Elmer has taught you and your best sending speed (pencilled on the reference card) */
+  progress: Progress
   /** A glitch in progress (flicker, brown-out, tear, whisper), or null */
   glitch: Glitch | null
   /**
@@ -244,7 +248,7 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'ghostEncounter' | 'glitch'> & {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'ghostEncounter' | 'progress' | 'glitch'> & {
   flush: () => boolean
   receivingNow: () => boolean
   pendingNow: () => boolean
@@ -848,9 +852,20 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     [armAgentOver, endAgentOver, stations, transmit],
   )
 
+  // your progress: re-read after every word you send and every reply (the Elmer saves as he teaches)
+  const [progress, setProgress] = useState<Progress>(() => loadProgress(browserStorage()))
+  const refreshProgress = useCallback(() => {
+    setProgress((prev) => {
+      const next = loadProgress(browserStorage())
+      return next.learned === prev.learned && next.bestWpm === prev.bestWpm ? prev : next
+    })
+  }, [])
+
   const onWordEnd = useCallback(
     (_message: string, sent: SentWord) => {
       touch()
+      recordWpm(browserStorage(), sent.wpm)
+      refreshProgress()
       if (decoderOnRef.current) {
         draftWords.current.push(sent) // it waits on the screen for TX SEND
         return
@@ -858,11 +873,14 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       // keying by ear: the word goes out now (with anything still waiting from before)
       deliver(draftWords.current.splice(0).concat(sent))
     },
-    [deliver, touch],
+    [deliver, refreshProgress, touch],
   )
 
   // when the ghost has finished sending (its last letter is "U"), the haunt begins
-  const onReplyEnd = useCallback(() => touch(), [touch])
+  const onReplyEnd = useCallback(() => {
+    touch()
+    refreshProgress() // the Elmer may have just taught you a new character
+  }, [refreshProgress, touch])
 
   const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
   const { currentSymbol, decodedMessage, draftFrom, isActive, isReceiving, simulateReply, flush, receivingNow, pendingNow } = engine
@@ -1163,8 +1181,8 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   }, [])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, glitch, simulateReply, streamReply, band, station, status }),
-    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, glitch, simulateReply, streamReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, progress, glitch, simulateReply, streamReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, progress, glitch, simulateReply, streamReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

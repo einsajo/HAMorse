@@ -53,7 +53,7 @@ would happen if something else on the band was listening.
   - The operators teach you: an Elmer who mentors beginners, a practice station, a slow
     code bulletin, a ragchewer, a high-speed copy station.
   - Key on a twin-lever Morse key (one press, one dit or dah), read along with the decoder, or switch it off and copy by ear.
-  - An operator's reference card slides out from behind the set, with a reading loupe.
+  - An operator's reference card slides out from behind the set, with a reading loupe; your progress is pencilled on it (a tick by every letter the Elmer has taught you, and your best speed).
 - **Then the costume slips:**
   - One frequency isn't on any list, and it moves every time the radio resets. The last operator pencilled it in the corner of the card.
   - Answer it, and the radio won't let you go. The dial slips back to it, and the breaker
@@ -110,7 +110,7 @@ would happen if something else on the band was listening.
 - Teaching an LLM to talk in 60-character upper-case CW shorthand.
 
 ### What we learned / what's next
-- A practice mode that tracks your speed (WPM) over time.
+- Speed drills that build on your best WPM.
 - More ghost archetypes.
 
 ---

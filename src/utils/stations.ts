@@ -272,9 +272,9 @@ export const ELMER_FOLLOW_UP_MS = 1500
 export const ELMER_ASK_IDLE_MS = 15000
 export const ELMER_IDLE_MS = 25000
 const ELMER_MAX_NUDGES = 2
-const ELMER_STORAGE_KEY = 'hamorse.elmer.learned'
+export const ELMER_STORAGE_KEY = 'hamorse.elmer.learned'
 /** the key before the project was named HAMorse: still read, so nobody loses their place */
-const ELMER_LEGACY_KEY = 'telegraph-ghost.elmer.learned'
+export const ELMER_LEGACY_KEY = 'telegraph-ghost.elmer.learned'
 
 export const ELMER_LINES = Object.freeze({
   intro: 'GE. DE ELMER. I AM AN OLD CW OP. ',
