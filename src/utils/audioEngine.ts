@@ -976,12 +976,14 @@ const BANG_RING = [
 const BANG_LEVEL = 1.6
 /** The feedback howl, Hz */
 export const SCREECH_HZ = 2000
-const SCREECH_SECONDS = 3.2
+/** the screech dies away by the moment the breaker trips (4 s after the flash) */
+const SCREECH_SECONDS = 4.0
 
 /**
  * The flash: a huge metallic BANG (a heavy impact through the cabinet, a
  * crack of noise, a long inharmonic ring of steel) with a 2 kHz feedback
- * screech that howls in, beats against itself, drifts sharp and dies away.
+ * screech that howls in, beats against itself, drifts sharp and dies away
+ * over 4 s, just as the breaker trips.
  * It is meant to be startling, not harmful: the master limiter caps it.
  */
 export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
@@ -1008,7 +1010,7 @@ export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.c
   scr.gain.linearRampToValueAtTime(0.32, when + 0.035)
   scr.gain.linearRampToValueAtTime(0.24, when + 0.4)
   scr.gain.linearRampToValueAtTime(0.36, when + 1.4) // the howl builds
-  scr.gain.setTargetAtTime(0, when + 1.8, 0.45)
+  scr.gain.setTargetAtTime(0, when + 2.4, 0.38) // ~2% by 4 s, as the breaker trips
   const drive = s.node(ctx.createWaveShaper())
   drive.curve = driveCurve ?? (driveCurve = makeDriveCurve())
   scr.connect(drive).connect(out)
@@ -1032,6 +1034,150 @@ export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.c
   vib.start(when)
   vib.stop(when + SCREECH_SECONDS)
   s.done()
+}
+
+/* --- Live broadcasts (RX only): real internet radio through a vintage AM chain --- */
+/**
+ * The three broadcasters play real internet radio (src/data/liveStreams.ts,
+ * provisioned by the live-streams Kiro power). The stream comes in through an
+ * <audio> element (crossOrigin=anonymous: the stream MUST send CORS headers,
+ * or Web Audio would only get silence) and createMediaElementSource(), then
+ * through the same voicing as the static, so it sounds like an old AM set:
+ *
+ *   stream ─► highpass 280 Hz ─► bandpass (STATIC_FILTER_HZ / Q) ─► lowpass 3.4 + 3.6 kHz
+ *          ─► a little tube saturation ─► slow QSB fading ─► level ─► master
+ *
+ * (the band static keeps crackling on top: RadioAudio leaves it at the
+ * broadcast level). Built offline-testable: `createBroadcastChain` takes any
+ * BaseAudioContext and an input node.
+ */
+export interface BroadcastChain {
+  input: AudioNode
+  gain: GainNode
+}
+
+export function createBroadcastChain(ctx: BaseAudioContext, destination: AudioNode): BroadcastChain {
+  const hp = ctx.createBiquadFilter()
+  hp.type = 'highpass'
+  hp.frequency.value = 280
+  hp.Q.value = 0.7
+  const band = ctx.createBiquadFilter()
+  band.type = 'bandpass'
+  band.frequency.value = STATIC_FILTER_HZ
+  band.Q.value = STATIC_FILTER_Q * 0.6 // the static's voicing, opened a touch for speech and music
+  // two low-pass stages: an old set's audio closes off steeply above ~3 kHz
+  const lp = ctx.createBiquadFilter()
+  lp.type = 'lowpass'
+  lp.frequency.value = 3400
+  lp.Q.value = 0.8
+  const lp2 = ctx.createBiquadFilter()
+  lp2.type = 'lowpass'
+  lp2.frequency.value = 3600
+  lp2.Q.value = 0.6
+  const pre = ctx.createGain()
+  pre.gain.value = 2.2 // drive the output stage a little
+  const tube = ctx.createWaveShaper()
+  tube.curve = driveCurve ?? (driveCurve = makeDriveCurve())
+  const qsb = ctx.createGain()
+  qsb.gain.value = 0.85
+  const qsbLfo = ctx.createOscillator()
+  qsbLfo.frequency.value = 0.13
+  const qsbDepth = ctx.createGain()
+  qsbDepth.gain.value = 0.12
+  qsbLfo.connect(qsbDepth).connect(qsb.gain)
+  qsbLfo.start()
+  const gain = ctx.createGain()
+  gain.gain.value = 0
+  hp.connect(band).connect(lp).connect(lp2).connect(pre).connect(tube).connect(qsb).connect(gain).connect(destination)
+  return { input: hp, gain }
+}
+
+export type BroadcastStatus = 'idle' | 'connecting' | 'live' | 'failed'
+
+interface Receiver {
+  el: HTMLAudioElement
+  chain: BroadcastChain
+  url: string | null
+  status: BroadcastStatus
+  release: ReturnType<typeof setTimeout> | null
+}
+
+let receiver: Receiver | null = null
+/** what RadioAudio last asked for (remembered until audio is unlocked) */
+let wantedStream: string | null = null
+const BROADCAST_GAIN = 0.55
+/** keep the stream this long after tuning away (a quick retune back is instant), then let it go */
+const BROADCAST_RELEASE_MS = 4000
+
+function getReceiver(e: Engine): Receiver | null {
+  if (receiver) return receiver
+  if (typeof Audio === 'undefined') return null
+  const el = new Audio()
+  el.crossOrigin = 'anonymous'
+  el.preload = 'none'
+  const chain = createBroadcastChain(e.ctx, e.master)
+  e.ctx.createMediaElementSource(el).connect(chain.input)
+  const r: Receiver = { el, chain, url: null, status: 'idle', release: null }
+  el.addEventListener('playing', () => {
+    if (r.url) r.status = 'live'
+  })
+  el.addEventListener('error', () => {
+    if (r.url) r.status = 'failed' // offline, gone, or no CORS: the carrier and the static stay
+  })
+  receiver = r
+  return r
+}
+
+/**
+ * Tune the broadcast receiver: a stream URL (on a broadcaster, powered) or
+ * null (anywhere else). Fades in / out; the stream is dropped a few seconds
+ * after you tune away, so a phone isn't downloading radio nobody hears.
+ */
+export function tuneBroadcast(url: string | null): void {
+  wantedStream = url
+  whenRunning((e) => {
+    const r = getReceiver(e)
+    if (!r) return
+    const g = r.chain.gain.gain
+    const t = e.ctx.currentTime
+    g.cancelScheduledValues(t)
+    g.setValueAtTime(g.value, t)
+    if (url === null) {
+      g.setTargetAtTime(0, t, 0.08)
+      if (r.release === null && r.url) {
+        r.release = setTimeout(() => {
+          r.release = null
+          if (wantedStream !== null) return
+          r.el.pause()
+          r.el.removeAttribute('src')
+          r.el.load()
+          r.url = null
+          r.status = 'idle'
+        }, BROADCAST_RELEASE_MS)
+      }
+      return
+    }
+    if (r.release !== null) {
+      clearTimeout(r.release)
+      r.release = null
+    }
+    if (r.url !== url) {
+      r.url = url
+      r.status = 'connecting'
+      r.el.src = url // a fresh connection lands on the live edge
+    }
+    if (r.status !== 'failed') {
+      void r.el.play().catch(() => {
+        if (r.url === url) r.status = 'failed'
+      })
+    }
+    g.setTargetAtTime(BROADCAST_GAIN, t + 0.05, 0.25) // tuning in: it swims up out of the static
+  })
+}
+
+/** The broadcast receiver, for tests and the UI */
+export function getBroadcastState(): { url: string | null; status: BroadcastStatus } {
+  return { url: receiver?.url ?? null, status: receiver?.status ?? 'idle' }
 }
 
 /* --- The live engine ------------------------------------------------------------ */

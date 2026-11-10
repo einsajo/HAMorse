@@ -50,7 +50,7 @@ main.tsx
 
 - **Exports:** `RadioProvider`, `useRadio()`, `clampFrequency()`,
   `formatFrequency()` (always 2 decimals), `isTunedTo()` (equal at 0.01 MHz),
-  `FREQ_MIN` / `FREQ_MAX` / `FREQ_DEFAULT` / `GHOST_FREQUENCY` (random per session, see 2.2c).
+  `FREQ_MIN` / `FREQ_MAX` / `FREQ_DEFAULT` / `getGhostFrequency()` (random per session, see 2.2c). Also `isTrapped`, `sessionId` and `hardReset()` (2.2c / 2.2d).
 - **Single source of truth:** components never keep a parallel copy of
   frequency. The VFO's angle is *derived* from it, so knob and LCD cannot drift.
 - **Local UI state** that nothing else needs stays local: REF card open state
@@ -179,13 +179,13 @@ interface Transmission { text: string; timing: ReplyTiming }
 - **S-meter:** `TopPanel` reads `isReceiving`; on the ham band the needle
   switches to `keying` (S8 with fast kicks) for the transmission.
 
-### 2.2c The agentic ghost (`src/utils/ghostAgent.ts`, provider, `RadioContext`)
+### 2.2c The agentic ghost (`src/utils/agentEngine.ts`, provider, `RadioContext`)
 
 ```
 your over ──► askGhost(heard) ──► GhostSession.turn() ──► GhostBrain.respond() ──► { text } … { climax }
-                                     (keyable, ≤64 chars,        live agent (VITE_GHOST_AGENT_URL, NDJSON/SSE)
+                                     (keyable, ≤64 chars,        live agent (VITE_AGENT_URL, NDJSON/SSE)
                                       climax by reply 4)         | registered / window.__ghostBrain
-                                                                 | scripted persona (always the fallback)
+                                                                 | the persona's local brain (offline)
       tokens ──► streamReply(…, ghostVoice(exchange)) ──► keyed live ──► resolved:
                                                                          reply 1 → setIsTrapped(true)
                                                                          climax  → setIsHaunted(true)
@@ -193,7 +193,7 @@ your over ──► askGhost(heard) ──► GhostSession.turn() ──► Ghos
 
 - **Wandering frequency:** `GHOST_SPOTS` = every 0.05 MHz step in 88-108
   passing `isGhostSpot` (≥0.50 MHz from `OCCUPIED_FREQUENCIES`, ≥1.00 MHz from
-  `DIAL_START_MHZ`); `GHOST_FREQUENCY = pickGhostFrequency()` at module load.
+  `DIAL_START_MHZ`); `pickGhostFrequency()` at module load and on every `reseedGhostFrequency()`; `getDetents()` rebuilds the detents around the current ghost.
   `ghostProximity(mhz)` = 1 − d/0.80 inside 0.80 MHz, 0 outside and exactly on it.
 - **Proximity audio (`RadioAudio`):** static × (1 − closeness), `setGhostProximity(closeness)`
   → drone gain = closeness² × 0.34 (τ 120ms). The drone and the trap rumble are
@@ -218,14 +218,45 @@ your over ──► askGhost(heard) ──► GhostSession.turn() ──► Ghos
   `setFrequency` refused, power lock, the whole-over rule) and with an injected
   brain for the climax (phase timings 800 / 700ms, silence, eject, cracks, drips).
 
+### 2.2d The multi-agent system, latency and the reset
+
+- **Cast:** `createCast()` → `{ guide, stranger, ghost }`, each an `AgentPersona`
+  (`systemPrompt`, `identity`, `voice(exchange)`, `cq()`, `localBrain()`,
+  `maxExchanges`). The provider keeps `{ session, cast, talks, called }` and
+  rebuilds it whenever `RadioContext.sessionId` changes (the reset).
+- **Provider:** `agent` = 'ghost' on the ghost's band, else `agentStationAt(f)`.
+  Words on an agent's frequency collect in `agentOver` → `askAgent(id, heard)`
+  → `createAgentSession(persona)` (lazily, so the brain is chosen then) →
+  tokens piped to `streamReply`. `isAwaitingAgent` is true from the request to
+  the first text token. The trap and the climax are ghost-only and skipped on a `lost` turn.
+  First tune-in on an agent's frequency per session: its local `cq()`.
+- **Remote brain:** a 6s timer re-armed on every chunk; a timeout aborts the
+  fetch; any failure (no first word, a stall, HTTP error, empty reply,
+  network/CORS error) → `{text: 'QSB... QSB... LOST SIG '}` + `{lost}`
+  (`DEAD BAND` and no request when `navigator.onLine` is false). A radio-side
+  abort (retune) is silent.
+- **S-meter:** mode `fading` (S2 ± 5°, slow 180-520ms wanders) while `isAwaitingAgent`.
+- **Live broadcasts:** `createBroadcastChain(ctx, dest)` (HP 280 → BP 1 kHz
+  Q 0.54 → LP 3.4 kHz → ×2.2 → tanh drive curve → QSB gain ±0.12 at 0.13 Hz →
+  level). One `Receiver` (`<audio crossOrigin=anonymous>` +
+  `createMediaElementSource`), built on first use after unlock; `tuneBroadcast(url | null)`
+  from `RadioAudio` (power ON on 89.30 / 93.50 / 98.10), fading 0.25s; it releases
+  the stream 4s after tuning away; status `idle | connecting | live | failed`.
+- **Finale:** `useHauntSequence(isHaunted, onEject, onTrip)`: + `trip` at
+  blackout + 4000ms after the flash → `playBreakerThunk(false)`, vibrate, `onTrip`
+  → `App` puts the card away and `hardReset()` (power off, haunted / trapped off,
+  frequency 88.50, `reseedGhostFrequency()`, `sessionId + 1`). Serial: two spans
+  in the serial plate, toggled by `.stage[data-haunt='flash' | 'corrupt']`.
+
 ### 2.3 The dial (`src/constants.ts`)
 
 | Band | Frequencies | S-meter | Decoder | LCD status |
 |---|---|---|---|---|
 | `broadcast` | 89.30 news, 93.50 sports, 98.10 music (exact) | pinned S9 | blocked | `RX ONLY` |
-| `reserved` | 100.65 / 101.35 / 102.05 / 102.75 (exact) | steady S5 carrier | blocked | `RX ONLY` |
+| `reserved` | 100.65 / 101.35 / 102.05 (exact) | steady S5 carrier | blocked | `RX ONLY` |
+| agents (`ham`) | 90.20 Guide, 102.75 Stranger (exact, `AGENT_STATIONS`) | as the ham band | open | cursor |
 | `ham` | 100.00 – 103.50 inclusive (operators 0.70 apart: Elmer 100.30, practice 101.00, bulletin 101.70, Bob 102.40, Sam 103.10) | flutters S4–S7; S8 while an operator sends | open | cursor |
-| `ghost` | `GHOST_FREQUENCY`, random per session (exact) | slams to +40 dB | open | cursor |
+| `ghost` | `getGhostFrequency()`, random per session (exact) | slams to +40 dB | open | cursor |
 | `dead` | everything else | ~S1, dipping to 0 | blocked | `DEAD BAND` |
 
 `getBandInfo(mhz)` classifies a frequency (exact stations first, then the

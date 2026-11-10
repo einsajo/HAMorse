@@ -114,7 +114,7 @@
 - **Sidetone:** A 700 Hz sine with a 5ms attack and 5ms release (no pops): DIT 60ms, DAH 180ms. It sounds whenever you key on the ham band or the ghost's frequency with the power ON, including with the DECODER OFF, so practised users can train by ear. Other operators come through the same sidetone at their own beat note (620-820 Hz), as on a real receiver; your own keying is always 700 Hz.
 - **Mechanical Foley (synthesised, no files), physically modelled so it never sounds like a synth:** a strike (a contact pulse with a little noise grain) rings a bank of resonators tuned to the parts (dome, case, panel); friction is a stream of stick-slip ticks whose density and loudness follow the part's speed; every play is jittered (pitch, level, timing) so no two presses match; all of it plays into a small synthesised room. The MCB: handle rub, latch crack ringing the phenolic case, the stop knocking through the DIN rail, the contacts closing (ON only), a faint spring ring. The DECODER slide: stick-slip ticks along the rails into a detent click. REF / CLR / TX SEND: a click going down (dome collapse, contact bounce, plunger knock) and a lighter, higher one coming back up; the VFO a ball tipping over a crest and knocking into its pocket every 0.05 MHz (muffled, about half its energy below 1 kHz so phones still play it; firmer, with a settle, at a station). The reference card is driven millisecond by millisecond by its actual speed, computed from the same keyframes as the CSS animation: rough pink-noise paper friction whose loudness and brightness follow the speed (dull when slow, airy when fast), the slot and cabinet resonating behind it (~340 / 780 / 1450 Hz), stick-slip judder whenever it crawls (easing into the catch and during the strain wobble while stuck), a low buckle "thup" and edge flick as it breaks free, then a soft slap as it lands (or a dull tap as it tucks home); shaded a little, since it is behind the chassis. Until the MCB has been operated no audio exists at all (autoplay policy).
 - **Morse Paddles:** Pressing DIT or DAH keys a dit (`.`) or dah (`-`) the instant the lever goes down (and, in Phase 3, a 700Hz `OscillatorNode` sidetone). The levers always move; taps are keyed and decoded whenever the radio is powered and on a transmit frequency. The DECODER only controls the display.
-- **Reserved receive-only slots (`RESERVED_RX_FREQUENCIES`):** 100.65, 101.35, 102.05, 102.75, one midway in each gap between operators, kept for content to be mapped later. For now each is a silent carrier: band `reserved`, the S-meter steady at S5, static at 35%, the LCD `RX ONLY`, keying does nothing, TX SEND → `INHIBIT`. Each has a narrow detent; the rest of each gap stays open band.
+- **Reserved receive-only slots (`RESERVED_RX_FREQUENCIES`):** 100.65, 101.35, 102.05 (102.75 is now the Stranger, an agent station: 3d), midway in the gaps between operators, kept for content to be mapped later. For now each is a silent carrier: band `reserved`, the S-meter steady at S5, static at 35%, the LCD `RX ONLY`, keying does nothing, TX SEND → `INHIBIT`. Each has a narrow detent; the rest of each gap stays open band.
 - **The dial (`src/constants.ts`):** broadcasters at 89.30 (news), 93.50 (sports), 98.10 (music) are receive-only; the ham band 100.00-103.50 (inclusive) and the (wandering) ghost frequency allow transmitting; everything else is dead air. Every station (broadcasters and the ghost) has a magnetic tuning detent, so the ghost's detent gives nothing away.
 - **Decoder gating:** taps are keyed and decoded only on the ham band or exactly on the ghost's frequency, with the power ON (DECODER ON or OFF). On a broadcaster the LCD shows a faint blinking `RX ONLY`; on dead air `DEAD BAND`. The paddles still move.
 - **Retuning:** any frequency change instantly clears the decoded message, the half-keyed letter and any unsent draft.
@@ -147,14 +147,14 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
 
 
 ## 3c. The Agentic Ghost (the wandering frequency and its brain)
-- **The wandering ghost:** `GHOST_FREQUENCY` is chosen at random every time the app loads (`pickGhostFrequency`), on the dial's 0.05 MHz grid, within 88.00-108.00. It stays at least **0.50 MHz** from every broadcaster, operator and reserved slot (which rules out the whole ham band) and **1.00 MHz** from the 88.50 power-on spot. It keeps a broadcaster's wide detent (0.20 / 0.32 MHz).
+- **The wandering ghost:** the ghost's frequency (`getGhostFrequency()`) is chosen at random every time the app loads (`pickGhostFrequency`) and again after every hard reset (`reseedGhostFrequency`), on the dial's 0.05 MHz grid, within 88.00-108.00. It stays at least **0.50 MHz** from every broadcaster, operator, reserved slot and agent station (which rules out the whole ham band) and **1.00 MHz** from the 88.50 power-on spot. It keeps a broadcaster's wide detent (0.20 / 0.32 MHz).
 - **Finding it by ear (proximity audio):** within **0.80 MHz**, the static fades out in proportion to closeness and a low, detuned drone fades in (by the square of the closeness, so it creeps in).
   - The drone: saws at 55 / 55.7 Hz beating, a flat fifth (82.1 Hz), a sub (36.7 Hz), a drifting tritone (77.8 Hz), and a thin detuned hum at 220 / 221.3 Hz so phone speakers can play it, all through a slowly breathing resonant low-pass.
   - **Exactly on the frequency the drone stops dead**, the static drops to its eerie 10%, and the S-meter pins at +40 dB.
-- **The brain (`src/utils/ghostAgent.ts`) is pluggable:**
-  - **A live agent** at `VITE_GHOST_AGENT_URL`: an LLM behind a serverless proxy or an MCP / agent bridge, so the browser never holds a key. The endpoint receives `{ system: GHOST_PERSONA_PROMPT, exchange, heard, history, maxExchanges }` and streams NDJSON or SSE lines: `{"text":"..."}` tokens, and `{"climax":true}` when the ghost strikes.
+- **The brain (`src/utils/agentEngine.ts`, see 3d) is pluggable:**
+  - **A live agent** at `VITE_AGENT_URL` (formerly `VITE_GHOST_AGENT_URL`): an LLM behind a serverless proxy or an MCP / agent bridge, so the browser never holds a key. The endpoint receives `{ system: GHOST_PERSONA_PROMPT, exchange, heard, history, maxExchanges }` and streams NDJSON or SSE lines: `{"text":"..."}` tokens, and `{"climax":true}` when the ghost strikes.
   - **One plugged in at runtime:** `registerGhostBrain(brain)` / `window.__ghostBrain`.
-  - **Otherwise, the scripted ghost:** the same persona as a state machine, streaming its reply token by token after a "thinking" pause, like an LLM. It is also the fallback whenever a live agent fails before its first word, so the ghost never goes silent.
+  - **Otherwise, the local ghost:** the same persona as a state machine (with its archetype's lines), streaming its reply token by token after a "thinking" pause, like an LLM. A live agent that fails fades out instead (3e).
 - **Persona:**
   - Reply 1: a perfectly normal ham (`GE OM. UR 599 HR. FB SIG. NAME? K`).
   - Reply 2: polite but wrong (it's late, are you alone, your name repeated).
@@ -170,6 +170,40 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
   - **Trap rumble:** every degree of forced travel builds a low grinding rumble from the cabinet (brown noise, a 230 Hz groan band, a 41 Hz growl chopped at 7 Hz). It grows the longer you fight and dies away when you stop. The arrow keys don't help either.
   - **Power lock:** switching the breaker OFF works for a moment: the handle snaps down and the screen dies. 1s later the breaker slams itself back ON (a hard snap, a jolt of the whole block, a haptic buzz) and the screen powers back up. Presses during that time are ignored.
 
+## 3d. The Multi-Agent Ecosystem (`src/utils/agentEngine.ts`)
+- **One engine, every LLM persona.** Each one is rolled fresh on every boot (`createCast`), and again after every hard reset:
+
+| MHz | Persona | Behaviour |
+| --- | --- | --- |
+| 90.20 | **The Guide** (a fixed persona, random name) | A friendly ham. Its system prompt: if the user struggles or asks for practice, naturally weave the exact tutor frequencies into the chat, quoted from the constants (Elmer **100.30**, Sam's speed drill **103.10**). Calls CQ when you tune in. |
+| 102.75 | **The Stranger** (random ragchew; the old reserved slot) | A random ham: on initialisation it picks an age, gender, location, quirk, the weather and its rig, all fictional. It stays consistent with them and chats about the weather and its rig, with its own tone, speed and fist. Calls CQ when you tune in. |
+| wandering | **The Ghost** | As in 3c, but it secretly takes on the persona of one of five classic horror archetypes, chosen at boot: Jack Torrance, HAL 9000, Pazuzu, Freddy Krueger, Samara. These are subtle hints, never the name, and never a verbatim quote from a film or book. Each archetype has its own local lines. |
+
+- **Shared rules:** every persona hears your whole over (K / KN / AR / SK / BK, TX SEND, or 2.5s of silence). Only the ghost can strike (a model's `climax` is ignored for the others). The output is keyable and at most 64 characters.
+- **One route:** `VITE_AGENT_URL` (old name `VITE_GHOST_AGENT_URL`) serves every persona. Each turn sends `{ agent, system, identity, exchange, heard, history, maxExchanges }` and receives NDJSON / SSE. `server/agent-route.mjs` is the reference implementation:
+  - it calls an OpenAI-compatible model with streaming, keeping the key server-side;
+  - it re-streams the reply as NDJSON;
+  - it turns `[[CLIMAX]]` into `{"climax":true}`;
+  - it serves only the three agent ids and caps the prompt, history, input and output.
+- **Runtime brains:** `registerAgentBrain(id, brain)`, `window.__agentBrains[id]`, or `window.__ghostBrain` (legacy).
+- **Without a route, every persona runs locally**, streaming token by token. No network at all.
+
+## 3e. Network Latency as Atmospheric Interference
+- **Waiting:** while an agent has your over and hasn't said its first word, the S-meter sinks into a weak, slowly fading flutter around S1-S3 (`fading`). This applies even on the ghost's frequency. When the first word arrives the signal comes back up.
+- **Timeout / failure:** if the route says nothing for **6s** (first word or a stall), returns an error, says nothing, or the request fails (CORS, DNS), the app does not break. The station keys **`QSB... QSB... LOST SIG`**, or **`DEAD BAND`** when the browser is offline (no request is made). What got through before a stall is kept. A lost turn doesn't count as an exchange: no trap, no climax.
+- **Local isolation:** the tutors (Elmer, the practice station, the bulletin, Bob, Sam: `src/utils/stations.ts`) are strictly local. There is no network code in the file, and it never imports the agent engine. They work instantly with the network gone (unit-tested with `fetch` stubbed to throw, and in the browser with every request blocked).
+
+## 3f. Live Internet Radio (RX only)
+- **Live streams:** the three broadcasters play real internet radio: **89.30 news, 93.50 sports, 98.10 jazz** (`src/data/liveStreams.ts`).
+- **The vintage set:** each stream comes through an `<audio crossOrigin="anonymous">` and `createMediaElementSource()` into a chain voiced like the static: high-pass 280 Hz → the static's band-pass (1 kHz) → low-pass 3.4 kHz → tube saturation → slow QSB fade. The band static keeps crackling on top at 20%.
+- **Data use:** a stream plays only while you're tuned to it, and is released 4s after you tune away, so a phone isn't downloading radio nobody hears.
+- **Graceful failure:** a stream that fails, or lacks CORS, leaves that broadcaster as its carrier and static.
+- **Provisioning: the `live-streams` Kiro power** (`.kiro/powers/live-streams`, skill `fetch-streams`):
+  - it finds candidates (curated + the open Radio Browser directory);
+  - it verifies each one: HTTPS, an audio content type, and `Access-Control-Allow-Origin` on a GET with an `Origin` header;
+  - it writes `src/data/liveStreams.ts`, with `--check` to re-verify;
+  - the seeded entries are `verified: false` until it is run with internet access.
+
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
 - **Trigger:** the ghost's agent strikes (`{"climax":true}`, or its 4th reply). Once that reply has been keyed, `isHaunted` becomes true.
 - **Blackout (800ms):** a black veil over everything, and **total silence**: the master output is cut, so no static, no drone, nothing.
@@ -182,4 +216,6 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
   - An inline SVG **shattered glass** effect: cracks radiating from an off-centre impact, concentric fractures and glinting shards.
   - **#050505 black viscous liquid** seeps in under the top bezel and drips slowly down the glass: eight drips, 6-10s each, with heavy drops at the tips, merged by an SVG goo filter.
 - **The reference card is forcibly ejected:** blown out of its slot by the blast, with overshoot and shake.
-- **Still to come (Phase 4b):** the serial plate scrambling to `SER: D34D-S0UL`, and the breaker finally tripping itself OFF into dead silence.
+- **The serial glitch:** on the frame of the flash, the right serial plate changes from `SER: 1984-K1R0` to `SER: D34D-S0UL` (CSS on `.stage[data-haunt]`, so it lands on the exact frame).
+- **The hard trip:** exactly **4s after the flash** (the screech now lasts exactly that long), the breaker trips itself: `isPowerOn` goes false, the MCB handle snaps OFF with its thunk and a haptic buzz, and **it does not restart** (the power lock is over).
+- **The reset (`RadioContext.hardReset`):** on the trip, `isHaunted` and `isTrapped` are wiped, the dial returns to 88.50, the ghost wanders to a new frequency, and the session number goes up, so every agent persona is rolled again. The LCD loses its corruption, the serial is restored, and the card is put away. When the user flicks the MCB back ON, the radio boots fresh: 88.50, a new ghost to find, new personas.

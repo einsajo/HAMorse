@@ -63,7 +63,7 @@ export const REPLY_TIMING: Readonly<ReplyTiming> = Object.freeze({
   wordGapMs: 420,
 })
 
-/** The ghost's default timing (its agent normally sets its own, exchange by exchange: see ghostAgent.ghostVoice) */
+/** The ghost's default timing (its agent normally sets its own timing, exchange by exchange) */
 export const GHOST_TIMING: Readonly<ReplyTiming> = Object.freeze({
   leadInMs: 1600,
   ditMs: 120,

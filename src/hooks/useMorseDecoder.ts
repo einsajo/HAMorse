@@ -3,13 +3,13 @@ import type { ReactNode } from 'react'
 import { CHAR_TO_MORSE, decodeSymbol } from '../utils/morseDictionary'
 import { playGhostTone, playTone } from '../utils/audioEngine'
 import { useRadio } from '../context/RadioContext'
-import { getBandInfo, hamStationAt } from '../constants'
+import { agentStationAt, getBandInfo, hamStationAt } from '../constants'
 import type { Band, HamStationId } from '../constants'
 import { GHOST_TIMING, REPLY_TIMING, createStations, measureWpm } from '../utils/stations'
 import type { ReplyTiming, SentWord, Station, StationStorage, Transmission } from '../utils/stations'
 import { timingForWpm } from '../utils/stations'
-import { createGhostSession, ghostVoice } from '../utils/ghostAgent'
-import type { GhostSession } from '../utils/ghostAgent'
+import { createAgentSession, createCast } from '../utils/agentEngine'
+import type { AgentCast, AgentId, AgentSession, AgentVoice } from '../utils/agentEngine'
 
 /* --- Timing ---------------------------------------------------------------
    Gaps are measured from the most recent tap. They start deliberately longer
@@ -44,9 +44,11 @@ const ADAPT_WEIGHT = 0.3
    The timings (and every station's behaviour) live in src/utils/stations.ts. */
 export type { ReplyTiming } from '../utils/stations'
 export { REPLY_TIMING, GHOST_TIMING, TUTOR_REPLIES } from '../utils/stations'
-/** The ghost hears your whole over: it answers after K / KN / AR / SK / BK, TX SEND, or this much silence */
-export const GHOST_OVER_SILENCE_MS = 2500
-const GHOST_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
+/** Agents hear your whole over: they answer after K / KN / AR / SK / BK, TX SEND, or this much silence */
+export const AGENT_OVER_SILENCE_MS = 2500
+/** (the ghost was the first agent) */
+export const GHOST_OVER_SILENCE_MS = AGENT_OVER_SILENCE_MS
+const AGENT_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
 /** How often the band is checked for a station that wants to transmit unprompted */
 export const IDLE_POLL_MS = 400
 
@@ -117,6 +119,13 @@ export interface MorseDecoderState {
   /** Another station is sending: the paddles are locked out until it finishes */
   isReceiving: boolean
   /**
+   * An agent (LLM) has your over and hasn't said its first word yet: network
+   * latency, heard as a weak, fading signal (the S-meter flutters low)
+   */
+  isAwaitingAgent: boolean
+  /** The agent on this frequency, if any (the Guide, the Stranger, the Ghost) */
+  agent: AgentId | null
+  /**
    * Play an incoming transmission: each character is keyed out loud
    * (dits and dahs), shown live on the LCD, then appended to the message.
    * `isGhost` = the ghost's distorted tone; `timing` overrides the default
@@ -185,7 +194,7 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton'> & {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent'> & {
   flush: () => boolean
   receivingNow: () => boolean
   pendingNow: () => boolean
@@ -567,16 +576,19 @@ function browserStorage(): StationStorage | undefined {
  * The far end of every contact lives here too:
  *   - the ham operators (src/utils/stations.ts) hear you tune in, every word
  *     you send, and how long the band has been quiet (polled), and answer;
- *   - the wandering ghost (GHOST_FREQUENCY): anything you send goes to its
- *     agent (src/utils/ghostAgent.ts), whose reply is keyed live AS IT STREAMS.
- *     After its first reply you are trapped (RadioContext.isTrapped); when the
- *     agent strikes (by its 4th reply at the latest) the haunt begins (isHaunted).
+ *   - the agents (src/utils/agentEngine.ts): the Guide (90.20), the Stranger
+ *     (102.75) and the wandering ghost hear your whole over and answer through
+ *     an LLM route (or locally), keyed live AS THEIR REPLY STREAMS. After the
+ *     ghost's first reply you are trapped (RadioContext.isTrapped); when it
+ *     strikes (by its 4th reply at the latest) the haunt begins (isHaunted).
+ *     A new session (RadioContext.sessionId: the hard reset) recasts them all.
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
-  const { isPowerOn, isDecoderOn, frequency, isHaunted, setIsHaunted, isTrapped, setIsTrapped } = useRadio()
+  const { isPowerOn, isDecoderOn, frequency, isHaunted, setIsHaunted, isTrapped, setIsTrapped, sessionId } = useRadio()
   const { band, canTransmit } = getBandInfo(frequency)
   const canKey = isPowerOn && canTransmit
   const station = hamStationAt(frequency)
+  const agent: AgentId | null = band === 'ghost' ? 'ghost' : agentStationAt(frequency)
 
   // one set of operators for the life of the app (each remembers its own QSO)
   const stationsRef = useRef<Record<HamStationId, Station> | null>(null)
@@ -609,41 +621,61 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
    * it has something to say to (the rest of the over is then moot).
    * Returns whether anyone answered.
    */
-  /* --- The ghost: a live (or scripted) agent ---------------------------------- */
-  const ghostSession = useRef<GhostSession | null>(null)
-  const ghostAbort = useRef<AbortController | null>(null)
+  /* --- The agents: live (or local) LLM personas ------------------------------- */
+  /** this session's cast (new personas after every hard reset) and their conversations */
+  const castRef = useRef<{ session: number; cast: AgentCast; talks: Partial<Record<AgentId, AgentSession>>; called: Set<AgentId> } | null>(null)
+  if (castRef.current === null || castRef.current.session !== sessionId) {
+    castRef.current = { session: sessionId, cast: createCast(), talks: {}, called: new Set() }
+  }
+  const agentAbort = useRef<AbortController | null>(null)
   const streamRef = useRef<MorseDecoderState['streamReply']>(() => Promise.resolve(false))
+  const [isAwaitingAgent, setIsAwaitingAgent] = useState(false)
   const hauntedRef = useRef(isHaunted)
   hauntedRef.current = isHaunted
   const trappedRef = useRef(isTrapped)
   trappedRef.current = isTrapped
 
-  /** Hand what you sent to the ghost's agent and key its reply live as it streams */
-  const askGhost = useCallback(
-    (heard: string) => {
-      const session = (ghostSession.current ??= createGhostSession())
+  const timingFor = (voice: AgentVoice): ReplyTiming => ({
+    ...timingForWpm(voice.charWpm, voice.effectiveWpm, voice.leadInMs, voice.toneHz),
+    jitter: voice.jitter,
+  })
+
+  /** Hand your over to an agent and key its reply live as it streams */
+  const askAgent = useCallback(
+    (id: AgentId, heard: string) => {
+      const c = castRef.current
+      if (!c) return false
+      const session = (c.talks[id] ??= createAgentSession(c.cast[id]))
       if (session.climaxed) return false
-      ghostAbort.current?.abort()
+      agentAbort.current?.abort()
       const abort = new AbortController()
-      ghostAbort.current = abort
-      const voice = ghostVoice(session.exchange)
+      agentAbort.current = abort
+      const voice = session.persona.voice(session.exchange)
       let strikes = false
+      let lost = false
+      setIsAwaitingAgent(true)
       async function* tokens(): AsyncGenerator<string> {
-        for await (const ev of session.turn(heard, abort.signal)) {
-          if (ev.type === 'climax') strikes = true
-          else yield ev.text
+        try {
+          for await (const ev of session.turn(heard, abort.signal)) {
+            if (ev.type === 'climax') strikes = true
+            else if (ev.type === 'lost') lost = true
+            else {
+              setIsAwaitingAgent(false) // the first word: the signal comes up
+              yield ev.text
+            }
+          }
+        } finally {
+          setIsAwaitingAgent(false)
         }
       }
-      const timing: ReplyTiming = {
-        ...timingForWpm(voice.charWpm, voice.effectiveWpm, voice.leadInMs, voice.toneHz),
-        jitter: voice.jitter,
-      }
-      void streamRef.current(tokens(), voice.distorted, timing).then((finished) => {
+      // a lost signal is just a fading carrier: never the ghost's distortion
+      void streamRef.current(tokens(), voice.distorted, timingFor(voice)).then((finished) => {
         if (!finished) {
           abort.abort() // cut off: stop the agent too
           return
         }
         touch()
+        if (id !== 'ghost' || lost) return
         if (!trappedRef.current) setIsTrapped(true) // it has you now
         if (strikes) setIsHaunted(true)
       })
@@ -653,55 +685,58 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   )
 
   /*
-   * The ghost hears your whole over, not word by word (an agent needs the
+   * Agents hear your whole over, not word by word (an LLM needs the
    * sentence): words collect until you end the over (K / KN / AR / SK / BK),
-   * press TX SEND, or go quiet for GHOST_OVER_SILENCE_MS.
+   * press TX SEND, or go quiet for AGENT_OVER_SILENCE_MS.
    */
-  const ghostOver = useRef<string[]>([])
-  const ghostOverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const agentOver = useRef<{ id: AgentId | null; words: string[] }>({ id: null, words: [] })
+  const agentOverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** set once the engine exists (it is created below) */
   const busyRef = useRef<() => boolean>(() => false)
-  const stopGhostOverTimer = useCallback(() => {
-    if (ghostOverTimer.current !== null) clearTimeout(ghostOverTimer.current)
-    ghostOverTimer.current = null
+  const stopAgentOverTimer = useCallback(() => {
+    if (agentOverTimer.current !== null) clearTimeout(agentOverTimer.current)
+    agentOverTimer.current = null
   }, [])
-  const endGhostOver = useCallback(() => {
-    stopGhostOverTimer()
-    const heard = ghostOver.current.join(' ').trim()
-    ghostOver.current = []
-    return heard ? askGhost(heard) : false
-  }, [askGhost, stopGhostOverTimer])
-  const armGhostOver = useCallback(() => {
-    stopGhostOverTimer()
+  const endAgentOver = useCallback(() => {
+    stopAgentOverTimer()
+    const { id, words } = agentOver.current
+    agentOver.current = { id: null, words: [] }
+    const heard = words.join(' ').trim()
+    return id && heard ? askAgent(id, heard) : false
+  }, [askAgent, stopAgentOverTimer])
+  const armAgentOver = useCallback(() => {
+    stopAgentOverTimer()
     const check = () => {
-      ghostOverTimer.current = null
+      agentOverTimer.current = null
       const quiet = performance.now() - lastActivity.current
       // still keying (or they're sending, or a draft is waiting): keep listening
-      if (busyRef.current() || quiet < GHOST_OVER_SILENCE_MS) {
-        ghostOverTimer.current = setTimeout(check, Math.max(150, GHOST_OVER_SILENCE_MS - quiet))
+      if (busyRef.current() || quiet < AGENT_OVER_SILENCE_MS) {
+        agentOverTimer.current = setTimeout(check, Math.max(150, AGENT_OVER_SILENCE_MS - quiet))
         return
       }
-      endGhostOver()
+      endAgentOver()
     }
-    ghostOverTimer.current = setTimeout(check, GHOST_OVER_SILENCE_MS)
-  }, [endGhostOver, stopGhostOverTimer])
+    agentOverTimer.current = setTimeout(check, AGENT_OVER_SILENCE_MS)
+  }, [endAgentOver, stopAgentOverTimer])
 
   const deliver = useCallback(
     (words: readonly SentWord[], endOfOver = false) => {
       markSentRef.current()
       const f = frequencyRef.current
-      if (getBandInfo(f).band === 'ghost') {
-        if (hauntedRef.current) return false // it has said all it will say
-        ghostOver.current.push(...words.map((w) => w.word))
-        if (endOfOver || words.some((w) => GHOST_OVER_ENDINGS.has(w.word))) return endGhostOver()
-        if (ghostOver.current.length) armGhostOver()
+      const id: AgentId | null = getBandInfo(f).band === 'ghost' ? 'ghost' : agentStationAt(f)
+      if (id) {
+        if (id === 'ghost' && hauntedRef.current) return false // it has said all it will say
+        if (agentOver.current.id !== id) agentOver.current = { id, words: [] }
+        agentOver.current.words.push(...words.map((w) => w.word))
+        if (endOfOver || words.some((w) => AGENT_OVER_ENDINGS.has(w.word))) return endAgentOver()
+        if (agentOver.current.words.length) armAgentOver()
         return false
       }
       if (!words.length) return false
-      const id = hamStationAt(f)
-      if (!id) return false
+      const ham = hamStationAt(f)
+      if (!ham) return false
       for (const w of words) {
-        const t = stations[id].onWord(w)
+        const t = stations[ham].onWord(w)
         if (t) {
           transmit(t)
           return true
@@ -709,7 +744,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       }
       return false
     },
-    [armGhostOver, endGhostOver, stations, transmit],
+    [armAgentOver, endAgentOver, stations, transmit],
   )
 
   const onWordEnd = useCallback(
@@ -783,12 +818,12 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const clear = useCallback(() => {
     engineClear()
     draftWords.current = []
-    ghostOver.current = []
-    stopGhostOverTimer()
+    agentOver.current = { id: null, words: [] }
+    stopAgentOverTimer()
     keyedSinceOver.current = false
     stopTxTimer()
     setTxStatus('idle')
-  }, [engineClear, stopGhostOverTimer, stopTxTimer])
+  }, [engineClear, stopAgentOverTimer, stopTxTimer])
 
   const discardDraft = engine.discardDraft
   const clearButton = useCallback(() => {
@@ -837,10 +872,10 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   useEffect(() => stopTxTimer, [stopTxTimer])
   useEffect(
     () => () => {
-      ghostAbort.current?.abort()
-      stopGhostOverTimer()
+      agentAbort.current?.abort()
+      stopAgentOverTimer()
     },
-    [stopGhostOverTimer],
+    [stopAgentOverTimer],
   )
 
   const status: DecoderStatus = !isPowerOn || !isDecoderOn
@@ -872,6 +907,18 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     transmit(stations[station].onTuneIn())
   }, [frequency, isPowerOn, station, stations, touch, transmit])
 
+  // an agent's frequency: the first time you tune in this session it is calling
+  // CQ (a local transmission: no network, so it is instant even offline)
+  useEffect(() => {
+    const c = castRef.current
+    if (!isPowerOn || agent === null || agent === 'ghost' || !c || c.called.has(agent)) return
+    const call = c.cast[agent].cq()
+    if (!call) return
+    c.called.add(agent)
+    const voice = c.cast[agent].voice(0)
+    replyRef.current(call, false, timingFor({ ...voice, leadInMs: 1800 }))
+  }, [agent, frequency, isPowerOn, sessionId])
+
   // a quiet band: operators call CQ, nudge you, or start the next bulletin
   useEffect(() => {
     if (!isPowerOn || station === null) return
@@ -889,8 +936,8 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   }, [hasDraftNow, isPowerOn, receivingNow, station, stations, touch, transmit])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, streamReply, band, station, status }),
-    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, simulateReply, streamReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, simulateReply, streamReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, simulateReply, streamReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }

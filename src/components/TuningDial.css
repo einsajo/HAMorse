@@ -315,3 +315,17 @@
     transition: none;
   }
 }
+
+/* The haunt: on the flash the serial plate's stamping reads SER: D34D-S0UL
+   (back to the factory serial once the hard reset clears the haunt) */
+.plate__serial--cursed {
+  display: none;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .plate__serial--factory {
+  display: none;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .plate__serial--cursed {
+  display: inline;
+}

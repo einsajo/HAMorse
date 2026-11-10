@@ -21,7 +21,7 @@ import { PowerHintProvider } from './hooks/usePowerHint'
  * blackout and the flash, and the blast forces the reference card out.
  */
 function Stage({ children }: { children: (props: { isRefCardOpen: boolean; ejected: boolean; toggleRefCard: () => void; closeRefCard: () => void }) => ReactNode }) {
-  const { isHaunted } = useRadio()
+  const { isHaunted, hardReset } = useRadio()
   const [isRefCardOpen, setIsRefCardOpen] = useState(false)
   const [ejected, setEjected] = useState(false)
   const toggleRefCard = useCallback(() => setIsRefCardOpen((open) => !open), [])
@@ -33,7 +33,13 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
     setEjected(true)
     setIsRefCardOpen(true)
   }, [])
-  const phase: HauntPhase = useHauntSequence(isHaunted, eject)
+  // the trip: the breaker throws itself, and the radio wakes up fresh next time
+  const trip = useCallback(() => {
+    setEjected(false)
+    setIsRefCardOpen(false)
+    hardReset()
+  }, [hardReset])
+  const phase: HauntPhase = useHauntSequence(isHaunted, eject, trip)
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { DIAL_MAX_MHZ, DIAL_MIN_MHZ, DIAL_START_MHZ } from '../constants'
+import { DIAL_MAX_MHZ, DIAL_MIN_MHZ, DIAL_START_MHZ, reseedGhostFrequency } from '../constants'
 
 /* --- Band limits ---------------------------------------------------------- */
 export const FREQ_MIN = DIAL_MIN_MHZ
@@ -12,7 +12,7 @@ export const FREQ_MAX = DIAL_MAX_MHZ
  */
 export const FREQ_DEFAULT = DIAL_START_MHZ
 // band layout (stations, ham band, ghost) lives in src/constants.ts; re-exported for convenience
-export { GHOST_FREQUENCY, isTunedTo } from '../constants'
+export { getGhostFrequency, isTunedTo } from '../constants'
 
 /** Clamp to the 88.00 - 108.00 MHz band and snap to the 0.01 MHz display step. */
 export function clampFrequency(mhz: number): number {
@@ -46,12 +46,23 @@ export interface RadioState {
    * won't stay off.
    */
   isTrapped: boolean
+  /**
+   * Which session this is: bumped by every hard reset, so everything rolled
+   * per session (the ghost's frequency, the agents' personas) is rolled anew
+   */
+  sessionId: number
   /** Set the frequency; out-of-band values are clamped, non-finite values ignored */
   setFrequency: (mhz: number | ((prev: number) => number)) => void
   setIsPowerOn: (on: boolean) => void
   setIsDecoderOn: (on: boolean) => void
   setIsHaunted: (haunted: boolean) => void
   setIsTrapped: (trapped: boolean) => void
+  /**
+   * The haunt's hard reset (the breaker trips): power OFF (it stays off),
+   * haunted / trapped wiped, the dial back at FREQ_DEFAULT, the ghost moved
+   * somewhere new, a new session (new personas). Switching back on boots fresh.
+   */
+  hardReset: () => void
   togglePower: () => void
   toggleDecoder: () => void
 }
@@ -76,6 +87,17 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
     setIsTrappedState(trapped)
   }, [])
 
+  const [sessionId, setSessionId] = useState(0)
+  const hardReset = useCallback(() => {
+    trappedRef.current = false
+    setIsTrappedState(false)
+    setIsHaunted(false)
+    setIsPowerOn(false)
+    setFrequencyRaw(clampFrequency(FREQ_DEFAULT))
+    reseedGhostFrequency()
+    setSessionId((n) => n + 1)
+  }, [])
+
   const setFrequency = useCallback<RadioState['setFrequency']>((next) => {
     if (trappedRef.current) return // locked on the ghost: the dial turns, nothing changes
     setFrequencyRaw((prev) => {
@@ -93,15 +115,17 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       isDecoderOn,
       isHaunted,
       isTrapped,
+      sessionId,
       setFrequency,
       setIsPowerOn,
       setIsDecoderOn,
       setIsHaunted,
       setIsTrapped,
+      hardReset,
       togglePower,
       toggleDecoder,
     }),
-    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, setFrequency, setIsTrapped, togglePower, toggleDecoder],
+    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, sessionId, setFrequency, setIsTrapped, hardReset, togglePower, toggleDecoder],
   )
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>
