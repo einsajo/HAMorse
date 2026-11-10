@@ -61,6 +61,12 @@ const AGENT_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
  * Once it has you, the ghost doesn't wait to be spoken to: this much silence
  * from you (by dread: how many times it has spoken) and it reaches out
  */
+/**
+ * First contact: land on the ghost's frequency and key nothing for this long,
+ * and it calls you (an ordinary-sounding CQ). A visitor who doesn't know Morse
+ * still gets pulled in; that call counts as its first transmission.
+ */
+export const GHOST_ARRIVAL_MS = 3500
 export const GHOST_SILENCE_MS: readonly number[] = Object.freeze([Infinity, 9000, 7000, 5500])
 /** the aftermath glimpse, this long after the first power-on after a reset */
 export const AFTERMATH_DELAY_MS = 1500
@@ -998,6 +1004,23 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
 
   /* --- The ghost won't leave you alone ---------------------------------------- */
   const onGhost = isPowerOn && agent === 'ghost' && !isHaunted
+
+  // first contact: you landed on it and keyed nothing, so it calls you
+  useEffect(() => {
+    if (!onGhost || isTrapped || dread > 0) return
+    const arrivedAt = performance.now()
+    let called = false
+    const timer = setInterval(() => {
+      if (called) return
+      if (agentInFlight.current || receivingNow() || hasDraftNow() || agentOver.current.words.length > 0) return
+      if ((castRef.current?.talks.ghost?.exchange ?? 0) > 0) return // you've already spoken to it
+      if (performance.now() - Math.max(arrivedAt, lastActivity.current) < GHOST_ARRIVAL_MS) return
+      called = true
+      touch()
+      askAgent('ghost', '', 'arrival')
+    }, IDLE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [askAgent, dread, hasDraftNow, isTrapped, onGhost, receivingNow, touch])
   // fighting it (the breaker slammed back on, the dial forced): it answers that
   const pendingReaction = useRef<{ kind: HauntEvent; at: number } | null>(null)
   const lastResistance = useRef(0)

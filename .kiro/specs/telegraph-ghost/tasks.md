@@ -86,7 +86,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
   - _Requirements: 2a, 2b, 3_
 
-- [ ] 13.* Unit tests for timing and decoding (letter / word gaps)
+- [x] 13.* Unit tests in `tests/` (`npm test`, run by CI on every PR): Morse timing (PARIS / Farnsworth), stations and detents, the agents and the ghost's arcs, the agent route, the live-streams power (53 tests)
+  - [ ] 13.1 The decoder's letter / word gap timing (it lives in the React hook; covered by Playwright runs, not yet by a unit test)
 
 ## Phase 3: Web Audio integration
 
@@ -164,7 +165,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), face glimpses, riser cut dead before the blackout
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
   - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse
-  - [x] 19c.8 The reference card rots with dread: scorch, tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, a face in the damp, HELLO {NAME}
+  - [x] 19c.8 The reference card rots with dread: tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, greasy thumbprints, HELLO {NAME}; black grease floods it at the haunt (no face)
+  - [x] 19c.9 Findable on first load: the ghost's frequency pencilled and ringed in the card's corner; land on it and stay quiet, and it calls CQ (`arrival`), so a visitor who never keys still reaches the jumpscare (~2 min)
   - [x] 19c.7 Fix: cutting the power mid-strike no longer kills the ghost (`strikePending`: it strikes ~0.8 s after the power returns; cut turns still count)
   - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid running down inside the glass (the leak onto the chassis was removed after play-testing)
   - _Requirements: 4_

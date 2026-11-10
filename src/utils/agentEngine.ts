@@ -41,14 +41,16 @@ export type AgentId = 'guide' | 'stranger' | 'ghost'
 
 /**
  * Things that make the ghost speak without being spoken to:
+ *   arrival  someone has just tuned in and said nothing: it calls them (first contact)
  *   silence  the operator has gone quiet
  *   power    they tried to switch the radio off (the breaker slammed back on)
  *   dial     they tried to force the VFO off its frequency
  */
-export type HauntEvent = 'silence' | 'power' | 'dial'
+export type HauntEvent = 'arrival' | 'silence' | 'power' | 'dial'
 
 /** How each event is described to a live LLM (sent in place of the operator's words) */
 export const HAUNT_EVENT_TEXT: Readonly<Record<HauntEvent, string>> = Object.freeze({
+  arrival: 'SOMEONE HAS JUST TUNED IN TO YOUR FREQUENCY AND IS LISTENING, BUT HAS NOT SENT ANYTHING. CALL THEM LIKE AN ORDINARY OPERATOR',
   silence: 'THE OPERATOR HAS GONE SILENT AND IS NOT ANSWERING',
   power: 'THE OPERATOR JUST TRIED TO SWITCH THE RADIO OFF, BUT YOU FORCED THE POWER BACK ON',
   dial: 'THE OPERATOR IS DESPERATELY TRYING TO TURN THE TUNING DIAL AWAY FROM YOU',
@@ -462,6 +464,8 @@ export function nameFrom(history: readonly AgentMessage[], heard: string): strin
 
 /** What the ghost says when it speaks unprompted ({YOU} = the operator) */
 export const GHOST_REACTIONS: Readonly<Record<HauntEvent, readonly string[]>> = Object.freeze({
+  // first contact: you landed on it and said nothing. It sounds like anyone calling CQ (it hasn't shown itself yet)
+  arrival: ['CQ CQ CQ. ANYONE ON FREQ? K', 'QRZ? QRZ? I THOUGHT I HRD A SIG. K', 'CQ CQ. ANYONE LISTENING TONITE? K', 'QRZ? PSE CALL AGN. K'],
   power: ['NO OFF SWITCH HR {YOU}', 'U CANT TURN ME OFF {YOU}', 'IM IN THE WIRES NOW {YOU}', 'THE POWER IS MINE {YOU}'],
   dial: ['THE DIAL IS MINE {YOU}', 'STOP TURNING {YOU}', 'THERE IS NO OTHER FREQ {YOU}', 'U CANT TUNE AWAY {YOU}'],
   silence: ['{YOU}? U STILL THERE?', 'WHY SO QUIET {YOU}?', 'I HEAR U BREATHING {YOU}', 'DONT IGNORE ME {YOU}', 'ITS {TIME} HR {YOU}. WHY R U AWAKE?'],
@@ -479,6 +483,7 @@ function ghostBrain(archetype: Archetype, { rng = Math.random, tempo = 1 }: Loca
     const words = heard.split(' ').filter(Boolean)
     const you = nameFrom(history, heard) ?? 'OM'
     const strikeAt = (maxExchanges ?? GHOST_MAX_EXCHANGES) - 1
+    if (event === 'arrival') return { text: pick(GHOST_REACTIONS.arrival), climax: false }
     if (event) {
       // it speaks first: fighting it, or ignoring it, only brings it closer
       if (exchange >= strikeAt) return { text: fill(pick(archetype.lines[2]), you), climax: true }

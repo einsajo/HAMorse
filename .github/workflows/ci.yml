@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       # type-check (tsc -b) and production build
       - run: npm run build
+      # unit tests: Morse timing and decoding, stations, agents, the agent route, the live-streams power
+      - run: npm test
       # the same build at the Pages sub-path: every public asset must carry it
       - run: |
           npx vite build --base=/ghostFrequency-/ --outDir dist-pages
