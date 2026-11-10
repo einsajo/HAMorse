@@ -17,7 +17,7 @@ try {
   ts = require(join(dirname(realpathSync(execSync('which tsc').toString().trim())), '../lib/typescript.js'))
 }
 
-const MODULES = ['constants.ts', 'utils/morseDictionary.ts', 'utils/stations.ts', 'utils/agentEngine.ts']
+const MODULES = ['constants.ts', 'utils/morseDictionary.ts', 'utils/stations.ts', 'utils/agentEngine.ts', 'utils/progress.ts']
 for (const file of MODULES) {
   let js = ts.transpileModule(readFileSync(join(here, '../src', file), 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },

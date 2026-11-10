@@ -1007,9 +1007,9 @@ export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.c
   const scr = s.node(ctx.createGain())
   scr.gain.value = 0
   scr.gain.setValueAtTime(0, when)
-  scr.gain.setValueAtTime(0, when + 0.95) // it waits until the stabs are done...
-  scr.gain.linearRampToValueAtTime(0.2, when + 1.5) // ...then the feedback howls up
-  scr.gain.setTargetAtTime(0, when + 2.2, 0.35) // gone before the freeze
+  scr.gain.setValueAtTime(0, when + 1.9) // it waits until the second shriek is spent...
+  scr.gain.linearRampToValueAtTime(0.2, when + 2.35) // ...then the feedback howls up
+  scr.gain.setTargetAtTime(0, when + 2.8, 0.3) // gone before the freeze
   const drive = s.node(ctx.createWaveShaper())
   drive.curve = driveCurve ?? (driveCurve = makeDriveCurve())
   scr.connect(drive).connect(out)
@@ -1157,22 +1157,164 @@ export function scheduleHauntBuild(ctx: Ctx, destination: AudioNode, when = ctx.
 
 /* --- The jumpscare stinger ------------------------------------------------------------ */
 /**
- * What you FEEL when the face lunges: a horror-film sting, voiced where phone
- * speakers are loud (300 Hz - 4 kHz), not down in a bass they can't play.
+ * What you FEEL when the face lunges. Out of total silence (the blackout), a
+ * double scare, voiced where phone speakers are loud (300 Hz - 4 kHz):
  *
- *   impact   a crack of noise and a body blow, plus a falling sub for headphones
- *   stabs    a shrieking string cluster (seven detuned saws a semitone apart,
- *            ~620-1320 Hz): one huge hit, then three violent stabs, 270 ms
- *            apart, then a trembling held chord dying away
- *   scream   a synthesised voice: a saw gliding up 520 -> 780 Hz with a
- *            ragged vibrato, through three vowel formants ("AAH"), overdriven
+ *   hit 1 (0 s)     a crack of noise with a near-instant attack (the startle
+ *                   reflex answers rise time, not just level), a body blow,
+ *                   a falling sub for headphones, the first shriek
+ *   relief          for half a second it pulls back...
+ *   hit 2 (0.6 s)   ...then it is ON you: a harder impact, the string cluster
+ *                   at full force with two more stabs, and a second, higher
+ *                   shriek
+ *   the shrieks     not a synth: an unsteady, raspy voice (a pulse-like source
+ *                   whose pitch wanders at random, plus breath noise) tearing
+ *                   from "EE" to "AAH" through moving formants, blown out like
+ *                   a microphone pressed to a mouth. On headphones it is 3D
+ *                   (HRTF): it starts just behind one ear and whips round to
+ *                   the other.
+ *   the strings     a shrieking cluster (seven detuned saws, ~620-1320 Hz),
+ *                   then a trembling held chord dying away
  *
  * Everything is over by ~3.4 s, before the freeze. The master limiter keeps
  * it startling, not harmful.
  */
 export const STING_SECONDS = 3.4
+/** the second hit: when it is suddenly closer */
+export const STING_SECOND_HIT = 0.6
 const STING_CLUSTER = [622, 659, 698, 740, 784, 1245, 1319] as const
-const STING_STABS = [0, 0.27, 0.54, 0.81] as const
+/** [s, level]: a hit, then the big one, then two more stabs */
+const STING_STABS = [[0, 0.4], [STING_SECOND_HIT, 0.5], [STING_SECOND_HIT + 0.22, 0.42], [STING_SECOND_HIT + 0.44, 0.38]] as const
+
+/** An impact: a crack of noise and a body blow (the sub only on the first) */
+function stingImpact(s: OneShot, out: AudioNode, when: number, level: number, sub: boolean): void {
+  const ctx = s.ctx
+  const crack = s.source(noiseBurst(ctx, when, 0.3))
+  crack.connect(s.node(filter(ctx, 'highpass', 300, 0.7))).connect(s.node(filter(ctx, 'lowpass', 6000, 0.7))).connect(s.node(hit(ctx, when, 0.62 * level, 0.0008, 0.22))).connect(out)
+  const body = s.source(ctx.createOscillator())
+  body.type = 'triangle'
+  body.frequency.setValueAtTime(260, when)
+  body.frequency.exponentialRampToValueAtTime(95, when + 0.25)
+  body.connect(s.node(hit(ctx, when, 0.75 * level, 0.002, 0.3))).connect(out)
+  body.start(when)
+  body.stop(when + 0.4)
+  if (!sub) return
+  const low = s.source(ctx.createOscillator())
+  low.frequency.setValueAtTime(90, when)
+  low.frequency.exponentialRampToValueAtTime(32, when + 0.9)
+  low.connect(s.node(hit(ctx, when, 0.9 * level, 0.004, 0.9))).connect(out)
+  low.start(when)
+  low.stop(when + 1)
+}
+
+interface ShriekOptions {
+  /** the voice's pitch at its height */
+  hz: number
+  seconds: number
+  level: number
+  /** where it is, left (-1) to right (+1), at the start and the end (HRTF on headphones) */
+  pan: readonly [number, number]
+}
+
+/** A shriek: an unsteady, raspy, blown-out voice tearing from "EE" to "AAH" */
+function shriek(s: OneShot, out: AudioNode, when: number, { hz, seconds, level, pan }: ShriekOptions): void {
+  const ctx = s.ctx
+  const end = when + seconds
+
+  // the source: a bright saw plus a hollow square a tritone up (wrong, inhuman)
+  const voice = s.source(ctx.createOscillator())
+  voice.type = 'sawtooth'
+  const throat = s.source(ctx.createOscillator())
+  throat.type = 'square'
+  for (const [o, k] of [[voice, 1], [throat, 1.414]] as const) {
+    o.frequency.setValueAtTime(hz * 0.62 * k, when) // it tears up into the scream
+    o.frequency.exponentialRampToValueAtTime(hz * k, when + 0.07)
+    o.frequency.exponentialRampToValueAtTime(hz * 1.1 * k, when + seconds * 0.45)
+    o.frequency.exponentialRampToValueAtTime(hz * 0.86 * k, end)
+  }
+  // a pitch that never holds still: slow random wander plus a ragged tremble
+  const wander = s.source(noiseBurst(ctx, when, seconds + 0.05))
+  const wanderLp = s.node(filter(ctx, 'lowpass', 11, 0.5))
+  const wanderDepth = s.node(ctx.createGain())
+  wanderDepth.gain.value = hz * 2.2
+  wander.connect(wanderLp).connect(wanderDepth)
+  const tremble = s.source(ctx.createOscillator())
+  tremble.frequency.value = vary(10.5, 0.15)
+  const trembleDepth = s.node(ctx.createGain())
+  trembleDepth.gain.value = hz * 0.022
+  tremble.connect(trembleDepth)
+  for (const o of [voice, throat]) {
+    wanderDepth.connect(o.frequency)
+    trembleDepth.connect(o.frequency)
+  }
+
+  // through a throat: formants moving from "EE" to "AAH"
+  const mouth = s.node(ctx.createGain())
+  mouth.gain.value = 1
+  const vSrc = s.node(ctx.createGain())
+  vSrc.gain.value = 0.8
+  const tSrc = s.node(ctx.createGain())
+  tSrc.gain.value = 0.3
+  voice.connect(vSrc)
+  throat.connect(tSrc)
+  // breath: noise rasping through the same throat
+  const breath = s.source(noiseBurst(ctx, when, seconds + 0.05))
+  const breathLvl = s.node(ctx.createGain())
+  breathLvl.gain.value = 0.55
+  breath.connect(breathLvl)
+  const formants: readonly (readonly [number, number, number, number])[] = [
+    // [from Hz ("EE"), to Hz ("AAH"), Q, level]
+    [330, 900, 6, 1],
+    [2350, 1350, 8, 0.75],
+    [3100, 2750, 10, 0.5],
+  ]
+  for (const [from, to, q, lvl] of formants) {
+    const f = s.node(filter(ctx, 'bandpass', from, q))
+    f.frequency.setValueAtTime(from, when)
+    f.frequency.exponentialRampToValueAtTime(to, when + Math.min(0.35, seconds * 0.4))
+    const l = s.node(ctx.createGain())
+    l.gain.value = lvl * 2.6
+    vSrc.connect(f)
+    tSrc.connect(f)
+    breathLvl.connect(f)
+    f.connect(l).connect(mouth)
+  }
+
+  // blown out: a microphone pressed to a mouth
+  const pre = s.node(ctx.createGain())
+  pre.gain.value = 3.2
+  const blown = s.node(ctx.createWaveShaper())
+  blown.curve = driveCurve ?? (driveCurve = makeDriveCurve())
+  const env = s.node(ctx.createGain())
+  env.gain.value = 0
+  env.gain.setValueAtTime(0, when)
+  env.gain.linearRampToValueAtTime(level, when + 0.006) // no fade-in: it's just THERE
+  env.gain.setValueAtTime(level, when + seconds * 0.55)
+  env.gain.setTargetAtTime(0, when + seconds * 0.55, seconds * 0.2)
+  mouth.connect(pre).connect(blown).connect(env)
+
+  // right at your ear (HRTF on headphones; a plain pan on a phone speaker)
+  const ear = s.node(ctx.createPanner())
+  ear.panningModel = 'HRTF'
+  ear.distanceModel = 'linear'
+  ear.refDistance = 1
+  ear.maxDistance = 10
+  ear.rolloffFactor = 0
+  if (ear.positionX) {
+    ear.positionX.setValueAtTime(pan[0], when)
+    ear.positionX.linearRampToValueAtTime(pan[1], end)
+    ear.positionY.setValueAtTime(0, when)
+    ear.positionZ.setValueAtTime(0.35, when) // just behind you
+  } else {
+    ear.setPosition(pan[0], 0, 0.35)
+  }
+  env.connect(ear).connect(out)
+
+  for (const o of [voice, throat, tremble]) {
+    o.start(when)
+    o.stop(end + 0.05)
+  }
+}
 
 export function scheduleHauntSting(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
   const s = oneShot(ctx)
@@ -1183,37 +1325,23 @@ export function scheduleHauntSting(ctx: Ctx, destination: AudioNode, when = ctx.
   driven.gain.value = 0.9
   drive.connect(driven).connect(out)
 
-  // impact
-  const crack = s.source(noiseBurst(ctx, when, 0.3))
-  crack.connect(s.node(filter(ctx, 'highpass', 300, 0.7))).connect(s.node(filter(ctx, 'lowpass', 5000, 0.7))).connect(s.node(hit(ctx, when, 1.1, 0.001, 0.22))).connect(out)
-  const sub = s.source(ctx.createOscillator())
-  sub.frequency.setValueAtTime(90, when)
-  sub.frequency.exponentialRampToValueAtTime(32, when + 0.9)
-  sub.connect(s.node(hit(ctx, when, 0.9, 0.004, 0.9))).connect(out)
-  sub.start(when)
-  sub.stop(when + 1)
-  const body = s.source(ctx.createOscillator())
-  body.type = 'triangle'
-  body.frequency.setValueAtTime(240, when)
-  body.frequency.exponentialRampToValueAtTime(90, when + 0.25)
-  body.connect(s.node(hit(ctx, when, 0.7, 0.002, 0.3))).connect(out)
-  body.start(when)
-  body.stop(when + 0.4)
+  // the two hits
+  stingImpact(s, out, when, 1, true)
+  stingImpact(s, out, when + STING_SECOND_HIT, 1.05, false)
 
-  // the shrieking strings: stabs, then a trembling held chord
+  // the shrieking strings: a hit, the big one, two more stabs, then a trembling held chord
   const strings = s.node(ctx.createGain())
   strings.gain.value = 0
   const g = strings.gain
   g.setValueAtTime(0, when)
-  for (const [k, at] of STING_STABS.entries()) {
-    const peak = k === 0 ? 0.55 : 0.42
+  for (const [at, peak] of STING_STABS) {
     g.setValueAtTime(0.0001, when + at)
     g.linearRampToValueAtTime(peak, when + at + 0.008)
-    g.setTargetAtTime(0.004, when + at + 0.05, 0.035) // a gap of near-silence between stabs: that's what you feel
+    g.setTargetAtTime(0.004, when + at + 0.06, 0.04) // near-silence between stabs: that's what you feel
   }
-  g.setValueAtTime(0.004, when + 1.05)
-  g.linearRampToValueAtTime(0.32, when + 1.3) // the held chord swells...
-  g.setTargetAtTime(0, when + 1.8, 0.45) // ...and dies away
+  g.setValueAtTime(0.004, when + 1.3)
+  g.linearRampToValueAtTime(0.3, when + 1.55) // the held chord swells...
+  g.setTargetAtTime(0, when + 2, 0.45) // ...and dies away
   const bright = s.node(filter(ctx, 'bandpass', 1500, 0.6))
   strings.connect(bright).connect(drive)
   const trem = s.source(ctx.createOscillator())
@@ -1236,34 +1364,10 @@ export function scheduleHauntSting(ctx: Ctx, destination: AudioNode, when = ctx.
   trem.start(when)
   trem.stop(when + STING_SECONDS)
 
-  // the scream
-  const voice = s.source(ctx.createOscillator())
-  voice.type = 'sawtooth'
-  voice.frequency.setValueAtTime(520, when + 0.05)
-  voice.frequency.exponentialRampToValueAtTime(780, when + 0.9)
-  voice.frequency.exponentialRampToValueAtTime(690, when + 2.4)
-  const ragged = s.source(ctx.createOscillator())
-  ragged.frequency.value = 7.3
-  const raggedDepth = s.node(ctx.createGain())
-  raggedDepth.gain.value = 22
-  ragged.connect(raggedDepth).connect(voice.frequency)
-  const voiceEnv = s.node(ctx.createGain())
-  voiceEnv.gain.value = 0
-  voiceEnv.gain.setValueAtTime(0, when)
-  voiceEnv.gain.linearRampToValueAtTime(0.6, when + 0.09)
-  voiceEnv.gain.setValueAtTime(0.6, when + 1.2)
-  voiceEnv.gain.setTargetAtTime(0, when + 1.3, 0.4)
-  for (const [hz, q, lvl] of [[850, 7, 1], [1550, 9, 0.7], [2800, 12, 0.45]] as const) {
-    const f = s.node(filter(ctx, 'bandpass', hz, q))
-    const l = s.node(ctx.createGain())
-    l.gain.value = lvl * 2.2
-    voice.connect(f).connect(l).connect(voiceEnv)
-  }
-  voiceEnv.connect(drive)
-  for (const o of [voice, ragged]) {
-    o.start(when)
-    o.stop(when + 2.9)
-  }
+  // the shrieks: one in the first hit, a higher, longer one when it's on you
+  const side = Math.random() < 0.5 ? -1 : 1
+  shriek(s, out, when + 0.01, { hz: vary(1020, 0.05), seconds: 0.5, level: 0.5, pan: [0.9 * side, 0.3 * side] })
+  shriek(s, out, when + STING_SECOND_HIT, { hz: vary(1260, 0.05), seconds: 1.6, level: 0.62, pan: [-0.95 * side, 0.95 * side] })
   s.done()
 }
 
@@ -1448,6 +1552,19 @@ let resumeRequestedAt = Number.NEGATIVE_INFINITY
 const RESUME_GRACE_MS = 400
 const STATIC_RAMP_TC = 0.04 // s: smooth level changes while tuning (no zipper noise)
 
+/** Unity below 0.85, then a smooth knee that can never pass 1.0: nothing the radio plays can clip */
+export function makeSafetyCurve(n = 2048) {
+  const curve = new Float32Array(n)
+  const knee = 0.85
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1
+    const a = Math.abs(x)
+    const y = a <= knee ? a : knee + (1 - knee) * Math.tanh((a - knee) / (1 - knee))
+    curve[i] = Math.sign(x) * y
+  }
+  return curve
+}
+
 function getAudioContextClass(): typeof AudioContext | undefined {
   if (typeof window === 'undefined') return undefined
   const w = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }
@@ -1466,7 +1583,11 @@ function build(): Engine | null {
   limiter.ratio.value = 12
   limiter.attack.value = 0.003
   limiter.release.value = 0.15
-  limiter.connect(ctx.destination)
+  // a safety net after the limiter (its 3 ms attack can let the very first
+  // milliseconds of a hit through): transparent below 0.85, rounds anything above
+  const safety = ctx.createWaveShaper()
+  safety.curve = makeSafetyCurve()
+  limiter.connect(safety).connect(ctx.destination)
 
   const master = ctx.createGain()
   master.gain.value = MASTER_GAIN

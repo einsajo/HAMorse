@@ -9,11 +9,16 @@ import { playBreakerThunk, playHauntBang, playHauntBuild, setHauntSilence } from
  *                       half-seen in the LCD on the last dips, and a roar
  *                       rises under it... and is cut dead
  *   blackout   800 ms   everything goes black and dead silent
- *   jumpscare  1 s      out of the black a grinning face lunges at you, lit
- *                       for an instant as if by a camera flash, with the
- *                       sting (impact, shrieking string stabs, a scream, the
- *                       feedback howl); the chassis jolts, the card is blown
- *                       out, and the phone buzzes hard
+ *   jumpscare  1.5 s    a double scare: out of the black a grinning face is
+ *                       suddenly THERE, lit for an instant as if by a camera
+ *                       flash, shuddering; it draws back for half a second...
+ *                       then at 0.6 s it SNAPS closer, the jaw tearing open,
+ *                       black running from its eyes, the picture breaking up.
+ *                       The stinger hits twice with it (a crack, a body blow,
+ *                       raspy blown-out shrieks that whip round your head on
+ *                       headphones, the string stabs; then the feedback howl).
+ *                       The chassis jolts, the card is blown out, and the
+ *                       phone buzzes hard on each hit
  *   corrupt    ~3.3 s   the LCD is shattered and bleeds black liquid crystal:
  *                       spreading pools with oily rainbow edges, dead pixel
  *                       lines, black fluid running down inside the glass;
@@ -33,7 +38,7 @@ export type HauntPhase = 'none' | 'build' | 'blackout' | 'flash' | 'corrupt' | '
 
 export const HAUNT_BUILD_MS = 2600
 export const HAUNT_BLACKOUT_MS = 800
-export const HAUNT_FLASH_MS = 1000
+export const HAUNT_FLASH_MS = 1500
 /** from the jumpscare to the freeze (the sting has died away by then) */
 export const HAUNT_FREEZE_AFTER_FLASH_MS = 4000
 /** how long it stays frozen and silent before the breaker trips */
@@ -72,7 +77,7 @@ export function useHauntSequence(isHaunted: boolean, onEject: () => void, onTrip
       setTimeout(() => {
         setPhase('flash')
         playHauntBang()
-        vibrate([120, 50, 320, 60, 500])
+        vibrate([200, 400, 600]) // a hard buzz on each hit: the second (0.6 s) longer
         onEjectRef.current() // the card is blown out of its slot by the blast
       }, flashAt),
       setTimeout(() => setPhase('corrupt'), flashAt + HAUNT_FLASH_MS),

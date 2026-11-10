@@ -86,7 +86,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
   - _Requirements: 2a, 2b, 3_
 
-- [x] 13.* Unit tests in `tests/` (`npm test`, run by CI on every PR): Morse timing (PARIS / Farnsworth), stations and detents, the agents and the ghost's arcs, the agent route, the live-streams power (53 tests)
+- [x] 13.* Unit tests in `tests/` (`npm test`, run by CI on every PR): Morse timing (PARIS / Farnsworth), stations and detents, the agents and the ghost's arcs, your progress, the agent route, the live-streams power (57 tests)
   - [ ] 13.1 The decoder's letter / word gap timing (it lives in the React hook; covered by Playwright runs, not yet by a unit test)
 
 ## Phase 3: Web Audio integration
@@ -168,6 +168,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.8 The reference card rots with dread: tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, greasy thumbprints, HELLO {NAME}; black grease floods it at the haunt (no face)
   - [x] 19c.9 Findable on first load: the ghost's frequency pencilled and ringed in the card's corner; land on it and stay quiet, and it calls CQ (`arrival`), so a visitor who never keys still reaches the jumpscare
   - [x] 19c.10 Paced by the conversation: talking keeps the slow ~2 min haunt (4 transmissions); 2 words or fewer and it strikes on the 3rd, faster and shorter (~44 s to the jumpscare, measured)
+  - [x] 19c.12 Scarier jumpscare: a double scare (hit, relief, it snaps closer at 0.6 s), camera shake, picture tearing, the jaw stretching, black tears; raspy blown-out shrieks in 3D (HRTF); a safety soft-clip after the limiter (peak 0.96, measured)
+  - [x] 2e.1 Your progress pencilled on the reference card: ticks by every character the Elmer has taught you, BEST: NN WPM (`progress.ts`, 3 unit tests)
   - [x] 19c.11 The ghost's QSL card before the trip: GHOSTED AT m:ss, a line about how it went, a disclaimer and apology, POWER ON AGAIN / CLOSE
   - [x] 16.6 The Quick Start note opens on page load: why Morse matters in a few lines, then four steps; no hint of the haunt
   - [x] 19c.7 Fix: cutting the power mid-strike no longer kills the ghost (`strikePending`: it strikes ~0.8 s after the power returns; cut turns still count)

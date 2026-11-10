@@ -19,7 +19,15 @@ const TEETH: readonly (readonly [number, number, number])[] = [
   [163, 11, 22], [175, 11, 21], [187, 10, 19], [198, 9, 16], [208, 8, 13],
 ]
 
-export default function GhostFace({ idPrefix, className, backdrop = false }: { idPrefix: string; className?: string; backdrop?: boolean }) {
+/** black liquid crystal running from the eyes at the jumpscare: [path, width] */
+const TEARS: readonly (readonly [string, number])[] = [
+  ['M96 168 C 94 200, 99 232, 92 268 C 88 292, 94 320, 90 352', 6],
+  ['M104 170 C 108 196, 104 214, 110 236', 3.5],
+  ['M204 160 C 207 196, 201 226, 208 262 C 212 288, 205 318, 210 344', 6.5],
+  ['M196 162 C 192 184, 196 202, 190 222', 3],
+]
+
+export default function GhostFace({ idPrefix, className, backdrop = false, bleed = false }: { idPrefix: string; className?: string; backdrop?: boolean; bleed?: boolean }) {
   const id = (s: string) => `${idPrefix}-${s}`
   return (
     <svg className={className} viewBox="0 0 300 400" aria-hidden="true">
@@ -79,7 +87,8 @@ export default function GhostFace({ idPrefix, className, backdrop = false }: { i
         {/* brow shadow and sunken sockets */}
         <path d="M52 140 C 80 118, 124 120, 140 144 C 128 186, 74 190, 56 164 Z" fill="#050505" opacity="0.92" />
         <path d="M248 132 C 220 112, 176 116, 160 140 C 172 180, 226 184, 244 158 Z" fill="#050505" opacity="0.92" />
-        {/* the grin: far too wide */}
+        {/* the grin: far too wide (the jaw: the jumpscare stretches it open) */}
+        <g className="ghostface__jaw">
         <path d="M70 262 C 110 300, 190 300, 230 262 C 205 312, 95 312, 70 262 Z" fill="#050505" />
         <g clipPath={`url(#${id('mouth')})`}>
           {TEETH.map(([x, w, h]) => (
@@ -88,6 +97,7 @@ export default function GhostFace({ idPrefix, className, backdrop = false }: { i
           {TEETH.slice(1, -1).map(([x, w, h]) => (
             <rect key={`lo${x}`} x={x - w / 2 - 6} y={302 - h * 0.55} width={w * 0.9} height={h * 0.55} rx="2" fill="#a59c88" opacity="0.8" />
           ))}
+        </g>
         </g>
         {/* the corners torn up into the cheeks */}
         <path d="M70 262 C 58 246, 52 226, 50 206" stroke="#050505" strokeWidth="3" fill="none" strokeLinecap="round" />
@@ -101,6 +111,19 @@ export default function GhostFace({ idPrefix, className, backdrop = false }: { i
         <ellipse cx="139" cy="240" rx="8" ry="4.5" transform="rotate(18 139 240)" />
         <ellipse cx="161" cy="240" rx="8" ry="4.5" transform="rotate(-18 161 240)" />
       </g>
+
+      {/* the jumpscare: black liquid crystal running from the eyes */}
+      {bleed && (
+        <g className="ghostface__tears" fill="none" strokeLinecap="round">
+          {TEARS.map(([d, w]) => (
+            <g key={d}>
+              <path d={d} stroke="#050505" strokeWidth={w} pathLength={1} />
+              {/* wet: a thin oily highlight down one edge of each run */}
+              <path d={d} stroke="rgba(214, 206, 246, 0.42)" strokeWidth={w * 0.22} transform={`translate(${w * 0.3} 0)`} pathLength={1} />
+            </g>
+          ))}
+        </g>
+      )}
 
       {/* two tiny glinting pupils, not quite level */}
       <g filter={`url(#${id('glint')})`} fill="#f6f1e6">

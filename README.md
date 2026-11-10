@@ -55,6 +55,8 @@ Once it has called you, the radio won't let you go.
    (mouse) to read it through the loupe.
 5. **DECODER ON/OFF**: beginners see what they key and what they hear.
    Switch it off to copy by ear and build real speed.
+6. **Your progress** is pencilled on the card: a tick beside every letter the
+   Elmer has taught you, and your best sending speed (`BEST: 14 WPM`).
 
 > **Photosensitivity:** the haunt uses low-contrast flicker at no more than 3 flashes per
 > second, plus one bright flash at the jumpscare. With *reduce motion* turned on,
@@ -67,7 +69,7 @@ Once it has called you, the radio won't let you go.
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # type-check and production build into dist/
-npm test           # 53 unit tests: Morse timing, stations, agents, the agent route, the streams power
+npm test           # 57 unit tests: Morse timing, stations, agents, your progress, the agent route, the streams power
 ```
 
 ### Optional: live AI operators
