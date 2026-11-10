@@ -8,10 +8,9 @@
  * headers on a GET with an Origin (createMediaElementSource needs CORS, or
  * Web Audio hears silence). Re-run it before a demo; stations change.
  *
- * `verified: false` = a seeded candidate the power has not checked yet (it
- * was written in a sandbox without internet access). The radio copes either
- * way: a stream that fails, or lacks CORS, leaves that broadcaster as its
- * carrier and static.
+ * `verified: false` = a seeded candidate the power has not checked yet. The
+ * radio copes either way: a stream that fails, or lacks CORS, leaves that
+ * broadcaster as its carrier and static.
  */
 export interface LiveStream {
   /** what's on */
@@ -26,7 +25,7 @@ export interface LiveStream {
 
 /** Keyed by the broadcaster's frequency (constants.BROADCAST_STATIONS); null = not provisioned */
 export const LIVE_STREAMS: Readonly<Record<string, LiveStream | null>> = Object.freeze({
-  '89.30': { name: 'NPR News', genre: 'news', url: 'https://npr-ice.streamguys1.com/live.mp3', verified: false, checkedAt: null },
-  '93.50': null,
-  '98.10': { name: 'SomaFM Sonic Universe (jazz)', genre: 'jazz', url: 'https://ice1.somafm.com/sonicuniverse-128-mp3', verified: false, checkedAt: null },
+  '89.30': { name: "NPR News", genre: 'news', url: "https://npr-ice.streamguys1.com/live.mp3", verified: true, checkedAt: "2026-11-10T06:49:57.694Z" },
+  '93.50': { name: "RMC Info Talk Sport", genre: 'sports', url: "https://audio.bfmtv.com/rmcradio_128.mp3?aw_0_1st.playerId=RMC_audio_web&aggregator=RMC_audio_web", verified: true, checkedAt: "2026-11-10T06:50:00.798Z" },
+  '98.10': { name: "SomaFM Sonic Universe (jazz)", genre: 'jazz', url: "https://ice1.somafm.com/sonicuniverse-128-mp3", verified: true, checkedAt: "2026-11-10T06:50:02.099Z" },
 })
