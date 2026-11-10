@@ -16,8 +16,8 @@ import { playBreakerThunk, playHauntBang, playHauntBuild, setHauntSilence } from
  *                       out, and the phone buzzes hard
  *   corrupt    ~3.3 s   the LCD is shattered and bleeds black liquid crystal:
  *                       spreading pools with oily rainbow edges, dead pixel
- *                       lines, black fluid leaking out under the bezel down
- *                       the chassis; the serial plate reads SER: D34D-S0UL
+ *                       lines, black fluid running down inside the glass;
+ *                       the serial plate reads SER: D34D-S0UL
  *   frozen     10 s     everything stops on its frame, in total silence; the
  *                       radio ignores you. You wonder if it is over.
  *   the trip   at 14 s  the breaker snaps itself OFF, loud, out of the silence

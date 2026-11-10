@@ -11,7 +11,7 @@ import GhostFace from './GhostFace'
    glass and the black liquid crystal BLEEDS from the fractures, spreading
    pools of pitch with oily rainbow rims (interference in the thin film at
    their edges), dead pixel columns, and #050505 fluid running down inside
-   the glass and leaking out under the bezel down the chassis. Drawn once
+   the glass (it stays inside the glass: nothing leaks onto the chassis). Drawn once
    (deterministic), shown from the flash (LCDDisplay.css). */
 const GLASS_W = 400
 const GLASS_H = 130
@@ -82,14 +82,6 @@ const SHATTER = (() => {
 
 /** Dead pixel columns: [x, lit] (lit = a stuck-on, brighter column) */
 const DEAD_LINES: readonly (readonly [number, boolean])[] = [[58, false], [143, false], [231, true], [319, false], [347, false]]
-
-/** Fluid leaking out under the bezel, down the chassis: [left %, width px-ish %, length %, duration s, delay s] */
-const LEAKS: readonly (readonly [number, number, number, number, number])[] = [
-  [14, 1.6, 70, 2.9, 0.5],
-  [37, 1.0, 46, 3.1, 0.9],
-  [68, 2.1, 92, 2.6, 0.3],
-  [86, 1.2, 58, 3.0, 1.1],
-]
 
 /** The drips: [left %, width cqw, final length %, duration s, delay s] */
 const DRIPS: readonly (readonly [number, number, number, number, number])[] = [
@@ -172,21 +164,6 @@ function HauntGlass() {
       </svg>
       {/* half-seen in the crystal during the build-up, and lingering in the black after */}
       <GhostFace idPrefix="lcd-face" className="lcd__face" backdrop />
-    </div>
-  )
-}
-
-/** Black fluid leaking out under the bezel and running down the chassis */
-function HauntLeak() {
-  return (
-    <div className="lcd__leak" aria-hidden="true">
-      {LEAKS.map(([x, w, len, dur, delay]) => (
-        <span
-          key={x}
-          className="lcd__leak-drip"
-          style={{ '--x': `${x}%`, '--w': `${w}%`, '--len': `${len}%`, '--dur': `${dur}s`, '--delay': `${delay}s` } as CSSProperties}
-        />
-      ))}
     </div>
   )
 }
@@ -356,7 +333,6 @@ export default function LCDDisplay() {
           <DustCanvas />
         </div>
       </div>
-      {isHaunted && <HauntLeak />}
     </section>
   )
 }
