@@ -68,9 +68,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 10.3 The reference card prints its Morse and Q-code tables from the dictionary (one source of truth)
   - _Requirements: 2e, 3_
 
-- [ ] 11. Paddle input to symbols
+- [x] 11. Paddle input to symbols
   - [x] 11.1 DIT / DAH presses call `handleTap('.')` / `handleTap('-')` on the shared decoder (`useMorseDecoder`)
-  - [ ] 11.2 Iambic squeeze: holding both alternates `.-.-`, with a configurable WPM element timing
+  - [x] 11.2 ~~Iambic squeeze (holding both alternates `.-.-`)~~ Changed to direct keying: each press keys exactly one element the instant it goes down; each lever tracks its own pointer, so both can be squeezed at once without one blocking the other. Keyboard too: focus a paddle, Enter / Space (no auto-repeat). Chosen because one press = one symbol is easier for beginners to learn on a touch screen.
   - [x] 11.3 Gap timing from the last tap: 600ms ends a letter, 1400ms ends a word (touch-friendly; configurable on `MorseDecoderProvider`)
   - _Requirements: 2d, 3_
 
@@ -86,7 +86,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
   - _Requirements: 2a, 2b, 3_
 
-- [ ] 13.* Unit tests for timing and decoding (letter / word gaps, squeeze alternation)
+- [ ] 13.* Unit tests for timing and decoding (letter / word gaps)
 
 ## Phase 3: Web Audio integration
 
@@ -110,8 +110,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 16.4 Physically modelled Foley: contact-pulse strikes into resonator banks, stick-slip friction following the motion, per-play variation, a synthesised room; button release clicks
   - _Requirements: 3_
 
-- [ ] 17. S-meter follows real audio
-  - [ ] 17.1 An `AnalyserNode` level drives the needle target; the 104.40 peg behaviour is kept
+- [x] 17. S-meter follows the signal
+  - [x] 17.1 ~~An `AnalyserNode` level drives the needle~~ Changed: the needle is a damped-spring meter movement driven by what is on the frequency, not by an analyser: per-band flutter (dead air, ham band, carrier, broadcast), `keying` (S8 kicks while a station sends to you), `fading` (QSB around S1-S3 while an agent thinks), `peak` (slams past +40 dB on the ghost and rebounds), and a drop to zero on every power sag (glitches). More expressive than a raw level, and it never reads the ghost's silences as a weak signal.
   - _Requirements: 2a, 3_
 
 - [x] 16.3 Quick Start note before the first power-on: spotlight on the breaker, THROW MAIN POWER / GOT IT

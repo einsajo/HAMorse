@@ -16,7 +16,7 @@ Just don't answer the frequency that answers back.
 
 On the surface, it's a calm, useful Morse trainer built as a heavy 1970s
 transceiver: a brushed-metal chassis, an amber LCD, an S-meter, a weighted
-VFO dial, iambic paddles and a dog-eared operator's card tucked behind the
+VFO dial, a twin-lever Morse key and a dog-eared operator's card tucked behind the
 set. Everything you see is drawn with CSS and SVG, and everything you hear is
 synthesised live with the Web Audio API. There are no images and no sound files.
 

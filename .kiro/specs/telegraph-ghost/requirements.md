@@ -27,7 +27,8 @@
     - **A ham operator sending to you:** a strong, close signal kicking around S8 (`keying` mode) until the transmission ends.
     - **Ghost frequency (wandering, see 3c):** slams to the +40 dB stop, bounces, then stays pinned.
     - **Dead air (everywhere else):** drops to around S1, dipping toward 0.
-    - Later (Phase 3): tracks the received audio level.
+    - **A station keying to you:** kicks around S8 (`keying`); **an agent thinking:** sinks into QSB around S1-S3 (`fading`); **a power sag (glitch):** drops to zero.
+    - (Changed from "tracks the received audio level": the needle follows what is on the frequency, see tasks 17.1.)
 - **Right (Decoder Switch):** A horizontal slide switch labelled `DECODER` above it, with `OFF` on the left and `ON` on the right.
   - A ribbed, tarnished-aluminium actuator **slides horizontally** in a deep slot on a raised steel plate between the two states (`--slide`: 0 = OFF, 1 = ON).
 
@@ -76,7 +77,8 @@
   - **Thumb-pieces:** Wide, vertical, heavily worn, textured black bakelite, rubbed through to brown where thumbs press.
   - **Depth:** A multi-layer shadow (tight ambient occlusion plus wide, soft, downward drop shadows) so the levers hover above the plate.
   - **Press (3D pivot):** Pressing pivots a lever like a see-saw **down into the desk on the Z axis**. `transform-origin` sits at the rear hinge (left edge for DIT, right edge for DAH), and `rotateY` under a shared `perspective` lets the thumb-piece end sink while the rear stays pinned. The hover shadows collapse to a flush contact shadow, and the lever darkens with depth.
-  - Pointer-event state with a CSS `:active` fallback; each lever tracks its own pointer, so both can be squeezed at once. `touch-action: manipulation`.
+  - Pointer-event state with a CSS `:active` fallback; each lever tracks its own pointer, so both can be squeezed at once. `touch-action: none`.
+  - **Keying:** direct, one element per press, keyed the instant the lever goes down (not iambic auto-alternation: one press = one symbol is easier to learn on a touch screen). Keyboard: Tab to a paddle, Enter / Space.
 - **Right (TX):**
   - **TX SEND:** Sends what you've keyed and hands the frequency over, like ending an over with `K`. **With the DECODER ON nothing is sent without it:** finished words wait on the LCD as an underlined draft (annunciator `PRESS TX`) so a beginner can check them first. With the DECODER OFF (keying by ear) each word still goes out when you pause, and TX SEND sends at once. Feedback is on the LCD's TX annunciator (Section 2b). A circular push button **resized to exactly the REF/CLR footprint**: a dark knurled housing with a faded red ring and a deeply inset dark-red glass lens, with a realistic pressed state.
   - **TX ARM:** A guarded "missile" safety toggle above TX SEND, mirroring REF over CLR for symmetry. A hinged, faded-red translucent cover sits closed over a small bat toggle, on a yellow/black hazard-striped steel plate.
@@ -123,7 +125,7 @@
 - **Dictionary:** `src/utils/morseDictionary.ts` is the single source of truth (ITU A-Z, 0-9, plus the CQ / QRT Q-codes). The decoder and the reference card both read it, and the `morse-validator` power checks it on every save.
 - **Decoder:** When the DECODER slide switch is ON, the buffer translates to English on the LCD, followed by the live dits/dahs of the letter being keyed and a blinking cursor. Unknown codes show as `?`. Once the text is wider than the glass, the oldest characters are hidden on the left so the newest are always visible. When it is OFF, the LCD text area is blank, **and that is all it does**: keying, decoding and every station's replies carry on unseen (for copying and sending by ear), and switching it back ON shows the whole conversation so far. `CLR` clears the buffer; power OFF wipes it.
 - **VFO Dial:** Dragging the dial circularly updates the LCD frequency (88.00 - 108.00). The radio powers on at a dead 88.50 MHz, so the player has to search for the station.
-- **S-Meter:** The needle tracks the received audio level.
+- **S-Meter:** The needle follows the signal on the frequency (band, keying, fading, ghost peak, power sags), as in 2a.
 
 ## 3a. Interactive Transmissions (the reply engine)
 - **Incoming replies** are keyed out loud element by element (you hear every dit and dah), shown live on the LCD as they build, then committed letter by letter. While another station is sending, the paddles are locked out and the LCD cursor is hidden. CLR, retuning or power OFF cut a reply off.

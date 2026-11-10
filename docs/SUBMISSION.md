@@ -49,7 +49,7 @@ would happen if something else on the band was listening.
   - Find news, sports and jazz broadcasts, and a ham band full of operators.
   - The operators teach you: an Elmer who mentors beginners, a practice station, a slow
     code bulletin, a ragchewer, a high-speed copy station.
-  - Key with iambic paddles, read along with the decoder, or switch it off and copy by ear.
+  - Key on a twin-lever Morse key (one press, one dit or dah), read along with the decoder, or switch it off and copy by ear.
   - An operator's reference card slides out from behind the set, with a reading loupe.
 - **Then the costume slips:**
   - One frequency isn't on any list, and it moves every time you power on.
@@ -107,8 +107,7 @@ would happen if something else on the band was listening.
 - Teaching an LLM to talk in 60-character upper-case CW shorthand.
 
 ### What we learned / what's next
-- Iambic squeeze keying.
-- An S-meter driven by the real audio level.
+- A practice mode that tracks your speed (WPM) over time.
 - More ghost archetypes.
 
 ---
