@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # type-check (tsc -b) and production build
+      - run: npm run build
+      # every A-Z / 0-9 code against ITU Morse (the same check as the Kiro hook)
+      - run: node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict
+      # the agent route loads and its exports are intact (no key needed)
+      - run: node -e "import('./server/agent-route.mjs').then((m) => { if (typeof m.default !== 'function' || typeof m.buildMessages !== 'function') process.exit(1) })"

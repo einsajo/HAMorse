@@ -428,17 +428,30 @@ const NOT_A_NAME = new Set([
   'CQ', 'DE', 'K', 'KN', 'BK', 'AR', 'SK', 'R', 'RR', 'TNX', 'TU', 'FB', 'GE', 'GM', 'GA', 'GN', 'HI', 'HELLO',
   'NAME', 'NM', 'IS', 'MY', 'OP', 'HR', 'UR', 'ES', 'THE', 'AND', 'QTH', 'RST', '73', '88', 'SOS', 'QRT', 'QRZ', 'OK',
   'Y', 'N', 'YES', 'NO', 'WHO', 'WHAT', 'U', 'I', 'ME', 'A',
+  // more procedure and Q-codes
+  'QSO', 'QSL', 'QSB', 'QRM', 'QRN', 'QRS', 'QRQ', 'QRX', 'QRV', 'QSY', 'PSE', 'AGN', 'FER', 'WX', 'RIG', 'ANT', 'PWR',
+  'CPY', 'CPI', 'SIG', 'RPT', 'TEST', 'CW', 'OM', 'YL', 'XYL', 'DR', 'HW', 'NW', 'SRI', 'BCNU', 'CUL', 'GB', 'BYE',
+  'GUD', 'VY', 'TKS', 'THX', 'HPE', 'WID', 'ABT', 'BTW', 'SOLID', 'COPY', 'OVER', 'OUT', 'ROGER', 'HELP', 'GHOST',
+  // everyday English an operator might send
+  'ARE', 'YOU', 'YOUR', 'HOW', 'WHY', 'WHERE', 'WHEN', 'THIS', 'THAT', 'THERE', 'HERE', 'HEAR', 'CAN', 'NOT', 'DONT',
+  'ANY', 'ONE', 'ALL', 'FOR', 'BUT', 'WITH', 'FROM', 'HAVE', 'GOOD', 'NICE', 'MEET', 'FINE', 'WELL', 'STOP', 'LEAVE',
+  'PLEASE', 'SORRY', 'THANKS', 'ANYONE', 'SOMEONE', 'NOBODY', 'WANT', 'NEED', 'KNOW', 'SEE', 'SAY', 'GET', 'AWAY',
+  'SCARED', 'AFRAID', 'ALONE', 'ALIVE', 'DEAD', 'REAL', 'TALK', 'RADIO', 'NIGHT', 'EVENING', 'MORNING', 'TODAY',
 ])
 const LEAVING = new Set(['73', 'SK', 'QRT', 'SOS', 'BYE', 'GB', 'CUL', 'HELP', 'GN'])
 
 /** The operator's name, if they gave one (NAME IS JOE / OP JOE / ...JOE) */
 export function nameFrom(history: readonly AgentMessage[], heard: string): string | null {
   const said = [...history.filter((m) => m.role === 'operator' && !m.text.startsWith('[')).map((m) => m.text), heard]
-  for (let i = said.length - 1; i >= 0; i--) {
-    const words = said[i].split(' ').filter(Boolean)
+  const lines = said.map((t) => t.split(' ').filter(Boolean)).reverse() // newest first
+  // a name you actually gave (NAME IS JOE / NM JOE / OP JOE), anywhere in the QSO, beats a guess
+  for (const words of lines) {
     const k = words.findIndex((w) => w === 'NAME' || w === 'NM' || w === 'OP')
     const after = k >= 0 ? words.slice(k + 1).find((w) => !NOT_A_NAME.has(w) && /^[A-Z]{2,}$/.test(w)) : undefined
     if (after) return after
+  }
+  // otherwise a bare word that looks like a name (DE JOE, JOE HR); never a callsign, a code or filler
+  for (const words of lines) {
     const any = [...words].reverse().find((w) => !NOT_A_NAME.has(w) && /^[A-Z]{3,}$/.test(w))
     if (any) return any
   }

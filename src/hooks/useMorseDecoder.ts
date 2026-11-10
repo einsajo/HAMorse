@@ -1070,6 +1070,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     return () => {
       clearTimeout(show)
       clearTimeout(hide)
+      setAftermath(null) // switched off mid-glimpse: it must not stay burned into the glass
     }
   }, [isPowerOn])
   const glitch = aftermath ?? ghostGlitch

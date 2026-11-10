@@ -1331,6 +1331,8 @@ interface Receiver {
   url: string | null
   status: BroadcastStatus
   release: ReturnType<typeof setTimeout> | null
+  /** play() was refused for want of a user gesture (iOS): retried on the next tap */
+  blocked: boolean
 }
 
 let receiver: Receiver | null = null
@@ -1348,7 +1350,7 @@ function getReceiver(e: Engine): Receiver | null {
   el.preload = 'none'
   const chain = createBroadcastChain(e.ctx, e.master)
   e.ctx.createMediaElementSource(el).connect(chain.input)
-  const r: Receiver = { el, chain, url: null, status: 'idle', release: null }
+  const r: Receiver = { el, chain, url: null, status: 'idle', release: null, blocked: false }
   el.addEventListener('playing', () => {
     if (r.url) r.status = 'live'
   })
@@ -1392,17 +1394,24 @@ export function tuneBroadcast(url: string | null): void {
       clearTimeout(r.release)
       r.release = null
     }
-    if (r.url !== url) {
+    // a new station, or tuning back to one that failed earlier (it may be back): connect afresh
+    if (r.url !== url || r.status === 'failed') {
       r.url = url
       r.status = 'connecting'
       r.el.src = url // a fresh connection lands on the live edge
     }
-    if (r.status !== 'failed') {
-      void r.el.play().catch(() => {
-        if (r.url === url) r.status = 'failed'
-      })
-    }
+    playReceiver(r, url)
     g.setTargetAtTime(BROADCAST_GAIN, t + 0.05, 0.25) // tuning in: it swims up out of the static
+  })
+}
+
+/** Start the stream; a refusal for want of a gesture is retried on the next tap, anything else has failed */
+function playReceiver(r: Receiver, url: string): void {
+  r.blocked = false
+  void r.el.play().catch((err: unknown) => {
+    if (r.url !== url) return
+    if ((err as { name?: string } | null)?.name === 'NotAllowedError') r.blocked = true
+    else r.status = 'failed'
   })
 }
 
@@ -1470,7 +1479,44 @@ function build(): Engine | null {
   drone.gain.gain.value = droneLevel * DRONE_MAX_GAIN
   const rumble = createTrapRumble(ctx, master)
   if (hauntSilenced) master.gain.value = 0
-  return { ctx, limiter, master, staticChain, sidetone, drone, rumble }
+  // iPhone: play even with the ring / silent switch on (Safari 17+; elsewhere a no-op)
+  const nav = navigator as Navigator & { audioSession?: { type: string } }
+  if (nav.audioSession) {
+    try {
+      nav.audioSession.type = 'playback'
+    } catch {
+      /* not supported */
+    }
+  }
+  const e: Engine = { ctx, limiter, master, staticChain, sidetone, drone, rumble }
+  keepAwake(e)
+  return e
+}
+
+/**
+ * Phones suspend or interrupt audio (a call, the lock screen, switching apps).
+ * Once the breaker has unlocked it, any later tap or key brings it back (and
+ * retries a stream iOS refused to start); a hidden tab suspends the whole
+ * graph, so it never hisses or drains the battery in the background.
+ */
+function keepAwake(e: Engine): void {
+  if (typeof document === 'undefined') return
+  const wake = () => {
+    if (document.visibilityState === 'hidden' || e.ctx.state === 'closed') return
+    if (e.ctx.state !== 'running') {
+      resumeRequestedAt = performance.now()
+      void e.ctx.resume().catch(() => {})
+    }
+    const r = receiver
+    if (wantedStream !== null && r?.url !== wantedStream) tuneBroadcast(wantedStream)
+    else if (r?.blocked && r.url && r.url === wantedStream) playReceiver(r, r.url)
+  }
+  for (const type of ['pointerdown', 'pointerup', 'keydown'] as const) document.addEventListener(type, wake, true)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (e.ctx.state === 'running') void e.ctx.suspend().catch(() => {})
+    } else wake()
+  })
 }
 
 /** the master limiter's threshold (dBFS), and its threshold for the one jumpscare */

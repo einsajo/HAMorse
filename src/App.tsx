@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './App.css'
 import LCDDisplay from './components/LCDDisplay'
@@ -43,9 +43,20 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
   }, [hardReset])
   const phase: HauntPhase = useHauntSequence(isHaunted, eject, trip)
 
+  // during the climax nothing on the radio answers: not a tap, and not a key either
+  // (inert also takes focus off the breaker, so Enter can't flip it mid-scare)
+  const stageRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const chassis = stageRef.current?.querySelector('.chassis')
+    if (!chassis) return
+    chassis.toggleAttribute('inert', phase !== 'none')
+    if (phase !== 'none' && document.activeElement instanceof HTMLElement && chassis.contains(document.activeElement)) document.activeElement.blur()
+  }, [phase])
+
   return (
     <>
       <div
+        ref={stageRef}
         className="stage"
         data-haunt={phase}
         data-glitch={glitch?.kind ?? 'none'}

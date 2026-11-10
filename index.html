@@ -2,16 +2,47 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- no zoom: squeezing the paddles must never pinch-zoom the page (.kiro/steering/mobile.md) -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <title>The Telegraph Ghost · learn Morse on a haunted ham radio</title>
+    <meta
+      name="description"
+      content="A painfully realistic old ham radio that teaches you Morse code. Tune the dial, key the paddles, talk to the operators on the band. Just don't answer the frequency that answers back."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="The Telegraph Ghost" />
+    <meta
+      property="og:description"
+      content="Learn Morse code on a haunted 1970s ham radio. Something on the band has learned it too."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Telegraph Ghost" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="preload" href="/fonts/VT323-Regular.ttf" as="font" type="font/ttf" crossorigin />
-    <title>The Telegraph Ghost</title>
+    <!-- black from the first frame: no white flash before the chassis paints -->
+    <style>
+      html,
+      body {
+        background: #000;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="color: #ffb000; font: 16px monospace; text-align: center; margin-top: 40vh">
+        The radio needs JavaScript to power on.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

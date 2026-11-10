@@ -185,5 +185,6 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 - [ ] 21. Submission package
   - [ ] 21.1 3-minute demo video: the haunt within the first 40 seconds, then the tactile details, then the Kiro workflow
-  - [ ] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
+  - [x] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
+  - [x] 21.4 Review pass: audio recovers after calls / app switches and sleeps when hidden; iOS silent switch; keyboard paddles; climax locks keys too (inert); agent route configurable (Gemini default, thinking off), key never committed (.env ignored); CI builds every PR
   - [ ] 21.3 Final check: public repo includes `.kiro/`, live URL works on phone and desktop
