@@ -4,6 +4,9 @@ import './ReferenceCard.css'
 import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
 import { REF_CARD_MOTION } from '../utils/cardMotion'
 import { playPaperScrape } from '../utils/audioEngine'
+import { useMorseDecoder } from '../hooks/useMorseDecoder'
+import { useRadio } from '../context/RadioContext'
+import GhostFace from './GhostFace'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -93,10 +96,79 @@ function LensIcon() {
   )
 }
 
+/**
+ * How far the card has rotted: the card belonged to a dead operator, and it
+ * changes as the ghost talks. Every time you pull it out, it is a little
+ * worse; the Morse table itself is never touched (it still teaches).
+ *   0  a dead man's card: a scorched corner (where no type is), a water tide-mark, foxing
+ *   1  someone has circled four letters in pencil: H, E, L, P
+ *   2  a newer, shakier note under Nevlin's; damp mould spreads up the card
+ *   3  fingernail scratches; DECEASED stamped across the header; a face in
+ *      the damp stain; and a third hand, not Nevlin's, writes to YOU
+ */
+export type CardRot = 0 | 1 | 2 | 3
+
+/** Pencil rings round these letters, in this order (they spell it) */
+const CIRCLED = ['H', 'E', 'L', 'P'] as const
+
+/** Fingernail scratches across the card: groups of near-parallel strokes (viewBox 0..100, stretched) */
+const SCRATCHES: readonly string[] = [
+  'M56 8 C 61 30, 65 52, 68 78', 'M60.5 7 C 65.5 29, 69.5 51, 72.5 76', 'M65 9 C 70 31, 73 50, 77 74', 'M69.5 12 C 73.5 30, 76.5 48, 80.5 70',
+  'M16 30 C 24 46, 29 62, 33 92', 'M20.5 29 C 28.5 45, 33.5 61, 37.5 90', 'M25 32 C 32 47, 37 61, 41 86',
+]
+
 /** The printed card. Rendered twice: the card itself, and the copy the loupe magnifies. */
-function CardSheet() {
+function CardSheet({ idPrefix, rot, name }: { idPrefix: string; rot: CardRot; name: string | null }) {
+  const id = (k: string) => `${idPrefix}-${k}`
   return (
-    <div className="refcard__sheet">
+    <div className="refcard__sheet" data-rot={rot}>
+      {/* the stains are under the type: ink sits on top of the damage */}
+      <svg className="refcard__stain refcard__stain--scorch" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <filter id={id('ragged')} x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="7" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <radialGradient id={id('burn')} cx="100%" cy="100%" r="100%">
+            <stop offset="0%" stopColor="#0d0805" />
+            <stop offset="42%" stopColor="#1c0f07" />
+            <stop offset="58%" stopColor="#4a2a12" stopOpacity="0.85" />
+            <stop offset="78%" stopColor="#8a5a2a" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#8a5a2a" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <path d="M100 18 C 78 26, 60 44, 48 62 C 38 78, 26 90, 14 100 L 100 100 Z" fill={`url(#${id('burn')})`} filter={`url(#${id('ragged')})`} />
+      </svg>
+      <svg className="refcard__stain refcard__stain--tide" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <filter id={id('tide')} x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="23" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+        <g filter={`url(#${id('tide')})`}>
+          <ellipse cx="50" cy="52" rx="40" ry="36" fill="rgba(120, 92, 48, 0.12)" stroke="rgba(92, 64, 30, 0.42)" strokeWidth="2.2" />
+          <ellipse cx="56" cy="58" rx="24" ry="20" fill="none" stroke="rgba(92, 64, 30, 0.2)" strokeWidth="1.2" />
+        </g>
+      </svg>
+      <svg className="refcard__stain refcard__stain--mould" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <filter id={id('mould')} x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.16" numOctaves="4" seed="3" result="n" />
+            <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.2  0 0 0 0 0.22  0 0 0 0 0.16  0 0 0 -2.6 1.55" result="spots" />
+            <feComposite in="spots" in2="SourceGraphic" operator="in" />
+          </filter>
+          <radialGradient id={id('damp')} cx="50%" cy="100%" r="80%">
+            <stop offset="0%" stopColor="#000" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill={`url(#${id('damp')})`} filter={`url(#${id('mould')})`} />
+      </svg>
+
+      {/* the face in the damp: you only see it once you have seen it */}
+      <GhostFace idPrefix={id('face')} className="refcard__face" />
+
       <header className="refcard__head">
         <span>HAMorse HM-13</span>
         {/* rubber-stamped by the factory: how to read the small print */}
@@ -109,12 +181,20 @@ function CardSheet() {
       </header>
 
       <dl className="refcard__morse">
-        {MORSE.map(([ch, code]) => (
-          <div key={ch} className="refcard__entry">
-            <dt>{ch}</dt>
-            <dd>{code}</dd>
-          </div>
-        ))}
+        {MORSE.map(([ch, code]) => {
+          const ring = (CIRCLED as readonly string[]).indexOf(ch)
+          return (
+            <div key={ch} className="refcard__entry">
+              <dt
+                className={ring >= 0 ? 'refcard__circled' : undefined}
+                style={ring >= 0 ? ({ '--i': ring } as CSSProperties) : undefined}
+              >
+                {ch}
+              </dt>
+              <dd>{code}</dd>
+            </div>
+          )
+        })}
       </dl>
 
       <dl className="refcard__q">
@@ -126,10 +206,34 @@ function CardSheet() {
         ))}
       </dl>
 
-      <p className="refcard__note">
-        {'Dial drifts below 90MHz in the cold. '}
-        <span className="refcard__sig">- Nevlin</span>
+      <div className="refcard__note">
+        <p className="refcard__line refcard__line--nevlin">
+          {'Dial drifts below 90MHz in the cold. '}
+          <span className="refcard__sig">- Nevlin</span>
+        </p>
+        <p className="refcard__line refcard__line--late" aria-hidden={rot < 2}>
+          it answers back. dont reply
+        </p>
+      </div>
+
+      {/* and a third hand, not Nevlin's, across the corner */}
+      <p className="refcard__line refcard__line--ghost" aria-hidden={rot < 3}>
+        {name ? `HELLO ${name}` : 'I SEE U'}
       </p>
+
+      {/* fingernails, dragged across the card */}
+      <svg className="refcard__scratches" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {SCRATCHES.map((d) => (
+          <g key={d}>
+            <path d={d} className="refcard__scratch-shadow" vectorEffect="non-scaling-stroke" />
+            <path d={d} className="refcard__scratch" vectorEffect="non-scaling-stroke" />
+          </g>
+        ))}
+      </svg>
+
+      <span className="refcard__deceased" aria-hidden="true">
+        DECEASED
+      </span>
     </div>
   )
 }
@@ -143,6 +247,9 @@ const RIM_TEXT_PATH = 'M 50 50 m -46.4 0 a 46.4 46.4 0 1 1 92.8 0 a 46.4 46.4 0 
  * hold it (touch) or hover it (mouse) to read it through the loupe.
  */
 export default function ReferenceCard({ open, ejected = false, onClose }: ReferenceCardProps) {
+  const { dread, victimName } = useMorseDecoder()
+  const { isHaunted } = useRadio()
+  const rot = (isHaunted ? 3 : Math.min(3, Math.max(0, dread))) as CardRot
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const loupeRef = useRef<HTMLDivElement>(null)
@@ -379,14 +486,14 @@ export default function ReferenceCard({ open, ejected = false, onClose }: Refere
         onPointerCancel={endDrag}
         onPointerLeave={onPointerLeave}
       >
-        <CardSheet />
+        <CardSheet idPrefix="refcard" rot={rot} name={victimName} />
       </div>
 
       {/* The reading loupe: above the radio, never takes the pointer */}
       <div ref={loupeRef} className="loupe" data-show="false" aria-hidden="true">
         <div className="loupe__view">
           <div ref={paperRef} className="loupe__paper">
-            <CardSheet />
+            <CardSheet idPrefix="loupe-card" rot={rot} name={victimName} />
           </div>
         </div>
         <div className="loupe__glass" />

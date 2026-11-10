@@ -164,13 +164,14 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), face glimpses, riser cut dead before the blackout
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
   - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse
+  - [x] 19c.8 The reference card rots with dread: scorch, tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, a face in the damp, HELLO {NAME}
   - [x] 19c.7 Fix: cutting the power mid-strike no longer kills the ghost (`strikePending`: it strikes ~0.8 s after the power returns; cut turns still count)
-  - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid leaking down the chassis
+  - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid running down inside the glass (the leak onto the chassis was removed after play-testing)
   - _Requirements: 4_
 
 - [ ] 19. Liquid Crystal Bleed: remaining parts
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
-  - [ ] 19.2 Viscous black SVG/CSS fluid leaks down from a cracked LCD over the chassis
+  - [x] 19.2 ~~Viscous black fluid leaks down over the chassis~~ (dropped: it looked bad; the bleed stays inside the glass)
   - [ ] 19.3 The serial plate text scrambles to `SER: D34D-S0UL`
   - [ ] 19.4 The S-meter needle violently pins to the red maximum
   - _Requirements: 4_

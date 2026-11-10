@@ -140,6 +140,8 @@ export interface MorseDecoderState {
   dread: number
   /** The ghost is keying right now (the lamp sags as it draws power) */
   isGhostTransmitting: boolean
+  /** Your name, once the ghost has learned it (it writes it on the reference card) */
+  victimName: string | null
   /** A glitch in progress (flicker, brown-out, tear, whisper), or null */
   glitch: Glitch | null
   /**
@@ -211,7 +213,7 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'glitch'> & {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'glitch'> & {
   flush: () => boolean
   receivingNow: () => boolean
   pendingNow: () => boolean
@@ -1039,10 +1041,14 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
    * instant the crystal shows your name (or I SEE U).
    */
   const victim = useRef('I SEE U')
+  const [victimName, setVictimName] = useState<string | null>(null)
   useEffect(() => {
     const talk = castRef.current?.talks.ghost
     const name = talk ? nameFrom(talk.history, '') : null
-    if (name) victim.current = name
+    if (name) {
+      victim.current = name
+      setVictimName(name)
+    }
   }, [dread])
   const aftermathDue = useRef(false)
   const seenSession = useRef(sessionId)
@@ -1070,8 +1076,8 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const isGhostTransmitting = isReceiving && agent === 'ghost'
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, glitch, simulateReply, streamReply, band, station, status }),
-    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, glitch, simulateReply, streamReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, glitch, simulateReply, streamReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, glitch, simulateReply, streamReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }
