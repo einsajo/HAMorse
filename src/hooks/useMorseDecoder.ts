@@ -649,8 +649,13 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const [isAwaitingAgent, setIsAwaitingAgent] = useState(false)
   /** an agent turn is under way (from the request to its last character keyed) */
   const agentInFlight = useRef(false)
+  /** the ghost decided to strike, but its transmission was cut off: the haunt begins at the next chance */
+  const strikePending = useRef(false)
   const [dread, setDread] = useState(0)
-  useEffect(() => setDread(0), [sessionId])
+  useEffect(() => {
+    setDread(0)
+    strikePending.current = false
+  }, [sessionId])
   const hauntedRef = useRef(isHaunted)
   hauntedRef.current = isHaunted
   const trappedRef = useRef(isTrapped)
@@ -667,7 +672,11 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       const c = castRef.current
       if (!c) return false
       const session = (c.talks[id] ??= createAgentSession(c.cast[id]))
-      if (session.climaxed) return false
+      if (session.climaxed) {
+        // it has already decided to strike (that transmission was cut off): it strikes now
+        if (id === 'ghost' && !hauntedRef.current) strikePending.current = true
+        return id === 'ghost'
+      }
       agentAbort.current?.abort()
       const abort = new AbortController()
       agentAbort.current = abort
@@ -695,6 +704,13 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
         if (agentAbort.current === abort) agentInFlight.current = false
         if (!finished) {
           abort.abort() // cut off: stop the agent too
+          if (id === 'ghost' && !lost) {
+            // cut off by the power or a retune, the ghost still MEANT it: the turn
+            // counts, and if this was its strike, it strikes as soon as it can
+            setDread(session.exchange)
+            if (session.exchange > 0 && !trappedRef.current) setIsTrapped(true)
+            if (session.climaxed && !hauntedRef.current) strikePending.current = true
+          }
           return
         }
         touch()
@@ -978,6 +994,14 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       const busy = agentInFlight.current || receivingNow() || hasDraftNow() || agentOver.current.words.length > 0
       if (busy) return
       const now = performance.now()
+      if (strikePending.current) {
+        // the breaker slammed back on and it picks up exactly where it was: it strikes
+        if (now - lastActivity.current < GHOST_REACT_DELAY_MS) return
+        strikePending.current = false
+        pendingReaction.current = null
+        setIsHaunted(true)
+        return
+      }
       const reaction = pendingReaction.current
       if (reaction) {
         if (now - reaction.at < GHOST_REACT_DELAY_MS) return
@@ -993,7 +1017,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       }
     }, IDLE_POLL_MS)
     return () => clearInterval(timer)
-  }, [askAgent, dread, hasDraftNow, isTrapped, onGhost, receivingNow, touch])
+  }, [askAgent, dread, hasDraftNow, isTrapped, onGhost, receivingNow, setIsHaunted, touch])
 
   // between its transmissions, the set misbehaves (more, and worse, as it goes on)
   const lastWhisper = useRef('')
