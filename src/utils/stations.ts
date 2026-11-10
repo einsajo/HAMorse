@@ -51,6 +51,12 @@ export interface ReplyTiming {
   toneHz?: number
   /** irregular fist, 0..1: each element and gap is stretched or squeezed by up to this fraction */
   jitter?: number
+  /**
+   * The ghost's last transmission, 0..1: as it keys, it speeds up (to under
+   * half the element length by the ~24th character) and its pitch lurches
+   * erratically, more and more. 0 / omitted = steady.
+   */
+  frenzy?: number
 }
 
 /** The 101.00 practice station: brisk, clean 700 Hz (60 ms dits) */

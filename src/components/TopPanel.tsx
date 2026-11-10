@@ -441,7 +441,7 @@ export const POWER_LOCK_JOLT_MS = 450
  * S-meter needle reacts to power and to the tuned frequency.
  */
 export default function TopPanel() {
-  const { frequency, isPowerOn, isDecoderOn, isTrapped, togglePower, setIsPowerOn, toggleDecoder, reportResistance } = useRadio()
+  const { frequency, isPowerOn, isDecoderOn, isTrapped, isHaunted, sessionId, togglePower, setIsPowerOn, toggleDecoder, reportResistance } = useRadio()
   const { isReceiving, isAwaitingAgent, glitch } = useMorseDecoder()
   const powerSag = glitch?.kind === 'flicker' || glitch?.kind === 'brownout'
   const { attention, nudge } = usePowerHint()
@@ -456,10 +456,18 @@ export default function TopPanel() {
   const lockTimers = useRef<ReturnType<typeof setTimeout>[]>([])
   const busy = useRef(false)
   useEffect(() => () => lockTimers.current.forEach(clearTimeout), [])
+  // a hard reset (the trip) ends any fight in progress: the breaker must stay down
+  useEffect(() => {
+    lockTimers.current.forEach(clearTimeout)
+    lockTimers.current = []
+    busy.current = false
+    setForced(false)
+  }, [sessionId])
 
   // The breaker is the ONLY control allowed to start audio (mobile autoplay policy).
   const onPower = useCallback(() => {
     unlockAudio()
+    if (isHaunted) return // the climax owns the breaker now (it trips it itself)
     if (busy.current) return // it's fighting you
     if (isPowerOn && isTrapped) {
       busy.current = true
@@ -482,7 +490,7 @@ export default function TopPanel() {
     }
     playBreakerThunk(!isPowerOn) // KA-CHUNK
     togglePower()
-  }, [isPowerOn, isTrapped, setIsPowerOn, togglePower, reportResistance])
+  }, [isPowerOn, isTrapped, isHaunted, setIsPowerOn, togglePower, reportResistance])
 
   // metal shoe scraping along the slide's track (silent until audio is unlocked).
   // It still slides with the power off; before the first power-on, show the guide.

@@ -277,7 +277,8 @@ export default function LCDDisplay() {
               <span className="lcd__ghost" aria-hidden="true">
                 888.88
               </span>
-              <span className="lcd__ink" aria-live="polite" aria-label={`${freqText} megahertz`}>
+              {/* read on demand, not announced: dragging the dial would re-announce every 0.01 MHz */}
+              <span className="lcd__ink">
                 {freqText}
               </span>
             </span>
@@ -298,7 +299,8 @@ export default function LCDDisplay() {
                 )}
                 {status === 'ready' && (
                   <span className="lcd__buffer-text">
-                    <span aria-live="polite" aria-label={`Decoded: ${decodedMessage || 'nothing yet'}`}>
+                    {/* a log: screen readers announce each new decoded character as it lands */}
+                    <span role="log" aria-live="polite" aria-atomic="false">
                       {sentText}
                       {draftText !== '' && (
                         <span className="lcd__draft" data-unsent={hasDraft}>

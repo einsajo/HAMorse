@@ -55,9 +55,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - _Requirements: 2a, 4_
 
 - [ ] 9. Verify on the real React runtime
-  - [ ] 9.1 `npm install && npm run build` with no TypeScript or Vite errors
+  - [x] 9.1 `npm install && npm run build` with no TypeScript or Vite errors (GitHub Actions CI runs `npm ci && npm run build` on every PR)
   - [ ] 9.2 Run `npm run dev` on a real Android phone: drag tuning, detent, dust wipe, card, paddles
-  - [ ] 9.3 Deploy to a public URL (required for submission)
+  - [x] 9.3 Deploy to a public URL (required for submission): GitHub Pages workflow, https://einsajo.github.io/ghostFrequency-/
   - _Requirements: 1_
 
 ## Phase 2: Morse code engine
@@ -68,9 +68,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 10.3 The reference card prints its Morse and Q-code tables from the dictionary (one source of truth)
   - _Requirements: 2e, 3_
 
-- [ ] 11. Paddle input to symbols
+- [x] 11. Paddle input to symbols
   - [x] 11.1 DIT / DAH presses call `handleTap('.')` / `handleTap('-')` on the shared decoder (`useMorseDecoder`)
-  - [ ] 11.2 Iambic squeeze: holding both alternates `.-.-`, with a configurable WPM element timing
+  - [x] 11.2 ~~Iambic squeeze (holding both alternates `.-.-`)~~ Changed to direct keying: each press keys exactly one element the instant it goes down; each lever tracks its own pointer, so both can be squeezed at once without one blocking the other. Keyboard too: focus a paddle, Enter / Space (no auto-repeat). Chosen because one press = one symbol is easier for beginners to learn on a touch screen.
   - [x] 11.3 Gap timing from the last tap: 600ms ends a letter, 1400ms ends a word (touch-friendly; configurable on `MorseDecoderProvider`)
   - _Requirements: 2d, 3_
 
@@ -86,7 +86,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
   - _Requirements: 2a, 2b, 3_
 
-- [ ] 13.* Unit tests for timing and decoding (letter / word gaps, squeeze alternation)
+- [ ] 13.* Unit tests for timing and decoding (letter / word gaps)
 
 ## Phase 3: Web Audio integration
 
@@ -110,8 +110,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 16.4 Physically modelled Foley: contact-pulse strikes into resonator banks, stick-slip friction following the motion, per-play variation, a synthesised room; button release clicks
   - _Requirements: 3_
 
-- [ ] 17. S-meter follows real audio
-  - [ ] 17.1 An `AnalyserNode` level drives the needle target; the 104.40 peg behaviour is kept
+- [x] 17. S-meter follows the signal
+  - [x] 17.1 ~~An `AnalyserNode` level drives the needle~~ Changed: the needle is a damped-spring meter movement driven by what is on the frequency, not by an analyser: per-band flutter (dead air, ham band, carrier, broadcast), `keying` (S8 kicks while a station sends to you), `fading` (QSB around S1-S3 while an agent thinks), `peak` (slams past +40 dB on the ghost and rebounds), and a drop to zero on every power sag (glitches). More expressive than a raw level, and it never reads the ghost's silences as a weak signal.
   - _Requirements: 2a, 3_
 
 - [x] 16.3 Quick Start note before the first power-on: spotlight on the breaker, THROW MAIN POWER / GOT IT
@@ -123,7 +123,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 18.1 `simulateReply(message, isGhost)`: recursive-timeout auto-typer that keys each character's dits/dahs out loud and types it onto the LCD; paddles locked while receiving
   - [x] 18.2 Tutor on 101.00: `HI` -> `GUD COPY. SEND SOS`, `SOS` -> `FB. 73.`
   - [x] 18.3 Ghost on 104.40: `CQ` -> ` I C U ` (slow, distorted tone); sets global `isHaunted` (superseded by 19a)
-  - [ ] 18.4* AI replies (optional), with the scripted replies as the fallback
+  - [x] 18.4* AI replies (optional), with the scripted replies as the fallback (agent route: Groq qwen/qwen3.8-27b by default; local brains when no route is set)
   - [x] 18.5 DECODER OFF is display-only: taps are keyed and decoded and stations still answer; only the LCD text is hidden
   - _Requirements: 3a, 4_
 
@@ -155,7 +155,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19b.3 Latency as interference: fading S-meter while waiting; 6s timeout / failure → `QSB... QSB... LOST SIG` (offline: `DEAD BAND`); tutors strictly local
   - [x] 19b.4 Live RX broadcasts through a vintage AM chain (`createMediaElementSource`); `live-streams` Kiro power provisions and verifies CORS-friendly streams
   - [x] 19b.5 Finale: serial glitch on the flash, the hard trip 4s later (stays off), `hardReset` → fresh boot at 88.50 with a new ghost and new personas
-  - [ ] 19b.6 Run the `live-streams` power with internet access and commit verified streams (the sandbox could not reach them)
+  - [x] 19b.6 Run the `live-streams` power with internet access and commit verified streams (all three verified 2026-11-10)
   - _Requirements: 3d, 3e, 3f, 4_
 
 - [x] 19c. The haunt that hunts
@@ -169,21 +169,22 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid running down inside the glass (the leak onto the chassis was removed after play-testing)
   - _Requirements: 4_
 
-- [ ] 19. Liquid Crystal Bleed: remaining parts
-  - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
+- [x] 19. Liquid Crystal Bleed: remaining parts
+  - [x] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies (the 800 ms black veil, then the dying lamp)
   - [x] 19.2 ~~Viscous black fluid leaks down over the chassis~~ (dropped: it looked bad; the bleed stays inside the glass)
-  - [ ] 19.3 The serial plate text scrambles to `SER: D34D-S0UL`
-  - [ ] 19.4 The S-meter needle violently pins to the red maximum
+  - [x] 19.3 The serial plate text scrambles to `SER: D34D-S0UL`
+  - [x] 19.4 The S-meter needle violently pins to the red maximum (`peak` mode on the ghost's frequency: driven past the stop, slams in and rebounds)
   - _Requirements: 4_
 
 - [x] 20. The breaker trips (19b.5)
-  - [ ] 20.1 Incoming Morse speeds up and pitch-shifts erratically
-  - [ ] 20.2 The MCB snaps itself OFF; audio cuts to dead silence; everything resets
+  - [x] 20.1 Incoming Morse speeds up and pitch-shifts erratically (`frenzy` on the ghost's last transmission: under half the element length by the 24th character; letter gaps measured ~890 → ~230-470 ms)
+  - [x] 20.2 The MCB snaps itself OFF; audio cuts to dead silence; everything resets
   - _Requirements: 4_
 
 ## Phase 5: Submission
 
 - [ ] 21. Submission package
   - [ ] 21.1 3-minute demo video: the haunt within the first 40 seconds, then the tactile details, then the Kiro workflow
-  - [ ] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
+  - [x] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
+  - [x] 21.4 Review pass: audio recovers after calls / app switches and sleeps when hidden; iOS silent switch; keyboard paddles; climax locks keys too (inert); agent route configurable (Groq qwen/qwen3.8-27b default, thinking off, <think> never on air), key never committed (.env ignored); CI builds every PR
   - [ ] 21.3 Final check: public repo includes `.kiro/`, live URL works on phone and desktop

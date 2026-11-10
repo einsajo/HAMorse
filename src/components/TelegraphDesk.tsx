@@ -7,7 +7,7 @@ import { usePowerHint } from '../hooks/usePowerHint'
 import { useRadio } from '../context/RadioContext'
 import { playButtonRelease, playButtonSnap } from '../utils/audioEngine'
 
-/* --- Iambic squeeze keyer ------------------------------------------------ */
+/* --- Twin-lever key: one press keys one element (direct keying, not iambic) --- */
 
 interface LeverProps {
   side: 'dit' | 'dah'
@@ -168,7 +168,7 @@ interface TelegraphDeskProps {
 }
 
 /**
- * Telegraph Desk: REF/CLR switches | horizontal iambic squeeze keyer | TX ARM guard / TX SEND.
+ * Telegraph Desk: REF/CLR switches | horizontal twin-lever key | TX ARM guard / TX SEND.
  * REF toggles the reference card; DIT / DAH key the Morse decoder; CLR clears it;
  * TX SEND sends what you've keyed at once and hands the frequency over.
  */

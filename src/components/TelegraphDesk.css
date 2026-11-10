@@ -44,11 +44,25 @@
 .lever,
 .utility__cap,
 .tx__lens {
-  touch-action: manipulation; /* zero mobile tap delay */
+  touch-action: none; /* no tap delay, and squeezing both paddles can never pinch-zoom the page */
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
+}
+
+/* keyboard focus: a faint amber ring, like the lamp catching the edge */
+.lever:focus-visible,
+.utility__cap:focus-visible,
+.tx__lens:focus-visible {
+  outline: 2px solid rgba(255, 176, 0, 0.75);
+  outline-offset: 3px;
+}
+
+.lever:focus:not(:focus-visible),
+.utility__cap:focus:not(:focus-visible),
+.tx__lens:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ==========================================================================
