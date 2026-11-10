@@ -93,6 +93,28 @@ export interface AgentBrain {
 
 /** After this many replies the ghost always strikes */
 export const GHOST_MAX_EXCHANGES = 4
+/**
+ * The haunt is paced by the conversation. Talk to it, and it takes its time
+ * (4 transmissions, about 2 minutes). Say nothing, or only a word or two, and
+ * it loses patience: it strikes on its 3rd transmission, keys faster and
+ * waits less (about 40 seconds from landing on it to the jumpscare).
+ */
+export const GHOST_QUIET_MAX_EXCHANGES = 3
+/** at most this many words sent to the ghost (so far) = a quiet operator */
+export const GHOST_QUIET_WORDS = 2
+
+/** How many words the operator has actually sent this agent (its own unprompted turns don't count) */
+export function operatorWords(history: readonly AgentMessage[], heard = ''): number {
+  return [...history.filter((m) => m.role === 'operator' && !m.text.startsWith('[')).map((m) => m.text), heard]
+    .join(' ')
+    .split(' ')
+    .filter(Boolean).length
+}
+
+/** The ghost's strike point for this turn: sooner when the operator won't talk */
+export function ghostMaxExchanges(history: readonly AgentMessage[], heard = ''): number {
+  return operatorWords(history, heard) <= GHOST_QUIET_WORDS ? GHOST_QUIET_MAX_EXCHANGES : GHOST_MAX_EXCHANGES
+}
 /** The longest reply the radio will key (Morse is slow) */
 export const AGENT_MAX_REPLY_CHARS = 64
 /** Network budget: no first word, or a stall, this long and the signal is lost */
@@ -465,10 +487,19 @@ export function nameFrom(history: readonly AgentMessage[], heard: string): strin
 /** What the ghost says when it speaks unprompted ({YOU} = the operator) */
 export const GHOST_REACTIONS: Readonly<Record<HauntEvent, readonly string[]>> = Object.freeze({
   // first contact: you landed on it and said nothing. It sounds like anyone calling CQ (it hasn't shown itself yet)
-  arrival: ['CQ CQ CQ. ANYONE ON FREQ? K', 'QRZ? QRZ? I THOUGHT I HRD A SIG. K', 'CQ CQ. ANYONE LISTENING TONITE? K', 'QRZ? PSE CALL AGN. K'],
+  arrival: ['CQ CQ K', 'QRZ? K', 'CQ CQ? K', 'QRZ? QRZ? K'],
   power: ['NO OFF SWITCH HR {YOU}', 'U CANT TURN ME OFF {YOU}', 'IM IN THE WIRES NOW {YOU}', 'THE POWER IS MINE {YOU}'],
   dial: ['THE DIAL IS MINE {YOU}', 'STOP TURNING {YOU}', 'THERE IS NO OTHER FREQ {YOU}', 'U CANT TUNE AWAY {YOU}'],
   silence: ['{YOU}? U STILL THERE?', 'WHY SO QUIET {YOU}?', 'I HEAR U BREATHING {YOU}', 'DONT IGNORE ME {YOU}', 'ITS {TIME} HR {YOU}. WHY R U AWAKE?'],
+})
+
+/**
+ * A quiet operator (they won't talk to it): Morse is slow, so it says less.
+ * Short, and it gets straight to the point.
+ */
+export const GHOST_QUIET_LINES = Object.freeze({
+  reach: ['U THERE {YOU}?', 'I HEAR U {YOU}', 'WHY SO QUIET?', '{TIME}. WHY AWAKE?'],
+  strike: ['I SEE U', 'FOUND U', 'TOO LATE {YOU}', 'NOW U HEAR ME'],
 })
 
 function ghostBrain(archetype: Archetype, { rng = Math.random, tempo = 1 }: LocalBrainOptions = {}): AgentBrain {
@@ -484,6 +515,11 @@ function ghostBrain(archetype: Archetype, { rng = Math.random, tempo = 1 }: Loca
     const you = nameFrom(history, heard) ?? 'OM'
     const strikeAt = (maxExchanges ?? GHOST_MAX_EXCHANGES) - 1
     if (event === 'arrival') return { text: pick(GHOST_REACTIONS.arrival), climax: false }
+    if (maxExchanges === GHOST_QUIET_MAX_EXCHANGES && event) {
+      // they won't talk to it: short, and straight to the point
+      if (exchange >= strikeAt) return { text: fill(pick(GHOST_QUIET_LINES.strike), you), climax: true }
+      return { text: fill(pick(GHOST_QUIET_LINES.reach), you), climax: false }
+    }
     if (event) {
       // it speaks first: fighting it, or ignoring it, only brings it closer
       if (exchange >= strikeAt) return { text: fill(pick(archetype.lines[2]), you), climax: true }
@@ -551,6 +587,11 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
     event: HauntEvent | null = null,
   ): AsyncGenerator<AgentEvent> {
     if (climaxed) return
+    // the ghost's patience depends on how much you have said to it
+    const maxExchanges =
+      persona.id === 'ghost' && persona.maxExchanges !== null
+        ? Math.min(persona.maxExchanges, ghostMaxExchanges(history, event ? '' : toKeyable(heard).trim()))
+        : persona.maxExchanges
     const input: AgentTurnInput = {
       agent: persona.id,
       system: persona.systemPrompt,
@@ -558,7 +599,7 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
       exchange,
       heard: event ? '' : toKeyable(heard).trim(),
       history: [...history],
-      maxExchanges: persona.maxExchanges,
+      maxExchanges,
       event,
       localTime: new Date().toTimeString().slice(0, 5),
     }
@@ -590,7 +631,7 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
     }
     history.push({ role: 'operator', text: event ? `[${HAUNT_EVENT_TEXT[event]}]` : input.heard }, { role: 'agent', text: said.trim() })
     exchange += 1
-    if (strikes && (strike || exchange >= (persona.maxExchanges ?? Infinity))) {
+    if (strikes && (strike || exchange >= (maxExchanges ?? Infinity))) {
       climaxed = true
       yield { type: 'climax' }
     }

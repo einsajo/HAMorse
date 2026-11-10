@@ -172,7 +172,7 @@ await t('a live route is told what the operator is doing (event), with no words'
 await t('it knows how late it is where you are', async () => {
   const p = A.createCast({ rng: () => 0 }).ghost
   const s = A.createAgentSession(p, p.localBrain({ rng: () => 4.5 / 7, tempo: 0 })) // the 5th of 7 silence lines: the time
-  await collect(s.turn('CQ'))
+  await collect(s.turn('GE OM NAME JOE')) // a talking operator: the full, slow haunt
   const txt = textOf(await collect(s.turn('', undefined, 'silence')))
   const now = new Date(); const hh = String(now.getHours()).padStart(2, '0')
   assert.match(txt, new RegExp(`ITS ${hh}\\d\\d HR`)); keyable(txt)
@@ -197,5 +197,25 @@ await t('first contact: land on the ghost, key nothing, and it calls an ordinary
   keyable(txt)
   assert.equal(s.exchange, 1)
   assert.ok(A.HAUNT_EVENT_TEXT.arrival.length > 20)
+})
+await t('paced by the conversation: talk to it and it takes 4 transmissions; say 2 words or fewer and it strikes on the 3rd, in short lines', async () => {
+  assert.equal(A.operatorWords([{ role: 'operator', text: '[SOMEONE HAS JUST TUNED IN]' }], 'HI OM'), 2)
+  assert.equal(A.ghostMaxExchanges([], 'HI OM'), A.GHOST_QUIET_MAX_EXCHANGES)
+  assert.equal(A.ghostMaxExchanges([], 'GE OM NAME JOE'), A.GHOST_MAX_EXCHANGES)
+  // quiet: land on it, never answer
+  const p = A.createCast({ rng: () => 0.2 }).ghost
+  const quiet = local(p)
+  const turns = []
+  turns.push(await collect(quiet.turn('', undefined, 'arrival')))
+  turns.push(await collect(quiet.turn('', undefined, 'silence')))
+  turns.push(await collect(quiet.turn('', undefined, 'silence')))
+  assert.ok(turns[2].some((e) => e.type === 'climax'), 'strikes on its 3rd transmission')
+  assert.ok(!turns[0].some((e) => e.type === 'climax') && !turns[1].some((e) => e.type === 'climax'))
+  for (const tr of turns) { const txt = textOf(tr); assert.ok(txt.trim().length <= 20, `short: ${txt}`); keyable(txt) }
+  assert.equal(quiet.climaxed, true)
+  // talking: 4 transmissions
+  const talk = local(p)
+  for (const said of ['GE OM NAME JOE', 'WHO R U', 'WHERE R U']) assert.ok(!(await collect(talk.turn(said))).some((e) => e.type === 'climax'))
+  assert.ok((await collect(talk.turn('HELLO'))).some((e) => e.type === 'climax'), 'strikes on its 4th')
 })
 console.log(`\n${n} agent tests passed`)

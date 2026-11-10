@@ -10,6 +10,12 @@ Just don't answer the frequency that answers back.
 
 [![CI](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml)
 
+| The Quick Start note | A Morse trainer… | …until it isn't |
+|---|---|---|
+| <img src="docs/screens/1-quick-start.png" width="240" alt="The Quick Start note taped over the radio"> | <img src="docs/screens/2-radio.png" width="240" alt="The radio tuned to 101.00 MHz with the reference card out"> | <img src="docs/screens/3-haunt.png" width="240" alt="The haunt: the LCD cracked and bleeding black liquid crystal, black grease over the card"> |
+
+*Every pixel is CSS and SVG, and every sound is synthesised live. There are no images or audio files in the app.*
+
 ---
 
 ## What it is

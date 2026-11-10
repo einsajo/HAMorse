@@ -104,10 +104,10 @@
   - **Look:** blackened, lathe-turned gunmetal rim with bevel highlights; glass with glare, edge vignette and a faint colour fringe; floats over the radio with a soft shadow; pops in (scale 0.82 → 1, no animation with reduced motion). **Our marks:** `HAMorse · HM-13 READING LOUPE · 2.2×` engraved in the rim in the radio's silkscreen paint (live zoom factor), index ticks, and the S-meter needle's red at 12 o'clock.
   - **Hint:** a red rubber stamp in the card header, `HOLD TO MAGNIFY` (touch) / `HOVER TO MAGNIFY` (mouse), with a drawn lens icon.
 
-### 2f. Quick Start Guide (before the first power-on)
-- **Trigger:** using a control that needs power (DIT / DAH, DECODER, CLR, TX SEND, or releasing the VFO) before the radio has ever been switched on. REF and the dust wipe never trigger it (they work unpowered).
+### 2f. Quick Start Guide (on page load)
+- **Trigger:** shown as soon as the page loads, so everyone starts by throwing MAIN POWER. If it is closed with GOT IT, using a control that needs power (DIT / DAH, DECODER, CLR, TX SEND, or releasing the VFO) before the first power-on makes the breaker glow. REF and the dust wipe never trigger it (they work unpowered).
 - **Look:** a yellowed cardstock "QUICK START" note taped over the radio in typewriter type, with a pencil "start here" arrow. The chassis dims around a spotlight on the MAIN POWER breaker, which pulses with a soft amber glow (under 1 flash per second).
-- **Content:** explains the trainer (power, tuning and the HAM band, where operators can be met by tuning around, with the Elmer on 100.30 for newcomers; DIT/DAH and the 700 Hz tone; DECODER ON shows text vs OFF for ear training while the radio keeps working; REF and CLR) and why sound needs the power on. It never mentions the haunt.
+- **Content (short: about 140 words):** a few lines on why Morse matters (Samuel Morse and Alfred Vail, 1830s; it gets through when voice and data can't; SOS is understood everywhere; learn it and you can always call for help; this radio teaches it by ear and by hand), then four steps: MAIN POWER (sound starts here, headphones help); the VFO and the HAM band 100.00-103.50 MHz with the Elmer on 100.30 for newcomers; DIT / DAH then TX SEND; DECODER ON shows text vs OFF trains the ear, REF the code card, CLR erases. It never mentions or hints at the haunt.
 - **Actions:** `[ THROW MAIN POWER ]` performs the breaker's own action (thunk, audio unlock, power ON); `[ GOT IT ]` or Escape closes it. After it is dismissed, later attempts only make the breaker glow briefly. The first power-on retires it for the session.
 
 ## 3. Core Mechanics & Audio
@@ -207,7 +207,8 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
   - the seeded entries are `verified: false` until it is run with internet access.
 
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
-- **First contact (`arrival`):** land on the ghost's frequency and key nothing for 3.5 s, and it calls you: an ordinary-sounding `CQ CQ CQ. ANYONE ON FREQ? K` / `QRZ? ...`. It hasn't shown itself yet, but that call is its first transmission, so the trap closes and the haunt runs on its own: a visitor who never keys reaches the jumpscare in about 2 minutes (measured: CQ at 3.5 s, trapped at 28 s, strike at 121 s).
+- **Paced by the conversation:** talk to it (more than 2 words in all) and it takes its time: 4 transmissions, about 2 minutes (measured: build-up at 125 s). Say nothing, or a word or two, and it loses patience: it strikes on its **3rd** transmission, keys at least 20 / 18 WPM with a 0.8 s lead-in, waits 4 / 3.5 / 3 s between transmissions, and says less (`CQ CQ K`, `U THERE OM?`, `0214. WHY AWAKE?`, `I SEE U`). Measured with no keying at all: CQ at 3.6 s, build-up at 40.8 s, jumpscare at 44 s. The pace is re-decided every turn, so starting to talk slows it back down.
+- **First contact (`arrival`):** land on the ghost's frequency and key nothing for 3.5 s, and it calls you: an ordinary-sounding `CQ CQ CQ. ANYONE ON FREQ? K` / `QRZ? ...`. It hasn't shown itself yet, but that call is its first transmission, so the trap closes and the haunt runs on its own: a visitor who never keys reaches the jumpscare in about 40 seconds (see the pacing above).
 - **It never goes quiet (once it has you):** after its first reply the ghost speaks unprompted, through the same agent (an `event` instead of words; a live LLM is told what the operator is doing):
   - **silence:** you stop sending, and it reaches out (it knows your local time: `ITS 0214 HR OM. WHY R U AWAKE?`) (after 9 / 7 / 5.5 s of quiet, shorter as it goes on): `WHY SO QUIET OM?`, `I HEAR U BREATHING OM`;
   - **power:** you switch it off, the breaker slams back on, and it answers that (`IM IN THE WIRES NOW OM`);

@@ -8,7 +8,7 @@ import type { Band, HamStationId } from '../constants'
 import { GHOST_TIMING, REPLY_TIMING, createStations, measureWpm } from '../utils/stations'
 import type { ReplyTiming, SentWord, Station, StationStorage, Transmission } from '../utils/stations'
 import { timingForWpm } from '../utils/stations'
-import { createAgentSession, createCast, nameFrom } from '../utils/agentEngine'
+import { GHOST_QUIET_MAX_EXCHANGES, createAgentSession, createCast, ghostMaxExchanges, nameFrom } from '../utils/agentEngine'
 import type { AgentCast, AgentId, AgentSession, AgentVoice, HauntEvent } from '../utils/agentEngine'
 import { useGhostGlitches } from './useGhostGlitches'
 import type { Glitch } from './useGhostGlitches'
@@ -67,6 +67,13 @@ const AGENT_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
  * still gets pulled in; that call counts as its first transmission.
  */
 export const GHOST_ARRIVAL_MS = 3500
+/**
+ * A quiet operator (2 words or fewer sent to it): the ghost loses patience.
+ * It reaches out sooner, keys faster, and strikes on its 3rd transmission.
+ */
+export const GHOST_QUIET_SILENCE_MS: readonly number[] = Object.freeze([Infinity, 4000, 3500, 3000])
+/** ...at this speed at least (WPM: character / Farnsworth effective), with a short lead-in */
+const GHOST_QUIET_WPM = { char: 20, effective: 18, leadInMs: 800 }
 export const GHOST_SILENCE_MS: readonly number[] = Object.freeze([Infinity, 9000, 7000, 5500])
 /** the aftermath glimpse, this long after the first power-on after a reset */
 export const AFTERMATH_DELAY_MS = 1500
@@ -707,7 +714,18 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       agentAbort.current?.abort()
       const abort = new AbortController()
       agentAbort.current = abort
-      const voice = session.persona.voice(session.exchange)
+      let voice = session.persona.voice(session.exchange)
+      if (id === 'ghost' && ghostMaxExchanges(session.history, event ? '' : heard) === GHOST_QUIET_MAX_EXCHANGES) {
+        // a quiet operator: it won't wait. Faster, and its last transmission comes a turn early
+        const last = session.exchange >= GHOST_QUIET_MAX_EXCHANGES - 1
+        const base = last ? session.persona.voice(Number.MAX_SAFE_INTEGER) : voice
+        voice = {
+          ...base,
+          charWpm: Math.max(base.charWpm, GHOST_QUIET_WPM.char),
+          effectiveWpm: Math.max(base.effectiveWpm, GHOST_QUIET_WPM.effective),
+          leadInMs: Math.min(base.leadInMs, GHOST_QUIET_WPM.leadInMs),
+        }
+      }
       let strikes = false
       let lost = false
       setIsAwaitingAgent(true)
@@ -1055,7 +1073,9 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
         return
       }
       const quiet = now - lastActivity.current
-      if (quiet >= GHOST_SILENCE_MS[Math.min(GHOST_SILENCE_MS.length - 1, dread)]) {
+      const talk = castRef.current?.talks.ghost
+      const gaps = talk && ghostMaxExchanges(talk.history) === GHOST_QUIET_MAX_EXCHANGES ? GHOST_QUIET_SILENCE_MS : GHOST_SILENCE_MS
+      if (quiet >= gaps[Math.min(gaps.length - 1, dread)]) {
         touch()
         askAgent('ghost', '', 'silence') // you've gone quiet: it reaches out
       }

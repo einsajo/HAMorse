@@ -23,7 +23,7 @@ Dec 2, so there's time to fix a broken link.
 | ☐ | Category: **Costume Contest** | |
 | ☐ | **No API key** anywhere in the repo, video or screenshots | `.env` is git-ignored; the live demo uses the local brains |
 | ☐ | Test the live URL on a real Android phone **and** an iPhone, with sound | |
-| ☐ | A judge who doesn't know Morse can reach the scare | The circled frequency is on the card; land on it and wait: CQ at 3.5 s, jumpscare at about 2 min ✅ (Playwright) |
+| ☐ | A judge who doesn't know Morse can reach the scare | The Quick Start note opens on load; the circled frequency is on the card. Land on it and wait: CQ at 3.6 s, jumpscare at about 44 s; talk to it and it takes about 2 min ✅ (Playwright) |
 | ☐ | Tests are visible in the repo | `tests/`, `npm test`, run by CI ✅ |
 
 ### Before you record or submit
@@ -120,7 +120,7 @@ Record the **phone screen** (portrait) with internal audio. Headphones on.
 
 | Time | Shot | Say / caption |
 |---|---|---|
-| 0:00–0:08 | Black screen. The Quick Start note. Thumb throws MAIN POWER: *KA-CHUNK*, static swells | "This is a 1970s ham radio. Every pixel is CSS, and every sound is synthesised live." |
+| 0:00–0:08 | The page loads with the Quick Start note (Morse, 1830s, SOS). Thumb throws MAIN POWER: *KA-CHUNK*, static swells | "This is a 1970s ham radio. Every pixel is CSS, and every sound is synthesised live." |
 | 0:08–0:30 | Turn the VFO: the detents, the S-meter flick, a news broadcast through the AM chain, then the ham band. The Elmer says hello | "It's a real Morse trainer…" |
 | 0:30–0:45 | Key `CQ` on the paddles with the decoder ON. REF: the card slides out, and you hold it to use the loupe | "…with a decoder for beginners, and a reference card you can actually read." |
 | 0:45–1:25 | Hold the card to the loupe: a frequency pencilled and ringed in the corner. Tune to it. Silence, then it calls CQ like any operator. Answer it. The glitches start. Cut the power: it slams back on, "IM IN THE WIRES NOW". Pull out the card: HELP is circled | "Someone pencilled a frequency on this card. It isn't on any list." |

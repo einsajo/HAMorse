@@ -12,9 +12,10 @@ interface Spot {
 }
 
 /**
- * Quick Start: a yellowed operator's note taped over the radio, shown when
- * someone uses a power-dependent control before the radio has ever been
- * switched on. The chassis dims with a spotlight on the MAIN POWER breaker.
+ * Quick Start: a yellowed operator's note taped over the radio, shown as
+ * soon as the page loads (and again if a power-dependent control is used
+ * before the first power-on). A few lines on why Morse matters, then four
+ * steps. The chassis dims with a spotlight on the MAIN POWER breaker.
  *
  * "THROW MAIN POWER" performs the breaker's own action (same thunk, same audio
  * unlock), from a click, which browsers accept as a user gesture. Lives inside
@@ -93,28 +94,31 @@ export default function PowerOnGuide() {
           <span className="guide__model">HAMorse HM-13 · MORSE TRAINER</span>
         </h2>
 
-        <ol id="guide-steps" className="guide__steps">
-          <li>
-            Throw the <b>MAIN POWER</b> breaker (top left) to switch on. Your browser only allows sound once
-            the radio is on.
-          </li>
-          <li>
-            Turn the <b>VFO</b> dial to tune. Broadcast stations are receive-only; transmit on the{' '}
-            <b>HAM band, 100.00–103.50&nbsp;MHz</b>. Real-feeling operators live there; tune around to meet them.
-            New to Morse? The <b>Elmer on 100.30</b> will teach you.
-          </li>
-          <li>
-            Tap <b>DIT (·)</b> and <b>DAH (–)</b> to key Morse (a 700&nbsp;Hz tone), then <b>TX SEND</b> to send it.
-          </li>
-          <li>
-            <b>DECODER ON</b> shows the Morse as text: check what you keyed, then press <b>TX SEND</b> (<b>CLR</b>{' '}
-            erases a mistake). <b>OFF</b>: the screen goes blank and each word goes out when you pause, for
-            copying and sending by ear.
-          </li>
-          <li>
-            <b>REF</b> pulls out the Morse code card. <b>CLR</b> clears the screen.
-          </li>
-        </ol>
+        <div id="guide-steps">
+          <p className="guide__intro">
+            In the 1830s, <b>Samuel Morse</b> and Alfred Vail turned words into dots and dashes. Morse code still
+            gets through when voice and data can&rsquo;t: a faint tone, a flashing light, a tap on a pipe.{' '}
+            <b>&middot;&middot;&middot; &ndash;&ndash;&ndash; &middot;&middot;&middot;</b> means SOS everywhere on Earth. Learn it once, and
+            you can always call for help. This radio teaches you, by ear and by hand.
+          </p>
+
+          <ol className="guide__steps">
+            <li>
+              Throw <b>MAIN POWER</b> (top left). Sound starts here; headphones help.
+            </li>
+            <li>
+              Turn the <b>VFO</b> dial. Operators answer on the <b>HAM band, 100.00&ndash;103.50&nbsp;MHz</b>. New to
+              Morse? The <b>Elmer on 100.30</b> will teach you.
+            </li>
+            <li>
+              Key with <b>DIT (&middot;)</b> and <b>DAH (&ndash;)</b>, then press <b>TX SEND</b>.
+            </li>
+            <li>
+              <b>DECODER ON</b> shows your Morse as text; <b>OFF</b> trains your ear. <b>REF</b>: the code card.{' '}
+              <b>CLR</b>: erase.
+            </li>
+          </ol>
+        </div>
 
         <div className="guide__actions">
           <button ref={primaryRef} type="button" className="guide__btn guide__btn--primary" onClick={powerOn}>
