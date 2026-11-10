@@ -32,10 +32,10 @@ assert.equal((await mod.probe(`${R}/jazz.mp3`, { origin: 'https://example.com' }
 assert.equal((await mod.probe(`http://127.0.0.1:1/x.mp3`, { origin: 'https://example.com', allowHttp: true, timeout: 2000 })).reason, 'error')
 ok('probe: accepts audio + CORS; rejects no-CORS, non-audio, plain http, dead hosts')
 
-// full run against the mock directory (the curated https candidates can't be reached from the sandbox: they fail and the directory is used)
+// full run against the mock directory only (--no-curated: never the real stations, so the result is the same offline and on a CI runner with internet)
 const out = join(tmpdir(), `liveStreams.test.${process.pid}.ts`)
 const lines = []
-const code = await mod.main(['--api', D, '--allow-http', '--out', out, '--timeout', '3000'], (l) => lines.push(l))
+const code = await mod.main(['--api', D, '--no-curated', '--allow-http', '--out', out, '--timeout', '3000'], (l) => lines.push(l))
 const ts = readFileSync(out, 'utf8')
 console.log(lines.join('\n'))
 assert.equal(code, 0)
