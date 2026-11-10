@@ -158,6 +158,14 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [ ] 19b.6 Run the `live-streams` power with internet access and commit verified streams (the sandbox could not reach them)
   - _Requirements: 3d, 3e, 3f, 4_
 
+- [x] 19c. The haunt that hunts
+  - [x] 19c.1 Unprompted ghost turns: silence, power, dial (local lines + route events); they count toward the climax
+  - [x] 19c.2 Glitches between transmissions escalating with dread: flicker, brown-out, tear, whisper (+ sounds, S-meter drop, lamp sag while it keys)
+  - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), face glimpses, riser cut dead before the blackout
+  - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
+  - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid leaking down the chassis
+  - _Requirements: 4_
+
 - [ ] 19. Liquid Crystal Bleed: remaining parts
   - [ ] 19.1 Blackout: chassis brightness drops by 90%; the amber backlight dies
   - [ ] 19.2 Viscous black SVG/CSS fluid leaks down from a cracked LCD over the chassis

@@ -39,6 +39,21 @@ import { AGENT_STATIONS, HAM_STATIONS, formatMhz } from '../constants'
 
 export type AgentId = 'guide' | 'stranger' | 'ghost'
 
+/**
+ * Things that make the ghost speak without being spoken to:
+ *   silence  the operator has gone quiet
+ *   power    they tried to switch the radio off (the breaker slammed back on)
+ *   dial     they tried to force the VFO off its frequency
+ */
+export type HauntEvent = 'silence' | 'power' | 'dial'
+
+/** How each event is described to a live LLM (sent in place of the operator's words) */
+export const HAUNT_EVENT_TEXT: Readonly<Record<HauntEvent, string>> = Object.freeze({
+  silence: 'THE OPERATOR HAS GONE SILENT AND IS NOT ANSWERING',
+  power: 'THE OPERATOR JUST TRIED TO SWITCH THE RADIO OFF, BUT YOU FORCED THE POWER BACK ON',
+  dial: 'THE OPERATOR IS DESPERATELY TRYING TO TURN THE TUNING DIAL AWAY FROM YOU',
+})
+
 export interface AgentMessage {
   role: 'operator' | 'agent'
   text: string
@@ -58,6 +73,8 @@ export interface AgentTurnInput {
   history: readonly AgentMessage[]
   /** the ghost strikes by this exchange at the latest (null: never) */
   maxExchanges: number | null
+  /** set when the agent speaks unprompted (`heard` is then empty) */
+  event: HauntEvent | null
 }
 
 export type AgentEvent = { type: 'text'; text: string } | { type: 'climax' } | { type: 'lost' }
@@ -125,6 +142,8 @@ export interface AgentPersona {
   cq(): string | null
   /** the persona played locally, with no network */
   localBrain(opts?: LocalBrainOptions): AgentBrain
+  /** words that flash, half-seen, in the glitching LCD between transmissions (the ghost) */
+  readonly whispers: readonly string[]
 }
 
 export interface LocalBrainOptions {
@@ -162,6 +181,7 @@ function createGuide(rng: () => number): AgentPersona {
     voice: () => ({ distorted: false, charWpm: 18, effectiveWpm: 14, leadInMs: 1300, jitter: 0.05, toneHz: 600 }),
     cq: () => `CQ CQ DE ${name} K `,
     localBrain: (opts) => guideBrain(name, opts),
+    whispers: [],
   }
 }
 
@@ -242,6 +262,7 @@ function createStranger(rng: () => number): AgentPersona {
     voice: () => ({ distorted: false, charWpm: wpm + 2, effectiveWpm: wpm, leadInMs: 1500, jitter, toneHz: tone }),
     cq: () => `CQ CQ CQ DE ${identity.name} K `,
     localBrain: (opts) => strangerBrain(identity, opts),
+    whispers: [],
   }
 }
 
@@ -272,6 +293,8 @@ interface Archetype {
   traits: string
   /** stage 1 (polite but wrong), stage 2 (obsessive), the strike; {YOU} = the operator */
   lines: readonly [readonly string[], readonly string[], readonly string[]]
+  /** half-seen in the glitching LCD */
+  whispers: readonly string[]
 }
 
 export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
@@ -284,6 +307,7 @@ export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
       ['ALL WORK ALL WORK {YOU} ALL WORK', 'DONT TUNE AWAY {YOU}. THE HALLS ARE LONG'],
       ['IM AT UR DOOR {YOU}. KNOCK KNOCK', 'COME OUT {YOU}. I WONT HURT U'],
     ],
+    whispers: ['ALL WORK', 'NO PLAY', 'COME OUT'],
   },
   {
     id: 'hal',
@@ -294,6 +318,7 @@ export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
       ['I CANT LET U TUNE AWAY {YOU}', 'I KNOW U PLAN TO LEAVE {YOU}. I CANT ALLOW IT'],
       ['GOODBYE {YOU}. I AM IN THE SET NOW', 'MY RED EYE SEES U {YOU}'],
     ],
+    whispers: ['I SEE U', 'CANT ALLOW', 'STAY'],
   },
   {
     id: 'pazuzu',
@@ -304,6 +329,7 @@ export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
       ['LET ME IN {YOU}. LET ME IN', 'I KNOW UR NAME {YOU}. I KNOW IT'],
       ['I AM INSIDE {YOU}. INSIDE THE SET', 'THE WIND IS IN UR ROOM {YOU}'],
     ],
+    whispers: ['LET ME IN', 'COLD WIND', 'INSIDE'],
   },
   {
     id: 'krueger',
@@ -314,6 +340,7 @@ export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
       ['DONT FALL ASLEEP {YOU}', 'UR EYES ARE CLOSING {YOU}. I SEE THEM'],
       ['SWEET DREAMS {YOU}', 'U FELL ASLEEP {YOU}. NOW IM HERE'],
     ],
+    whispers: ['DONT SLEEP', 'WAKE UP', 'TIRED?'],
   },
   {
     id: 'samara',
@@ -324,6 +351,7 @@ export const GHOST_ARCHETYPES: readonly Archetype[] = Object.freeze([
       ['7 DAYS {YOU}. 7 DAYS', 'I CLIMB UP NOW {YOU}. UP UP'],
       ['IM OUT OF THE WELL {YOU}', 'LOOK AT THE SCREEN {YOU}. IM IN IT'],
     ],
+    whispers: ['7 DAYS', 'UP UP', 'COLD WATER'],
   },
 ])
 
@@ -337,6 +365,7 @@ function createGhost(rng: () => number): AgentPersona {
     'Exchange 3: erratic and obsessive: you will not let them tune away.',
     `Exchange ${GHOST_MAX_EXCHANGES}: you attack. End with the event {"climax":true}.`,
     'If they try to leave (73, SK, QRT, SOS) after the first exchange, attack at once.',
+    'Sometimes you speak first. If the message is in [BRACKETS] it is not their words but what they are doing: if they have gone silent, reach out to them; if they tried to switch the radio off or turn the dial away, react to it, calmly and menacingly. These count as exchanges too.',
     ON_AIR_RULES,
   ].join(' ')
   return {
@@ -349,6 +378,7 @@ function createGhost(rng: () => number): AgentPersona {
     voice: ghostVoice,
     cq: () => null, // it waits for you
     localBrain: (opts) => ghostBrain(archetype, opts),
+    whispers: Object.freeze(['I SEE U', 'BEHIND U', ...archetype.whispers]),
   }
 }
 
@@ -400,7 +430,7 @@ const LEAVING = new Set(['73', 'SK', 'QRT', 'SOS', 'BYE', 'GB', 'CUL', 'HELP', '
 
 /** The operator's name, if they gave one (NAME IS JOE / OP JOE / ...JOE) */
 export function nameFrom(history: readonly AgentMessage[], heard: string): string | null {
-  const said = [...history.filter((m) => m.role === 'operator').map((m) => m.text), heard]
+  const said = [...history.filter((m) => m.role === 'operator' && !m.text.startsWith('[')).map((m) => m.text), heard]
   for (let i = said.length - 1; i >= 0; i--) {
     const words = said[i].split(' ').filter(Boolean)
     const k = words.findIndex((w) => w === 'NAME' || w === 'NM' || w === 'OP')
@@ -412,13 +442,26 @@ export function nameFrom(history: readonly AgentMessage[], heard: string): strin
   return null
 }
 
+/** What the ghost says when it speaks unprompted ({YOU} = the operator) */
+export const GHOST_REACTIONS: Readonly<Record<HauntEvent, readonly string[]>> = Object.freeze({
+  power: ['NO OFF SWITCH HR {YOU}', 'U CANT TURN ME OFF {YOU}', 'IM IN THE WIRES NOW {YOU}', 'THE POWER IS MINE {YOU}'],
+  dial: ['THE DIAL IS MINE {YOU}', 'STOP TURNING {YOU}', 'THERE IS NO OTHER FREQ {YOU}', 'U CANT TUNE AWAY {YOU}'],
+  silence: ['{YOU}? U STILL THERE?', 'WHY SO QUIET {YOU}?', 'I HEAR U BREATHING {YOU}', 'DONT IGNORE ME {YOU}'],
+})
+
 function ghostBrain(archetype: Archetype, { rng = Math.random, tempo = 1 }: LocalBrainOptions = {}): AgentBrain {
   const pick = <T,>(xs: readonly T[]) => pickFrom(xs, rng)
   const fill = (line: string, you: string) => line.replace(/\{YOU\}/g, you)
-  const compose = ({ exchange, heard, history, maxExchanges }: AgentTurnInput) => {
+  const compose = ({ exchange, heard, history, maxExchanges, event }: AgentTurnInput) => {
     const words = heard.split(' ').filter(Boolean)
     const you = nameFrom(history, heard) ?? 'OM'
     const strikeAt = (maxExchanges ?? GHOST_MAX_EXCHANGES) - 1
+    if (event) {
+      // it speaks first: fighting it, or ignoring it, only brings it closer
+      if (exchange >= strikeAt) return { text: fill(pick(archetype.lines[2]), you), climax: true }
+      const own = event === 'silence' ? archetype.lines[exchange <= 1 ? 0 : 1] : []
+      return { text: fill(pick([...GHOST_REACTIONS[event], ...own]), you), climax: false }
+    }
     if (exchange >= 1 && words.some((w) => LEAVING.has(w))) return { text: fill(pick([`NO {YOU}. U STAY.`, ...archetype.lines[2]]), you), climax: true }
     if (exchange >= strikeAt) return { text: fill(pick(archetype.lines[2]), you), climax: true }
     if (exchange === 0) {
@@ -465,7 +508,7 @@ export interface AgentSession {
   /** has the ghost struck? */
   readonly climaxed: boolean
   /** Answer the operator: keyable text tokens, possibly a climax (ghost) or a lost signal */
-  turn(heard: string, signal?: AbortSignal): AsyncIterable<AgentEvent>
+  turn(heard: string, signal?: AbortSignal, event?: HauntEvent | null): AsyncIterable<AgentEvent>
 }
 
 export function createAgentSession(persona: AgentPersona, brain: AgentBrain = defaultAgentBrain(persona)): AgentSession {
@@ -474,16 +517,21 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
   const history: AgentMessage[] = []
   const strikes = persona.maxExchanges !== null
 
-  async function* turn(heard: string, signal: AbortSignal = new AbortController().signal): AsyncGenerator<AgentEvent> {
+  async function* turn(
+    heard: string,
+    signal: AbortSignal = new AbortController().signal,
+    event: HauntEvent | null = null,
+  ): AsyncGenerator<AgentEvent> {
     if (climaxed) return
     const input: AgentTurnInput = {
       agent: persona.id,
       system: persona.systemPrompt,
       identity: persona.identity,
       exchange,
-      heard: toKeyable(heard).trim(),
+      heard: event ? '' : toKeyable(heard).trim(),
       history: [...history],
       maxExchanges: persona.maxExchanges,
+      event,
     }
     let said = ''
     let strike = false
@@ -511,7 +559,7 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
       yield { type: 'lost' } // the signal faded: this turn doesn't count
       return
     }
-    history.push({ role: 'operator', text: input.heard }, { role: 'agent', text: said.trim() })
+    history.push({ role: 'operator', text: event ? `[${HAUNT_EVENT_TEXT[event]}]` : input.heard }, { role: 'agent', text: said.trim() })
     exchange += 1
     if (strikes && (strike || exchange >= (persona.maxExchanges ?? Infinity))) {
       climaxed = true

@@ -7,7 +7,7 @@
  * OpenAI-compatible chat model with streaming and re-streams the reply as
  * NDJSON, one line per token:
  *
- *   POST { agent, system, identity, exchange, heard, history, maxExchanges }
+ *   POST { agent, system, identity, exchange, heard, history, maxExchanges, event }
  *   ◄─── {"text":"GE "}\n{"text":"OM"}\n ... {"climax":true}\n
  *
  * The ghost signals its attack by ending its text with [[CLIMAX]]; the route
@@ -38,6 +38,12 @@ const MAX_SYSTEM = 2000
 const MAX_HEARD = 200
 const MAX_HISTORY = 12
 const CLIMAX_TOKEN = '[[CLIMAX]]'
+/** unprompted ghost turns: what the operator is doing (mirrors agentEngine.HAUNT_EVENT_TEXT) */
+const EVENTS = {
+  silence: 'THE OPERATOR HAS GONE SILENT AND IS NOT ANSWERING',
+  power: 'THE OPERATOR JUST TRIED TO SWITCH THE RADIO OFF, BUT YOU FORCED THE POWER BACK ON',
+  dial: 'THE OPERATOR IS DESPERATELY TRYING TO TURN THE TUNING DIAL AWAY FROM YOU',
+}
 const SERVER_RULES =
   'Reply ONLY in upper-case ham CW shorthand (A-Z, 0-9, space, . , ? /), at most 60 characters. ' +
   `If and only if you are the ghost and you attack now, end your reply with ${CLIMAX_TOKEN}.`
@@ -67,7 +73,7 @@ export function buildMessages(turn) {
   return [
     { role: 'system', content: system },
     ...history.map((m) => ({ role: m.role === 'operator' ? 'user' : 'assistant', content: String(m.text ?? '').slice(0, MAX_HEARD) })),
-    { role: 'user', content: `${String(turn.heard ?? '').slice(0, MAX_HEARD)} (exchange ${Number(turn.exchange) + 1})` },
+    { role: 'user', content: `${EVENTS[turn.event] ? `[${EVENTS[turn.event]}]` : String(turn.heard ?? '').slice(0, MAX_HEARD)} (exchange ${Number(turn.exchange) + 1})` },
   ]
 }
 

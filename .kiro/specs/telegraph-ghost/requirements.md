@@ -205,16 +205,18 @@ Five operators live on the ham band (`src/utils/stations.ts`; frequencies in `HA
   - the seeded entries are `verified: false` until it is run with internet access.
 
 ## 4. The Haunt Sequence (The Track 4 UI Scare)
-- **Trigger:** the ghost's agent strikes (`{"climax":true}`, or its 4th reply). Once that reply has been keyed, `isHaunted` becomes true.
-- **Blackout (800ms):** a black veil over everything, and **total silence**: the master output is cut, so no static, no drone, nothing.
-- **The flash:** ONE blinding white flash, fading over 0.7s. A single flash stays inside the 3-flashes-per-second photosensitive limit; with reduced motion it is dimmer and softer.
-  - **BANG:** deafening and metallic: a body blow through the cabinet, a crack, falling debris, and a long inharmonic ring of steel.
-  - **Screech:** mixed in, a high-pitched **2000 Hz feedback howl** (two beating sines, slightly overdriven, howling in and drifting sharp over ~3s).
-  - The master limiter keeps it startling, not harmful.
-- **Corrupted:**
-  - The LCD backlight burns a dark, sick red, with a slow smoulder, never a strobe.
-  - An inline SVG **shattered glass** effect: cracks radiating from an off-centre impact, concentric fractures and glinting shards.
-  - **#050505 black viscous liquid** seeps in under the top bezel and drips slowly down the glass: eight drips, 6-10s each, with heavy drops at the tips, merged by an SVG goo filter.
+- **It never goes quiet (once it has you):** after its first reply the ghost speaks unprompted, through the same agent (an `event` instead of words; a live LLM is told what the operator is doing):
+  - **silence:** you stop sending, and it reaches out (after 9 / 7 / 5.5 s of quiet, shorter as it goes on): `WHY SO QUIET OM?`, `I HEAR U BREATHING OM`;
+  - **power:** you switch it off, the breaker slams back on, and it answers that (`IM IN THE WIRES NOW OM`);
+  - **dial:** you force the VFO more than 60°, let go, and it answers that (`THE DIAL IS MINE OM`).
+  Unprompted turns count as exchanges, so a passive or fighting player still reaches the climax by the 4th transmission.
+- **Glitches between transmissions (`useGhostGlitches`), escalating with dread (how many times it has spoken):** brown-outs only while it is just a frequency; then flickers (two lamp dips), brown-outs and torn LCD lines; then whispers (a word burned into the crystal for a fraction of a second: the archetype's words, `I SEE U`, `BEHIND U`, or your own name; never the same twice running). Each has its electrical sound, and the S-meter drops to zero on every power sag. While the ghost keys, the lamp sags (and labours, later).
+- **Trigger:** the ghost's agent strikes (`{"climax":true}`, or its 4th transmission). Once that reply has been keyed, `isHaunted` becomes true.
+- **Build-up (2.6 s):** the room darkens and the lamp dips faster and faster (5 dips: 0, 800, 1400, 1850, 2210 ms), a face is half-seen in the LCD on the last two dips, and a roar rises (noise opening, a saw rising 32 → 110 Hz, an accelerating tremolo)... and is cut dead.
+- **Blackout (800 ms):** a black veil over everything, and **total silence**.
+- **The jumpscare:** ONE white flash that burns a face out of the dark (`GhostFace`: no outline; hollow sagging eyes with pin-prick pupils, weeping black crystal, a ragged gaping mouth, warped as if through cracked glass), drawn huge so it overflows the screen and lunging at you (scale 0.85 → 1.6), with the metallic **BANG**, the 2 kHz **feedback screech**, a jolt of the whole chassis and a haptic buzz.
+- **Photosensitivity (WCAG 2.3.1):** the build-up's dips dim (black at 70-80%, never white) and are never more than 3 in any second; glitch flickers are 2 low-contrast dips, seconds apart; the white flash happens once. Verified frame by frame on the keyframes. With reduced motion: no dips, no lunge, no shake, soft fades.
+- **The machine breaks (no blood):** the cracked LCD bleeds black liquid crystal: pools of pitch spreading from the impact and along the fractures, with oily rainbow rims (thin-film interference), dead pixel columns (one stuck on), the dying amber lamp dimming and browning unevenly, #050505 fluid running down inside the glass and **leaking out under the bezel, down the chassis**. The face lingers faintly in the black.
 - **The reference card is forcibly ejected:** blown out of its slot by the blast, with overshoot and shake.
 - **The serial glitch:** on the frame of the flash, the right serial plate changes from `SER: 1984-K1R0` to `SER: D34D-S0UL` (CSS on `.stage[data-haunt]`, so it lands on the exact frame).
 - **The hard trip:** exactly **4s after the flash** (the screech now lasts exactly that long), the breaker trips itself: `isPowerOn` goes false, the MCB handle snaps OFF with its thunk and a haptic buzz, and **it does not restart** (the power lock is over).

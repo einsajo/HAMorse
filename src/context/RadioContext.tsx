@@ -46,6 +46,10 @@ export interface RadioState {
    * won't stay off.
    */
   isTrapped: boolean
+  /** The latest time the operator fought the trap (the ghost answers it): power or dial, and a counter */
+  resistance: { kind: 'power' | 'dial'; n: number } | null
+  /** The breaker was slammed back on, or the dial was forced: the ghost hears about it */
+  reportResistance: (kind: 'power' | 'dial') => void
   /**
    * Which session this is: bumped by every hard reset, so everything rolled
    * per session (the ghost's frequency, the agents' personas) is rolled anew
@@ -88,6 +92,11 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
   }, [])
 
   const [sessionId, setSessionId] = useState(0)
+  const [resistance, setResistance] = useState<RadioState['resistance']>(null)
+  const reportResistance = useCallback((kind: 'power' | 'dial') => {
+    if (!trappedRef.current) return
+    setResistance((r) => ({ kind, n: (r?.n ?? 0) + 1 }))
+  }, [])
   const hardReset = useCallback(() => {
     trappedRef.current = false
     setIsTrappedState(false)
@@ -116,6 +125,8 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       isHaunted,
       isTrapped,
       sessionId,
+      resistance,
+      reportResistance,
       setFrequency,
       setIsPowerOn,
       setIsDecoderOn,
@@ -125,7 +136,7 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       togglePower,
       toggleDecoder,
     }),
-    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, sessionId, setFrequency, setIsTrapped, hardReset, togglePower, toggleDecoder],
+    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, sessionId, resistance, reportResistance, setFrequency, setIsTrapped, hardReset, togglePower, toggleDecoder],
   )
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>

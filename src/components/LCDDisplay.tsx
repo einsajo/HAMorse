@@ -4,13 +4,15 @@ import { formatFrequency, useRadio } from '../context/RadioContext'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { TxStatus } from '../hooks/useMorseDecoder'
 import type { CSSProperties } from 'react'
+import GhostFace from './GhostFace'
 
-/* --- The haunt: shattered glass and black liquid -------------------------------
-   Drawn once (deterministic, so it never changes between renders): cracks
-   radiating from an off-centre impact, two rings of concentric fractures
-   joining them, a few glinting shards, and the viscous #050505 liquid that
-   crawls down the glass. Only shown in the corrupted phase (App.css /
-   LCDDisplay.css: .stage[data-haunt='corrupt']). */
+/* --- The haunt: shattered glass and bleeding liquid crystal --------------------
+   What a really broken LCD looks like, not blood: the impact cracks the
+   glass and the black liquid crystal BLEEDS from the fractures, spreading
+   pools of pitch with oily rainbow rims (interference in the thin film at
+   their edges), dead pixel columns, and #050505 fluid running down inside
+   the glass and leaking out under the bezel down the chassis. Drawn once
+   (deterministic), shown from the flash (LCDDisplay.css). */
 const GLASS_W = 400
 const GLASS_H = 130
 const IMPACT = { x: 268, y: 50 }
@@ -60,19 +62,45 @@ const SHATTER = (() => {
     .filter(() => rng() < 0.5)
     .map(({ c, n }) => [at(c, 0), at(c, 1), at(n, 1)].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' '))
   const line = (pts: [number, number][]) => 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L')
-  return { cracks: cracks.map(line), rings: rings.flat(), shards }
+  // the liquid crystal bleeding out of the fractures: a big pool at the impact,
+  // smaller ones along the cracks, each starting a little later than the last
+  const pools = [
+    { x: IMPACT.x, y: IMPACT.y, rx: 46, ry: 34, delay: 0 },
+    ...cracks
+      .filter((_, i) => i % 2 === 0)
+      .map((c, i) => {
+        const p = at(c, 2 + (i % 2))
+        const r = 9 + rng() * 15
+        return { x: p[0], y: p[1], rx: r * (1 + rng() * 0.6), ry: r, delay: 0.15 + i * 0.12 + rng() * 0.2 }
+      }),
+    // and seeping in from the edges, under the bezel
+    { x: 30, y: 6, rx: 34, ry: 14, delay: 0.5 },
+    { x: 372, y: 124, rx: 30, ry: 16, delay: 0.7 },
+  ]
+  return { cracks: cracks.map(line), rings: rings.flat(), shards, pools }
 })()
+
+/** Dead pixel columns: [x, lit] (lit = a stuck-on, brighter column) */
+const DEAD_LINES: readonly (readonly [number, boolean])[] = [[58, false], [143, false], [231, true], [319, false], [347, false]]
+
+/** Fluid leaking out under the bezel, down the chassis: [left %, width px-ish %, length %, duration s, delay s] */
+const LEAKS: readonly (readonly [number, number, number, number, number])[] = [
+  [14, 1.6, 70, 2.9, 0.5],
+  [37, 1.0, 46, 3.1, 0.9],
+  [68, 2.1, 92, 2.6, 0.3],
+  [86, 1.2, 58, 3.0, 1.1],
+]
 
 /** The drips: [left %, width cqw, final length %, duration s, delay s] */
 const DRIPS: readonly (readonly [number, number, number, number, number])[] = [
-  [6, 1.6, 72, 7.5, 0.2],
-  [17, 1.0, 46, 9, 1.4],
-  [29, 2.2, 96, 6.5, 0],
-  [41, 1.2, 58, 8.5, 2.2],
-  [55, 1.8, 84, 7, 0.8],
-  [66, 1.0, 38, 10, 3],
-  [78, 2.4, 104, 6, 0.4],
-  [90, 1.3, 64, 8, 1.8],
+  [6, 1.6, 72, 2.6, 0.2],
+  [17, 1.0, 46, 3.0, 0.7],
+  [29, 2.2, 96, 2.2, 0],
+  [41, 1.2, 58, 2.8, 0.9],
+  [55, 1.8, 84, 2.4, 0.4],
+  [66, 1.0, 38, 3.1, 1.1],
+  [78, 2.4, 104, 2.1, 0.2],
+  [90, 1.3, 64, 2.7, 0.8],
 ]
 
 function HauntGlass() {
@@ -94,7 +122,38 @@ function HauntGlass() {
             <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
             <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" />
           </filter>
+          {/* the pools' ragged, organic edges */}
+          <filter id="lcd-crystal" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="3" seed="13" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <radialGradient id="lcd-pool-fill">
+            <stop offset="0%" stopColor="#050505" />
+            <stop offset="70%" stopColor="#07070a" />
+            <stop offset="88%" stopColor="#140f1e" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#1a1426" stopOpacity="0" />
+          </radialGradient>
+          {/* thin-film interference at the edge of the bleed: an oily rainbow */}
+          <linearGradient id="lcd-pool-rim" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#7a46b8" />
+            <stop offset="33%" stopColor="#2c9c94" />
+            <stop offset="66%" stopColor="#d1a92a" />
+            <stop offset="100%" stopColor="#a8407e" />
+          </linearGradient>
         </defs>
+        {/* dead pixel columns */}
+        {DEAD_LINES.map(([x, lit]) => (
+          <rect key={x} className={lit ? 'lcd__deadline lcd__deadline--lit' : 'lcd__deadline'} x={x} y="0" width={lit ? 1.6 : 1.1} height={GLASS_H} />
+        ))}
+        {/* the liquid crystal bleeding from the fractures */}
+        <g className="lcd__pools" filter="url(#lcd-crystal)">
+          {SHATTER.pools.map((p) => (
+            <g key={`${p.x}-${p.y}`} className="lcd__pool" style={{ '--d': `${p.delay.toFixed(2)}s` } as CSSProperties}>
+              <ellipse className="lcd__pool-rim" cx={p.x} cy={p.y} rx={p.rx + 1.5} ry={p.ry + 1.5} />
+              <ellipse cx={p.x} cy={p.y} rx={p.rx} ry={p.ry} fill="url(#lcd-pool-fill)" />
+            </g>
+          ))}
+        </g>
         {SHATTER.shards.map((pts) => (
           <polygon key={pts} className="lcd__shard" points={pts} />
         ))}
@@ -111,6 +170,23 @@ function HauntGlass() {
         </g>
         <circle className="lcd__impact" cx={IMPACT.x} cy={IMPACT.y} r="5" />
       </svg>
+      {/* half-seen in the crystal during the build-up, and lingering in the black after */}
+      <GhostFace idPrefix="lcd-face" className="lcd__face" />
+    </div>
+  )
+}
+
+/** Black fluid leaking out under the bezel and running down the chassis */
+function HauntLeak() {
+  return (
+    <div className="lcd__leak" aria-hidden="true">
+      {LEAKS.map(([x, w, len, dur, delay]) => (
+        <span
+          key={x}
+          className="lcd__leak-drip"
+          style={{ '--x': `${x}%`, '--w': `${w}%`, '--len': `${len}%`, '--dur': `${dur}s`, '--delay': `${delay}s` } as CSSProperties}
+        />
+      ))}
     </div>
   )
 }
@@ -207,7 +283,7 @@ function Annunciator({ tx, rx, draft }: { tx: TxStatus; rx: boolean; draft: bool
 
 export default function LCDDisplay() {
   const { frequency, isPowerOn, isHaunted } = useRadio()
-  const { currentSymbol, decodedMessage, draftFrom, status, isReceiving, txStatus } = useMorseDecoder()
+  const { currentSymbol, decodedMessage, draftFrom, status, isReceiving, txStatus, glitch } = useMorseDecoder()
   // what's been sent / received, and your unsent draft after it (underlined)
   const sentText = decodedMessage.slice(0, draftFrom)
   const draftText = decodedMessage.slice(draftFrom)
@@ -263,7 +339,14 @@ export default function LCDDisplay() {
             </span>
           </div>
 
-          {/* the haunt: the glass shatters and something black seeps down it */}
+          {/* a word burned, for a moment, into the crystal (a glitch): shown even with the DECODER OFF */}
+          {glitch?.kind === 'whisper' && isPowerOn && (
+            <span className="lcd__whisper" aria-hidden="true">
+              {glitch.text}
+            </span>
+          )}
+
+          {/* the haunt: the glass shatters and the liquid crystal bleeds */}
           {isHaunted && <HauntGlass />}
 
           {/* permanent, un-wipeable stain/fog baked into the old glass */}
@@ -273,6 +356,7 @@ export default function LCDDisplay() {
           <DustCanvas />
         </div>
       </div>
+      {isHaunted && <HauntLeak />}
     </section>
   )
 }

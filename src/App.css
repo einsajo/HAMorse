@@ -117,9 +117,16 @@
 }
 
 /* ==========================================================================
-   The haunt's veil (src/hooks/useHauntSequence.ts): total blackout for
-   800 ms, then ONE blinding white flash that fades. A single flash, never
-   repeated, stays inside the 3-flashes-per-second photosensitive limit.
+   The haunt's veil (src/hooks/useHauntSequence.ts), over everything:
+     build     the lamp dips, faster and faster (5 dips, 800 -> 360 ms apart),
+               while the room darkens
+     blackout  800 ms of total black (and silence)
+     flash     ONE blinding white flash, and a face lunges out of it
+
+   Photosensitivity (WCAG 2.3.1, three flashes): the build's dips are never
+   more than 3 in any second and dim rather than flash (black at 70-80%,
+   never white); the white flash happens once. Reduced motion: no dips, no
+   lunge, no shake, a soft fade instead of the white flash.
    ========================================================================== */
 .haunt-veil {
   position: fixed;
@@ -129,6 +136,31 @@
   background: #000;
   opacity: 0;
   visibility: hidden;
+  overflow: hidden;
+}
+
+.haunt-veil[data-phase='build'] {
+  visibility: visible;
+  /* KEEP IN SYNC with HAUNT_BUILD_DIPS_MS (0, 800, 1400, 1850, 2210 of 2600 ms): each dip 90 ms */
+  animation: haunt-build 2600ms linear forwards;
+}
+
+@keyframes haunt-build {
+  0% { opacity: 0.7; }
+  3.5% { opacity: 0.02; }
+  30.7% { opacity: 0.09; }
+  30.8% { opacity: 0.72; }
+  34.2% { opacity: 0.1; }
+  53.8% { opacity: 0.16; }
+  53.9% { opacity: 0.75; }
+  57.3% { opacity: 0.17; }
+  71.1% { opacity: 0.21; }
+  71.2% { opacity: 0.78; }
+  74.6% { opacity: 0.22; }
+  84.9% { opacity: 0.25; }
+  85% { opacity: 0.8; }
+  88.4% { opacity: 0.27; }
+  100% { opacity: 0.32; }
 }
 
 .haunt-veil[data-phase='blackout'] {
@@ -138,17 +170,110 @@
 
 .haunt-veil[data-phase='flash'] {
   visibility: visible;
-  background: #fff;
+  /* the flash burns a pale face out of the dark: white at the centre, black at the edges */
+  background: radial-gradient(ellipse 46% 40% at 50% 46%, #fff 0 40%, #d9d4ca 62%, #3a3732 86%, #050505 100%);
   animation: haunt-flash 700ms cubic-bezier(0.1, 0.6, 0.3, 1) forwards;
 }
 
 @keyframes haunt-flash {
-  0% { opacity: 1; }
+  0%, 18% { opacity: 1; }
   100% { opacity: 0; }
 }
 
-/* reduced motion: a softer, dimmer fade instead of a blinding flash */
+/* the face: it lunges at you out of the white */
+.haunt-veil__face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* huge: the features fill the screen and the face overflows it */
+  height: max(118vh, 150vw);
+  width: auto;
+  aspect-ratio: 200 / 240;
+  transform: translate(-50%, -50%) scale(0.85);
+  /* a faint double, as if it moved too fast to hold still */
+  filter: drop-shadow(1.4vw 0 0 rgba(5, 5, 5, 0.28));
+  animation: haunt-lunge 700ms cubic-bezier(0.12, 0.9, 0.22, 1) forwards;
+}
+
+@keyframes haunt-lunge {
+  0% { transform: translate(-50%, -46%) scale(0.85); opacity: 1; }
+  20% { transform: translate(-50%, -48%) scale(1.25); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0.9; }
+}
+
+/* the blast jolts the whole radio */
+.stage[data-haunt='flash'] > .chassis {
+  animation: chassis-jolt 480ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes chassis-jolt {
+  0% { translate: 0 0; rotate: 0deg; }
+  10% { translate: -7px 5px; rotate: -0.9deg; }
+  24% { translate: 6px -4px; rotate: 0.7deg; }
+  40% { translate: -4px 3px; rotate: -0.4deg; }
+  60% { translate: 2px -1px; rotate: 0.2deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+
+/* ==========================================================================
+   Glitches between transmissions (useGhostGlitches): the lamp dips over the
+   whole radio. Low contrast (black at most 55%), at most two dips per
+   glitch, glitches seconds apart: never more than 3 changes a second.
+   ========================================================================== */
+.glitch-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse 80% 70% at 50% 40%, rgba(0, 0, 0, 0.75), #000);
+  opacity: 0;
+}
+
+.glitch-veil[data-kind='flicker'] {
+  animation: glitch-flicker 380ms linear forwards;
+}
+
+.glitch-veil[data-kind='brownout'] {
+  animation: glitch-brownout 900ms ease-in-out forwards;
+}
+
+.glitch-veil[data-kind='whisper'] {
+  animation: glitch-whisper 220ms ease-out forwards;
+}
+
+@keyframes glitch-flicker {
+  0% { opacity: 0; }
+  6% { opacity: 0.55; }
+  24% { opacity: 0; }
+  50% { opacity: 0; }
+  56% { opacity: 0.42; }
+  74% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes glitch-brownout {
+  0% { opacity: 0; }
+  40% { opacity: 0.42; }
+  52% { opacity: 0.34; }
+  64% { opacity: 0.46; }
+  100% { opacity: 0; }
+}
+
+@keyframes glitch-whisper {
+  0%, 100% { opacity: 0; }
+  30%, 70% { opacity: 0.22; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .haunt-veil[data-phase='build'] {
+    animation: haunt-build-soft 2600ms ease-in forwards;
+  }
+
+  @keyframes haunt-build-soft {
+    from { opacity: 0; }
+    to { opacity: 0.55; }
+  }
+
   .haunt-veil[data-phase='flash'] {
     background: #d8d2c6;
     animation: haunt-flash-soft 900ms ease-out forwards;
@@ -157,5 +282,19 @@
   @keyframes haunt-flash-soft {
     0% { opacity: 0.55; }
     100% { opacity: 0; }
+  }
+
+  .haunt-veil__face {
+    animation: none;
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+
+  .stage[data-haunt='flash'] > .chassis {
+    animation: none;
+  }
+
+  .glitch-veil[data-kind='flicker'] {
+    animation: glitch-brownout 900ms ease-in-out forwards;
   }
 }

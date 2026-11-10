@@ -248,6 +248,31 @@ your over ──► askGhost(heard) ──► GhostSession.turn() ──► Ghos
   frequency 88.50, `reseedGhostFrequency()`, `sessionId + 1`). Serial: two spans
   in the serial plate, toggled by `.stage[data-haunt='flash' | 'corrupt']`.
 
+### 2.2e The living haunt
+
+- **Unprompted turns:** `AgentTurnInput.event: 'silence' | 'power' | 'dial' | null`
+  (`heard` empty; history records `[HAUNT_EVENT_TEXT]`, ignored by `nameFrom`).
+  Local ghost: `GHOST_REACTIONS[event]` (+ its archetype's lines for silence);
+  strikes if it is the 4th transmission. Route: the bracketed description replaces the words.
+- **Scheduler (provider):** while powered on the ghost's frequency, trapped and not
+  haunted, a 400 ms poll; if nothing is busy (an agent turn in flight, receiving, a draft,
+  an over being collected): a pending reaction (`RadioContext.reportResistance`, from the
+  breaker's forced return and the VFO's `onFought` ≥ 60°) after 800 ms, else silence
+  after `GHOST_SILENCE_MS[dread]` (∞ / 9 / 7 / 5.5 s). `dread` = the ghost session's
+  exchange count, reset each session.
+- **Glitches (`useGhostGlitches(active, dread, whisper)`):** one timer; level
+  by dread (`GLITCH_LEVELS`: intervals 12-18 / 7-12 / 4.5-8 / 2.5-5 s, kinds), durations
+  `GLITCH_MS`; exposed as `glitch` → `.stage[data-glitch]`, a keyed `.glitch-veil`,
+  `.lcd__whisper`, S-meter `off` on flicker / brown-out, `playGlitchZap(kind, intensity)`.
+  `.stage[data-ghost-tx]` sags the lamp; `[data-dread]` ≥ 2 adds a slow labour.
+- **Climax phases:** `build (2600) → blackout (800) → flash (700) → corrupt`, trip at
+  flash + 4000. `HAUNT_BUILD_DIPS_MS` mirrors `@keyframes haunt-build` and the LCD face
+  glimpse keyframes. `playHauntBuild()` (riser, cut at its end), then `setHauntSilence`.
+- **Corruption visuals:** `HauntGlass` adds `lcd-crystal` (turbulence displacement)
+  pools with `lcd-pool-fill` and an iridescent `lcd-pool-rim`, dead columns, the face;
+  `HauntLeak` (outside the glass, under the bezel, `.lcd` lifted to z 3 from the flash).
+  Everything animates only from `flash` (gated selectors), since it mounts at `build`.
+
 ### 2.3 The dial (`src/constants.ts`)
 
 | Band | Frequencies | S-meter | Decoder | LCD status |
