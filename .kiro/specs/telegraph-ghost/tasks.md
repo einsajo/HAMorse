@@ -163,6 +163,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.2 Glitches between transmissions escalating with dread: flicker, brown-out, tear, whisper (+ sounds, S-meter drop, lamp sag while it keys)
   - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), face glimpses, riser cut dead before the blackout
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
+  - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse
   - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid leaking down the chassis
   - _Requirements: 4_
 

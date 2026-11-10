@@ -322,10 +322,10 @@
   display: none;
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .plate__serial--factory {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .plate__serial--factory {
   display: none;
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .plate__serial--cursed {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .plate__serial--cursed {
   display: inline;
 }

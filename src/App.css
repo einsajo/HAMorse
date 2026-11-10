@@ -121,7 +121,7 @@
      build     the lamp dips, faster and faster (5 dips, 800 -> 360 ms apart),
                while the room darkens
      blackout  800 ms of total black (and silence)
-     flash     ONE blinding white flash, and a face lunges out of it
+     flash     a face lunges out of the black, lit for an instant (1 s)
 
    Photosensitivity (WCAG 2.3.1, three flashes): the build's dips are never
    more than 3 in any second and dim rather than flash (black at 70-80%,
@@ -170,13 +170,13 @@
 
 .haunt-veil[data-phase='flash'] {
   visibility: visible;
-  /* the flash burns a pale face out of the dark: white at the centre, black at the edges */
-  background: radial-gradient(ellipse 46% 40% at 50% 46%, #fff 0 40%, #d9d4ca 62%, #3a3732 86%, #050505 100%);
-  animation: haunt-flash 700ms cubic-bezier(0.1, 0.6, 0.3, 1) forwards;
+  /* out of the black: only the face is lit */
+  background: radial-gradient(ellipse 60% 50% at 50% 46%, #17130f 0, #050505 70%);
+  animation: haunt-flash 1000ms linear forwards;
 }
 
 @keyframes haunt-flash {
-  0%, 18% { opacity: 1; }
+  0%, 82% { opacity: 1; }
   100% { opacity: 0; }
 }
 
@@ -185,20 +185,36 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  /* huge: the features fill the screen and the face overflows it */
-  height: max(118vh, 150vw);
+  /* huge: the grin fills the screen and the face overflows it */
+  height: max(108vh, 135vw);
   width: auto;
-  aspect-ratio: 200 / 240;
-  transform: translate(-50%, -50%) scale(0.85);
-  /* a faint double, as if it moved too fast to hold still */
-  filter: drop-shadow(1.4vw 0 0 rgba(5, 5, 5, 0.28));
-  animation: haunt-lunge 700ms cubic-bezier(0.12, 0.9, 0.22, 1) forwards;
+  aspect-ratio: 300 / 400;
+  transform: translate(-50%, -50%) scale(0.9);
+  animation: haunt-lunge 1000ms cubic-bezier(0.12, 0.9, 0.22, 1) forwards;
 }
 
+/* it is lit for an instant as if by a camera flash, then lunges, shuddering */
 @keyframes haunt-lunge {
-  0% { transform: translate(-50%, -46%) scale(0.85); opacity: 1; }
-  20% { transform: translate(-50%, -48%) scale(1.25); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0.9; }
+  0% { transform: translate(-50%, -46%) scale(0.9); filter: brightness(2.3) contrast(1.35); }
+  6% { transform: translate(-49%, -47%) scale(1.02); filter: brightness(1.7) contrast(1.3); }
+  14% { transform: translate(-51%, -48%) scale(1.18); filter: brightness(1.25) contrast(1.2); }
+  22% { transform: translate(-49.4%, -48.6%) scale(1.27); }
+  30% { transform: translate(-50.6%, -49%) scale(1.33); filter: brightness(1.05) contrast(1.15); }
+  100% { transform: translate(-50%, -50%) scale(1.55); filter: brightness(0.8) contrast(1.1); }
+}
+
+/* the whole climax: the radio no longer answers to you */
+.stage:not([data-haunt='none']) > :is(.chassis, .refcard) {
+  pointer-events: none;
+}
+
+/* the aftermath: frozen. Every animation stops on its frame (the bleed, the
+   drips, the face in the black) and nothing moves until the breaker trips */
+.stage[data-haunt='frozen'] *,
+.stage[data-haunt='frozen'] *::before,
+.stage[data-haunt='frozen'] *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
 }
 
 /* the blast jolts the whole radio */
@@ -274,20 +290,10 @@
     to { opacity: 0.55; }
   }
 
-  .haunt-veil[data-phase='flash'] {
-    background: #d8d2c6;
-    animation: haunt-flash-soft 900ms ease-out forwards;
-  }
-
-  @keyframes haunt-flash-soft {
-    0% { opacity: 0.55; }
-    100% { opacity: 0; }
-  }
-
   .haunt-veil__face {
     animation: none;
     transform: translate(-50%, -50%) scale(1);
-    opacity: 0.6;
+    opacity: 0.75;
   }
 
   .stage[data-haunt='flash'] > .chassis {

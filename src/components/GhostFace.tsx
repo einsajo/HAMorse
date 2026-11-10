@@ -1,56 +1,112 @@
 /**
- * The face in the set. Drawn, not an image (no assets). No head outline:
- * the flash itself is the face's pale skin, and only what is DARK is drawn:
- * uneven, sagging eye sockets with pin-prick pupils, weeping streaks of the
- * same black liquid crystal that bleeds from the LCD, brow and cheek
- * hollows, nose slits and a ragged, gaping mouth. A turbulence displacement
- * warps every edge, as if seen through cracked glass.
+ * The face in the set. Drawn, not an image (no assets), and lit like a
+ * photograph rather than outlined like a cartoon: a pale face emerging from
+ * total darkness, sculpted only by where light falls (forehead, cheekbones,
+ * the bridge of the nose, the chin), so everything else is shadow.
  *
- * Used twice: half-seen in the LCD during the build-up, and lunging out of
- * the white flash (where it is drawn huge, so it overflows the screen).
- * `idPrefix` keeps the SVG filter ids unique when it is on the page twice.
+ *   - eyes: deep black sockets, two tiny glinting pupils, not quite level
+ *   - the grin: far too wide, ear to ear, rows of uneven teeth, the corners
+ *     torn up into the cheeks in thin scars
+ *   - a film-grain skin and a slight warp, as if through cracked glass
+ *
+ * Used twice: half-seen in the LCD during the build-up (`backdrop`: a dark
+ * oval so it reads on the amber glass), and lunging out of the black at the
+ * jumpscare. `idPrefix` keeps the SVG ids unique when it is on the page twice.
  */
-export default function GhostFace({ idPrefix, className }: { idPrefix: string; className?: string }) {
-  const warp = `${idPrefix}-warp`
-  const hollow = `${idPrefix}-hollow`
+const TEETH: readonly (readonly [number, number, number])[] = [
+  // [x, width, height] along the grin, uneven
+  [92, 9, 15], [102, 10, 18], [113, 11, 20], [125, 11, 22], [137, 12, 23], [150, 12, 23],
+  [163, 11, 22], [175, 11, 21], [187, 10, 19], [198, 9, 16], [208, 8, 13],
+]
+
+export default function GhostFace({ idPrefix, className, backdrop = false }: { idPrefix: string; className?: string; backdrop?: boolean }) {
+  const id = (s: string) => `${idPrefix}-${s}`
   return (
-    <svg className={className} viewBox="0 0 200 240" aria-hidden="true">
+    <svg className={className} viewBox="0 0 300 400" aria-hidden="true">
       <defs>
-        <filter id={warp} x="-20%" y="-20%" width="140%" height="140%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="7" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" result="warped" />
-          <feGaussianBlur in="warped" stdDeviation="0.7" />
+        {/* light falling on skin: soft, with grain */}
+        <filter id={id('light')} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="9" result="soft" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="noise" />
+          <feColorMatrix in="noise" type="saturate" values="0" result="grain" />
+          <feBlend in="soft" in2="grain" mode="multiply" result="grainy" />
+          <feComposite in="grainy" in2="soft" operator="in" />
         </filter>
-        {/* soft shadow for the hollows (brows, cheeks, temples) */}
-        <filter id={hollow} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="7" />
+        {/* every hard edge slightly warped */}
+        <filter id={id('warp')} x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="11" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" result="w" />
+          <feGaussianBlur in="w" stdDeviation="0.6" />
         </filter>
+        <filter id={id('glint')} x="-200%" y="-200%" width="500%" height="500%">
+          <feGaussianBlur stdDeviation="2.2" result="g" />
+          <feMerge>
+            <feMergeNode in="g" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={id('soft')} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2.4" />
+        </filter>
+        <radialGradient id={id('skin')} cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="#e8e1d2" />
+          <stop offset="55%" stopColor="#9e968a" />
+          <stop offset="100%" stopColor="#2a2723" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={id('dark')} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#050505" />
+          <stop offset="70%" stopColor="#050505" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#050505" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id={id('mouth')}>
+          <path d="M70 262 C 110 300, 190 300, 230 262 C 205 312, 95 312, 70 262 Z" />
+        </clipPath>
       </defs>
-      {/* the skull under the skin: soft hollows */}
-      <g filter={`url(#${hollow})`} fill="#050505">
-        <path d="M44 70 C 60 56, 88 58, 96 74 L 92 80 C 78 70, 60 70, 46 80 Z" opacity="0.55" />
-        <path d="M156 66 C 140 52, 112 56, 104 72 L 108 78 C 122 68, 140 68, 154 76 Z" opacity="0.55" />
-        <path d="M40 120 C 50 150, 64 176, 76 188 L 66 190 C 52 176, 40 150, 40 120 Z" opacity="0.6" />
-        <path d="M160 116 C 150 146, 136 174, 124 186 L 134 188 C 148 174, 160 146, 160 116 Z" opacity="0.6" />
-        <ellipse cx="100" cy="128" rx="14" ry="9" opacity="0.35" />
+
+      {backdrop && <ellipse cx="150" cy="200" rx="150" ry="200" fill={`url(#${id('dark')})`} />}
+
+      {/* where the light falls: the face is carved out of the dark */}
+      <g filter={`url(#${id('light')})`} fill={`url(#${id('skin')})`}>
+        <ellipse cx="150" cy="96" rx="78" ry="52" />
+        <ellipse cx="88" cy="196" rx="34" ry="44" />
+        <ellipse cx="212" cy="196" rx="34" ry="44" />
+        <path d="M138 128 C 142 170, 140 210, 132 236 L 168 236 C 160 210, 158 170, 162 128 Z" />
+        <ellipse cx="150" cy="336" rx="50" ry="32" />
+        <path d="M58 250 C 100 300, 200 300, 242 250 C 230 300, 70 300, 58 250 Z" />
       </g>
-      <g filter={`url(#${warp})`} fill="#050505">
-        {/* sockets: uneven, the left one sagging lower */}
-        <path d="M50 92 C 54 68, 90 66, 96 92 C 96 120, 70 128, 58 116 C 52 110, 49 102, 50 92 Z" />
-        <path d="M150 86 C 146 64, 112 64, 106 88 C 106 112, 128 118, 140 108 C 147 102, 151 95, 150 86 Z" />
-        {/* weeping black crystal */}
-        <path d="M66 120 C 64 140, 70 158, 66 186 C 65 192, 61 192, 61 186 C 62 162, 58 142, 62 120 Z" />
-        <path d="M84 118 C 85 132, 82 142, 84 152 C 84 156, 80 156, 80 152 C 80 140, 81 130, 80 120 Z" />
-        <path d="M130 112 C 132 128, 128 140, 131 160 C 131 165, 126 165, 126 160 C 125 142, 127 126, 126 113 Z" />
-        {/* nose slits */}
-        <path d="M94 134 C 92 140, 90 144, 88 148 L 92 149 C 94 145, 96 140, 97 135 Z" />
-        <path d="M106 134 C 108 140, 110 144, 112 148 L 108 149 C 106 145, 104 140, 103 135 Z" />
-        {/* the mouth: gaping, ragged, stretched too long */}
-        <path d="M70 168 L 78 162 L 84 167 L 91 160 L 98 166 L 105 159 L 112 166 L 119 161 L 126 167 L 132 164 C 136 186, 124 222, 101 232 C 78 222, 66 188, 70 168 Z" />
+
+      <g filter={`url(#${id('warp')})`}>
+        {/* brow shadow and sunken sockets */}
+        <path d="M52 140 C 80 118, 124 120, 140 144 C 128 186, 74 190, 56 164 Z" fill="#050505" opacity="0.92" />
+        <path d="M248 132 C 220 112, 176 116, 160 140 C 172 180, 226 184, 244 158 Z" fill="#050505" opacity="0.92" />
+        {/* the grin: far too wide */}
+        <path d="M70 262 C 110 300, 190 300, 230 262 C 205 312, 95 312, 70 262 Z" fill="#050505" />
+        <g clipPath={`url(#${id('mouth')})`}>
+          {TEETH.map(([x, w, h]) => (
+            <rect key={x} x={x - w / 2 - 10} y={270} width={w} height={h} rx="2.5" fill="#cfc6b2" opacity="0.92" />
+          ))}
+          {TEETH.slice(1, -1).map(([x, w, h]) => (
+            <rect key={`lo${x}`} x={x - w / 2 - 6} y={302 - h * 0.55} width={w * 0.9} height={h * 0.55} rx="2" fill="#a59c88" opacity="0.8" />
+          ))}
+        </g>
+        {/* the corners torn up into the cheeks */}
+        <path d="M70 262 C 58 246, 52 226, 50 206" stroke="#050505" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M230 262 C 242 246, 248 226, 250 206" stroke="#050505" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M66 258 C 60 252, 57 246, 55 238" stroke="#3a1612" strokeWidth="1.4" fill="none" opacity="0.7" />
+        <path d="M234 258 C 240 252, 243 246, 245 238" stroke="#3a1612" strokeWidth="1.4" fill="none" opacity="0.7" />
       </g>
-      {/* pin-prick pupils, looking straight at you (unwarped: sharp) */}
-      <circle cx="75" cy="99" r="2.4" fill="#f4efe4" />
-      <circle cx="127" cy="91" r="2.1" fill="#f4efe4" />
+
+      {/* nostrils: two soft shadows under the lit bridge of the nose */}
+      <g filter={`url(#${id('soft')})`} fill="#050505" opacity="0.85">
+        <ellipse cx="139" cy="240" rx="8" ry="4.5" transform="rotate(18 139 240)" />
+        <ellipse cx="161" cy="240" rx="8" ry="4.5" transform="rotate(-18 161 240)" />
+      </g>
+
+      {/* two tiny glinting pupils, not quite level */}
+      <g filter={`url(#${id('glint')})`} fill="#f6f1e6">
+        <circle cx="98" cy="160" r="3.2" />
+        <circle cx="203" cy="153" r="2.8" />
+      </g>
     </svg>
   )
 }

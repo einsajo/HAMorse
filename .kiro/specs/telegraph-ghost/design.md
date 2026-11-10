@@ -265,8 +265,12 @@ your over ──► askGhost(heard) ──► GhostSession.turn() ──► Ghos
   `GLITCH_MS`; exposed as `glitch` → `.stage[data-glitch]`, a keyed `.glitch-veil`,
   `.lcd__whisper`, S-meter `off` on flicker / brown-out, `playGlitchZap(kind, intensity)`.
   `.stage[data-ghost-tx]` sags the lamp; `[data-dread]` ≥ 2 adds a slow labour.
-- **Climax phases:** `build (2600) → blackout (800) → flash (700) → corrupt`, trip at
-  flash + 4000. `HAUNT_BUILD_DIPS_MS` mirrors `@keyframes haunt-build` and the LCD face
+- **Climax phases:** `build (2600, heartbeat vibration) → blackout (800) → flash (1000) → corrupt → frozen`
+  (flash + 4000: `setHauntSilence(true)`, `.stage[data-haunt='frozen'] *` animations paused, the
+  chassis and card `pointer-events: none` throughout) → trip at flash + 14000 (unsilence, thunk,
+  `hardReset`). Phase selectors for the bleed include `frozen`. Sting: `scheduleHauntSting` +
+  the bang; `JUMPSCARE_LIMIT_DB` −3 for `STING_SECONDS`. Aftermath: the provider remembers the
+  operator's name across the reset and shows a one-off whisper glitch 1.5 s after the next power-on. `HAUNT_BUILD_DIPS_MS` mirrors `@keyframes haunt-build` and the LCD face
   glimpse keyframes. `playHauntBuild()` (riser, cut at its end), then `setHauntSilence`.
 - **Corruption visuals:** `HauntGlass` adds `lcd-crystal` (turbulence displacement)
   pools with `lcd-pool-fill` and an iridescent `lcd-pool-rim`, dead columns, the face;

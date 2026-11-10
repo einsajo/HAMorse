@@ -973,11 +973,11 @@ const BANG_RING = [
   [143, 0.22, 1.6], [387, 0.16, 1.9], [811, 0.12, 1.5], [1263, 0.1, 1.3], [1879, 0.08, 1.1],
   [2643, 0.06, 0.9], [3512, 0.045, 0.7], [4987, 0.03, 0.5],
 ] as const
-const BANG_LEVEL = 1.6
+const BANG_LEVEL = 0.55
 /** The feedback howl, Hz */
 export const SCREECH_HZ = 2000
-/** the screech dies away by the moment the breaker trips (4 s after the flash) */
-const SCREECH_SECONDS = 4.0
+/** the feedback howl dies away before the freeze (4 s after the jumpscare) */
+const SCREECH_SECONDS = 3.6
 
 /**
  * The flash: a huge metallic BANG (a heavy impact through the cabinet, a
@@ -1007,10 +1007,9 @@ export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.c
   const scr = s.node(ctx.createGain())
   scr.gain.value = 0
   scr.gain.setValueAtTime(0, when)
-  scr.gain.linearRampToValueAtTime(0.32, when + 0.035)
-  scr.gain.linearRampToValueAtTime(0.24, when + 0.4)
-  scr.gain.linearRampToValueAtTime(0.36, when + 1.4) // the howl builds
-  scr.gain.setTargetAtTime(0, when + 2.4, 0.38) // ~2% by 4 s, as the breaker trips
+  scr.gain.setValueAtTime(0, when + 0.95) // it waits until the stabs are done...
+  scr.gain.linearRampToValueAtTime(0.2, when + 1.5) // ...then the feedback howls up
+  scr.gain.setTargetAtTime(0, when + 2.2, 0.35) // gone before the freeze
   const drive = s.node(ctx.createWaveShaper())
   drive.curve = driveCurve ?? (driveCurve = makeDriveCurve())
   scr.connect(drive).connect(out)
@@ -1152,6 +1151,118 @@ export function scheduleHauntBuild(ctx: Ctx, destination: AudioNode, when = ctx.
   for (const src of [lfo, saw]) {
     src.start(when)
     src.stop(when + seconds + 0.02)
+  }
+  s.done()
+}
+
+/* --- The jumpscare stinger ------------------------------------------------------------ */
+/**
+ * What you FEEL when the face lunges: a horror-film sting, voiced where phone
+ * speakers are loud (300 Hz - 4 kHz), not down in a bass they can't play.
+ *
+ *   impact   a crack of noise and a body blow, plus a falling sub for headphones
+ *   stabs    a shrieking string cluster (seven detuned saws a semitone apart,
+ *            ~620-1320 Hz): one huge hit, then three violent stabs, 270 ms
+ *            apart, then a trembling held chord dying away
+ *   scream   a synthesised voice: a saw gliding up 520 -> 780 Hz with a
+ *            ragged vibrato, through three vowel formants ("AAH"), overdriven
+ *
+ * Everything is over by ~3.4 s, before the freeze. The master limiter keeps
+ * it startling, not harmful.
+ */
+export const STING_SECONDS = 3.4
+const STING_CLUSTER = [622, 659, 698, 740, 784, 1245, 1319] as const
+const STING_STABS = [0, 0.27, 0.54, 0.81] as const
+
+export function scheduleHauntSting(ctx: Ctx, destination: AudioNode, when = ctx.currentTime): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), 1)
+  const drive = s.node(ctx.createWaveShaper())
+  drive.curve = driveCurve ?? (driveCurve = makeDriveCurve())
+  const driven = s.node(ctx.createGain())
+  driven.gain.value = 0.9
+  drive.connect(driven).connect(out)
+
+  // impact
+  const crack = s.source(noiseBurst(ctx, when, 0.3))
+  crack.connect(s.node(filter(ctx, 'highpass', 300, 0.7))).connect(s.node(filter(ctx, 'lowpass', 5000, 0.7))).connect(s.node(hit(ctx, when, 1.1, 0.001, 0.22))).connect(out)
+  const sub = s.source(ctx.createOscillator())
+  sub.frequency.setValueAtTime(90, when)
+  sub.frequency.exponentialRampToValueAtTime(32, when + 0.9)
+  sub.connect(s.node(hit(ctx, when, 0.9, 0.004, 0.9))).connect(out)
+  sub.start(when)
+  sub.stop(when + 1)
+  const body = s.source(ctx.createOscillator())
+  body.type = 'triangle'
+  body.frequency.setValueAtTime(240, when)
+  body.frequency.exponentialRampToValueAtTime(90, when + 0.25)
+  body.connect(s.node(hit(ctx, when, 0.7, 0.002, 0.3))).connect(out)
+  body.start(when)
+  body.stop(when + 0.4)
+
+  // the shrieking strings: stabs, then a trembling held chord
+  const strings = s.node(ctx.createGain())
+  strings.gain.value = 0
+  const g = strings.gain
+  g.setValueAtTime(0, when)
+  for (const [k, at] of STING_STABS.entries()) {
+    const peak = k === 0 ? 0.55 : 0.42
+    g.setValueAtTime(0.0001, when + at)
+    g.linearRampToValueAtTime(peak, when + at + 0.008)
+    g.setTargetAtTime(0.004, when + at + 0.05, 0.035) // a gap of near-silence between stabs: that's what you feel
+  }
+  g.setValueAtTime(0.004, when + 1.05)
+  g.linearRampToValueAtTime(0.32, when + 1.3) // the held chord swells...
+  g.setTargetAtTime(0, when + 1.8, 0.45) // ...and dies away
+  const bright = s.node(filter(ctx, 'bandpass', 1500, 0.6))
+  strings.connect(bright).connect(drive)
+  const trem = s.source(ctx.createOscillator())
+  trem.frequency.setValueAtTime(5.5, when)
+  trem.frequency.linearRampToValueAtTime(9, when + STING_SECONDS)
+  const tremDepth = s.node(ctx.createGain())
+  tremDepth.gain.value = 9
+  trem.connect(tremDepth)
+  for (const hz of STING_CLUSTER) {
+    const o = s.source(ctx.createOscillator())
+    o.type = 'sawtooth'
+    o.frequency.value = vary(hz, 0.006)
+    tremDepth.connect(o.frequency)
+    const lvl = s.node(ctx.createGain())
+    lvl.gain.value = 0.16
+    o.connect(lvl).connect(strings)
+    o.start(when)
+    o.stop(when + STING_SECONDS)
+  }
+  trem.start(when)
+  trem.stop(when + STING_SECONDS)
+
+  // the scream
+  const voice = s.source(ctx.createOscillator())
+  voice.type = 'sawtooth'
+  voice.frequency.setValueAtTime(520, when + 0.05)
+  voice.frequency.exponentialRampToValueAtTime(780, when + 0.9)
+  voice.frequency.exponentialRampToValueAtTime(690, when + 2.4)
+  const ragged = s.source(ctx.createOscillator())
+  ragged.frequency.value = 7.3
+  const raggedDepth = s.node(ctx.createGain())
+  raggedDepth.gain.value = 22
+  ragged.connect(raggedDepth).connect(voice.frequency)
+  const voiceEnv = s.node(ctx.createGain())
+  voiceEnv.gain.value = 0
+  voiceEnv.gain.setValueAtTime(0, when)
+  voiceEnv.gain.linearRampToValueAtTime(0.6, when + 0.09)
+  voiceEnv.gain.setValueAtTime(0.6, when + 1.2)
+  voiceEnv.gain.setTargetAtTime(0, when + 1.3, 0.4)
+  for (const [hz, q, lvl] of [[850, 7, 1], [1550, 9, 0.7], [2800, 12, 0.45]] as const) {
+    const f = s.node(filter(ctx, 'bandpass', hz, q))
+    const l = s.node(ctx.createGain())
+    l.gain.value = lvl * 2.2
+    voice.connect(f).connect(l).connect(voiceEnv)
+  }
+  voiceEnv.connect(drive)
+  for (const o of [voice, ragged]) {
+    o.start(when)
+    o.stop(when + 2.9)
   }
   s.done()
 }
@@ -1303,6 +1414,7 @@ export function getBroadcastState(): { url: string | null; status: BroadcastStat
 /* --- The live engine ------------------------------------------------------------ */
 interface Engine {
   ctx: AudioContext
+  limiter: DynamicsCompressorNode
   master: GainNode
   staticChain: StaticChain
   sidetone: Sidetone
@@ -1340,7 +1452,7 @@ function build(): Engine | null {
 
   // safety limiter: overlapping sounds can never clip or get painfully loud
   const limiter = ctx.createDynamicsCompressor()
-  limiter.threshold.value = -10
+  limiter.threshold.value = LIMIT_DB
   limiter.knee.value = 6
   limiter.ratio.value = 12
   limiter.attack.value = 0.003
@@ -1358,8 +1470,12 @@ function build(): Engine | null {
   drone.gain.gain.value = droneLevel * DRONE_MAX_GAIN
   const rumble = createTrapRumble(ctx, master)
   if (hauntSilenced) master.gain.value = 0
-  return { ctx, master, staticChain, sidetone, drone, rumble }
+  return { ctx, limiter, master, staticChain, sidetone, drone, rumble }
 }
+
+/** the master limiter's threshold (dBFS), and its threshold for the one jumpscare */
+const LIMIT_DB = -10
+const JUMPSCARE_LIMIT_DB = -3
 
 /** Run `fn` now if audio is running, or as soon as a just-requested resume completes. */
 function whenRunning(fn: (e: Engine) => void): void {
@@ -1537,7 +1653,17 @@ export function playHauntBuild(): void {
 /** The flash: a deafening metallic BANG and a 2 kHz feedback screech (restores the sound first) */
 export function playHauntBang(): void {
   setHauntSilence(false)
-  whenRunning((e) => scheduleHauntBang(e.ctx, e.master, e.ctx.currentTime))
+  whenRunning((e) => {
+    // the jumpscare gets 7 dB more headroom (still limited, so never clipping), then it closes again
+    const th = e.limiter.threshold
+    const t = e.ctx.currentTime
+    th.cancelScheduledValues(t)
+    th.setValueAtTime(JUMPSCARE_LIMIT_DB, t)
+    th.setValueAtTime(JUMPSCARE_LIMIT_DB, t + STING_SECONDS)
+    th.linearRampToValueAtTime(LIMIT_DB, t + STING_SECONDS + 0.3)
+    scheduleHauntSting(e.ctx, e.master, e.ctx.currentTime)
+    scheduleHauntBang(e.ctx, e.master, e.ctx.currentTime) // the metal of the cabinet ringing under it
+  })
 }
 
 /** Engine status, for debugging and tests */

@@ -171,7 +171,7 @@ function HauntGlass() {
         <circle className="lcd__impact" cx={IMPACT.x} cy={IMPACT.y} r="5" />
       </svg>
       {/* half-seen in the crystal during the build-up, and lingering in the black after */}
-      <GhostFace idPrefix="lcd-face" className="lcd__face" />
+      <GhostFace idPrefix="lcd-face" className="lcd__face" backdrop />
     </div>
   )
 }
