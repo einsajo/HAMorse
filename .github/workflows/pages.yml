@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 
 # The live demo judges open on their phones: every push to main is built and
-# published at https://einsajo.github.io/ghostFrequency-/
+# published at https://einsajo.github.io/<repository name>/ (the base path follows the repo's name)
 # (no agent route here: the radio's agents run on their built-in local brains)
 on:
   push:
@@ -27,12 +27,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc -b && npx vite build --base=/ghostFrequency-/
+      - run: npx tsc -b && npx vite build --base=/${{ github.event.repository.name }}/
       # every public asset must carry the sub-path, or the font and icon 404 on Pages
       - run: |
-          grep -q '/ghostFrequency-/favicon.svg' dist/index.html
-          grep -q '/ghostFrequency-/fonts/VT323-Regular.ttf' dist/index.html
-          grep -rq '/ghostFrequency-/fonts/VT323-Regular.ttf' dist/assets/*.css
+          grep -q '/${{ github.event.repository.name }}/favicon.svg' dist/index.html
+          grep -q '/${{ github.event.repository.name }}/fonts/VT323-Regular.ttf' dist/index.html
+          grep -rq '/${{ github.event.repository.name }}/fonts/VT323-Regular.ttf' dist/assets/*.css
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

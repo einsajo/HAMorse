@@ -2,9 +2,9 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "morse-validator",
   "version": "1.0.0",
-  "description": "Validates Morse code tables against the ITU-R M.1677-1 standard: every letter A-Z and digit 0-9 must have a correct, unambiguous dit/dah mapping. Used by The Telegraph Ghost to guard the Morse decoder dictionary and the printed reference card.",
+  "description": "Validates Morse code tables against the ITU-R M.1677-1 standard: every letter A-Z and digit 0-9 must have a correct, unambiguous dit/dah mapping. Used by HAMorse to guard the Morse decoder dictionary and the printed reference card.",
   "author": { "name": "einsajo" },
-  "repository": "https://github.com/einsajo/ghostFrequency-",
+  "repository": "https://github.com/einsajo/HAMorse",
   "license": "MIT",
   "keywords": ["morse", "morse code", "dit", "dah", "telegraph", "decoder", "ITU", "morseDictionary"]
 }

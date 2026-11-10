@@ -272,7 +272,9 @@ export const ELMER_FOLLOW_UP_MS = 1500
 export const ELMER_ASK_IDLE_MS = 15000
 export const ELMER_IDLE_MS = 25000
 const ELMER_MAX_NUDGES = 2
-const ELMER_STORAGE_KEY = 'telegraph-ghost.elmer.learned'
+const ELMER_STORAGE_KEY = 'hamorse.elmer.learned'
+/** the key before the project was named HAMorse: still read, so nobody loses their place */
+const ELMER_LEGACY_KEY = 'telegraph-ghost.elmer.learned'
 
 export const ELMER_LINES = Object.freeze({
   intro: 'GE. DE ELMER. I AM AN OLD CW OP. ',
@@ -296,7 +298,7 @@ const PRAISE = ['FB', 'VY GUD', 'R R FB', 'GUD', 'NICE', 'PERFECT', 'SOLID']
 type ElmerStage = 'greet' | 'ask' | 'lesson' | 'paused'
 
 function createElmer(rng: () => number, storage?: StationStorage): Station {
-  const stored = Number.parseInt(storage?.getItem(ELMER_STORAGE_KEY) ?? '', 10)
+  const stored = Number.parseInt(storage?.getItem(ELMER_STORAGE_KEY) ?? storage?.getItem(ELMER_LEGACY_KEY) ?? '', 10)
   /** characters met so far (the newest is ELMER_ORDER[learned - 1]) */
   let learned = Number.isFinite(stored) ? Math.min(ELMER_ORDER.length, Math.max(1, stored)) : 1
   const returning = Number.isFinite(stored) && stored > 1

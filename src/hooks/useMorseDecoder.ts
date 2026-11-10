@@ -8,7 +8,7 @@ import type { Band, HamStationId } from '../constants'
 import { GHOST_TIMING, REPLY_TIMING, createStations, measureWpm } from '../utils/stations'
 import type { ReplyTiming, SentWord, Station, StationStorage, Transmission } from '../utils/stations'
 import { timingForWpm } from '../utils/stations'
-import { GHOST_QUIET_MAX_EXCHANGES, createAgentSession, createCast, ghostMaxExchanges, nameFrom } from '../utils/agentEngine'
+import { GHOST_QUIET_MAX_EXCHANGES, createAgentSession, createCast, ghostMaxExchanges, nameFrom, operatorWords } from '../utils/agentEngine'
 import type { AgentCast, AgentId, AgentSession, AgentVoice, HauntEvent } from '../utils/agentEngine'
 import { useGhostGlitches } from './useGhostGlitches'
 import type { Glitch } from './useGhostGlitches'
@@ -45,6 +45,16 @@ const ADAPT_WEIGHT = 0.3
    every dit and dah and see it build up on the LCD before the letter lands.
    The timings (and every station's behaviour) live in src/utils/stations.ts. */
 export type { ReplyTiming } from '../utils/stations'
+
+/** The ghost and you, this session (for the QSL card it leaves you) */
+export interface GhostEncounter {
+  /** performance.now() when its first transmission began, or null if you never met */
+  metAt: number | null
+  /** words you actually sent it */
+  words: number
+  /** your name, if it learned it */
+  name: string | null
+}
 export { REPLY_TIMING, GHOST_TIMING, TUTOR_REPLIES } from '../utils/stations'
 /** Agents hear your whole over: they answer after K / KN / AR / SK / BK, TX SEND, or this much silence */
 export const AGENT_OVER_SILENCE_MS = 2500
@@ -161,6 +171,8 @@ export interface MorseDecoderState {
   isGhostTransmitting: boolean
   /** Your name, once the ghost has learned it (it writes it on the reference card) */
   victimName: string | null
+  /** This session's encounter so far: when the ghost first spoke to you, and what you said to it */
+  ghostEncounter: () => GhostEncounter
   /** A glitch in progress (flicker, brown-out, tear, whisper), or null */
   glitch: Glitch | null
   /**
@@ -232,7 +244,7 @@ function useMorseDecoderEngine(
   canKey: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
-): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'glitch'> & {
+): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'ghostEncounter' | 'glitch'> & {
   flush: () => boolean
   receivingNow: () => boolean
   pendingNow: () => boolean
@@ -684,10 +696,13 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const agentInFlight = useRef(false)
   /** the ghost decided to strike, but its transmission was cut off: the haunt begins at the next chance */
   const strikePending = useRef(false)
+  /** when the ghost first spoke to you this session */
+  const ghostMetAt = useRef<number | null>(null)
   const [dread, setDread] = useState(0)
   useEffect(() => {
     setDread(0)
     strikePending.current = false
+    ghostMetAt.current = null
   }, [sessionId])
   const hauntedRef = useRef(isHaunted)
   hauntedRef.current = isHaunted
@@ -706,6 +721,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
       const c = castRef.current
       if (!c) return false
       const session = (c.talks[id] ??= createAgentSession(c.cast[id]))
+      if (id === 'ghost' && ghostMetAt.current === null) ghostMetAt.current = performance.now()
       if (session.climaxed) {
         // it has already decided to strike (that transmission was cut off): it strikes now
         if (id === 'ghost' && !hauntedRef.current) strikePending.current = true
@@ -1137,10 +1153,18 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   }, [isPowerOn])
   const glitch = aftermath ?? ghostGlitch
   const isGhostTransmitting = isReceiving && agent === 'ghost'
+  const ghostEncounter = useCallback((): GhostEncounter => {
+    const talk = castRef.current?.talks.ghost
+    return {
+      metAt: ghostMetAt.current,
+      words: talk ? operatorWords(talk.history) : 0,
+      name: talk ? nameFrom(talk.history, '') : null,
+    }
+  }, [])
 
   const value = useMemo<MorseDecoderState>(
-    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, glitch, simulateReply, streamReply, band, station, status }),
-    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, glitch, simulateReply, streamReply, band, station, status],
+    () => ({ currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, glitch, simulateReply, streamReply, band, station, status }),
+    [currentSymbol, decodedMessage, draftFrom, handleTap, clear, clearButton, sendOver, txStatus, isActive, isReceiving, isAwaitingAgent, agent, dread, isGhostTransmitting, victimName, ghostEncounter, glitch, simulateReply, streamReply, band, station, status],
   )
   return createElement(MorseDecoderContext.Provider, { value }, children)
 }
