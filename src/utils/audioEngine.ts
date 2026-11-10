@@ -145,7 +145,7 @@ function makeDriveCurve() {
 }
 let driveCurve: ReturnType<typeof makeDriveCurve> | null = null
 
-export function scheduleGhostTone(ctx: BaseAudioContext, destination: AudioNode, durationMs: number, when = ctx.currentTime): void {
+export function scheduleGhostTone(ctx: BaseAudioContext, destination: AudioNode, durationMs: number, when = ctx.currentTime, pitch = 1): void {
   const dur = Math.max(0.02, durationMs / 1000)
   const edge = 0.008
   const env = ctx.createGain()
@@ -174,7 +174,7 @@ export function scheduleGhostTone(ctx: BaseAudioContext, destination: AudioNode,
   for (const detune of [0, 7]) {
     const osc = ctx.createOscillator()
     osc.type = 'sine'
-    const f = GHOST_TONE_HZ + detune
+    const f = (GHOST_TONE_HZ + detune) * pitch
     osc.frequency.setValueAtTime(f, when)
     osc.frequency.linearRampToValueAtTime(f * 0.955, when + dur) // the pitch sags as it is held
     lfo.connect(lfoDepth).connect(osc.frequency)
@@ -1584,10 +1584,11 @@ export function playTone(durationMs: number, hz: number = SIDETONE_HZ): void {
   })
 }
 
-/** The ghost's distorted, sagging tone for one Morse element */
-export function playGhostTone(durationMs: number): void {
+/** The ghost's distorted, sagging tone for one Morse element (`pitch`: a multiplier, its frenzy) */
+export function playGhostTone(durationMs: number, pitch = 1): void {
   if (!(durationMs > 0)) return
-  whenRunning((e) => scheduleGhostTone(e.ctx, e.master, durationMs, e.ctx.currentTime))
+  const p = Number.isFinite(pitch) && pitch > 0 ? pitch : 1
+  whenRunning((e) => scheduleGhostTone(e.ctx, e.master, durationMs, e.ctx.currentTime, p))
 }
 
 /* --- Public Foley API ---------------------------------------------------------- */

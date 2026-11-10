@@ -114,15 +114,17 @@ export interface AgentVoice {
   /** timing irregularity, 0..1 */
   jitter: number
   toneHz: number
+  /** the last transmission runs away with itself: faster and faster, the pitch lurching (0..1) */
+  frenzy?: number
 }
 
-/** The ghost: exchange 1 sounds like any operator; then the tone sours, slows and starts to shake */
+/** The ghost: exchange 1 sounds like any operator; then the tone sours, slows and starts to shake; the last one runs away */
 export function ghostVoice(exchange: number): AgentVoice {
   const VOICES: readonly AgentVoice[] = [
     { distorted: false, charWpm: 18, effectiveWpm: 15, leadInMs: 1400, jitter: 0.04, toneHz: 640 },
     { distorted: true, charWpm: 16, effectiveWpm: 12, leadInMs: 1900, jitter: 0.18, toneHz: 640 },
     { distorted: true, charWpm: 14, effectiveWpm: 10, leadInMs: 1300, jitter: 0.38, toneHz: 640 },
-    { distorted: true, charWpm: 15, effectiveWpm: 9, leadInMs: 2600, jitter: 0.6, toneHz: 640 },
+    { distorted: true, charWpm: 15, effectiveWpm: 9, leadInMs: 2600, jitter: 0.6, toneHz: 640, frenzy: 1 },
   ]
   return VOICES[Math.min(VOICES.length - 1, Math.max(0, exchange))]
 }

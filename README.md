@@ -6,6 +6,10 @@ Just don't answer the frequency that answers back.
 
 *An entry for the Costume Contest track of Kiroween 2026.*
 
+**▶ Play it: <https://einsajo.github.io/ghostFrequency-/>** (best on a phone, with headphones)
+
+[![CI](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml)
+
 ---
 
 ## What it is
@@ -66,13 +70,16 @@ small agent route. It keeps your API key on the server, never in the
 browser:
 
 ```bash
-cp .env.example .env              # then put your key in AGENT_LLM_KEY
+cp .env.example .env              # then put your Groq key in AGENT_LLM_KEY
 node --env-file=.env server/agent-route.mjs
 npm run dev                       # .env also sets VITE_AGENT_URL for the app
 ```
 
-- The default is Google Gemini (`gemini-3.8-flash`) through its OpenAI-compatible
-  endpoint. Any OpenAI-compatible provider works if you set `AGENT_LLM_URL` and `AGENT_LLM_MODEL`.
+- The default is [Groq](https://console.groq.com) running `qwen/qwen3.8-27b`: one fast reply per turn,
+  with thinking switched off. Any OpenAI-compatible provider works (OpenAI, Gemini and others)
+  if you set `AGENT_LLM_URL` and `AGENT_LLM_MODEL`.
+- Every persona keeps to the on-air rules, which the server adds itself: stay in
+  character, and reply in short upper-case CW shorthand the radio can actually key.
 - `.env` is git-ignored. **Never commit a real key.**
 - If the route is unreachable or slow (more than 6 s), nothing breaks: the
   operator's signal fades out (`QSB... QSB... LOST SIG`), and you can call again.

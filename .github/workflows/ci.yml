@@ -20,6 +20,12 @@ jobs:
       - run: npm ci
       # type-check (tsc -b) and production build
       - run: npm run build
+      # the same build at the Pages sub-path: every public asset must carry it
+      - run: |
+          npx vite build --base=/ghostFrequency-/ --outDir dist-pages
+          grep -q '/ghostFrequency-/favicon.svg' dist-pages/index.html
+          grep -q '/ghostFrequency-/fonts/VT323-Regular.ttf' dist-pages/index.html
+          grep -rq '/ghostFrequency-/fonts/VT323-Regular.ttf' dist-pages/assets/*.css
       # every A-Z / 0-9 code against ITU Morse (the same check as the Kiro hook)
       - run: node .kiro/powers/morse-validator/skills/validate-morse/scripts/validate-morse.mjs --strict
       # the agent route loads and its exports are intact (no key needed)

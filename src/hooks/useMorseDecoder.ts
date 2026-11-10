@@ -48,6 +48,12 @@ export type { ReplyTiming } from '../utils/stations'
 export { REPLY_TIMING, GHOST_TIMING, TUTOR_REPLIES } from '../utils/stations'
 /** Agents hear your whole over: they answer after K / KN / AR / SK / BK, TX SEND, or this much silence */
 export const AGENT_OVER_SILENCE_MS = 2500
+/** the frenzy (the ghost's last transmission): full speed-up by this many characters... */
+const FRENZY_CHARS = 24
+/** ...by then each element and gap is this much shorter... */
+const FRENZY_SPEEDUP = 0.55
+/** ...and its pitch lurches up to this fraction either way (on top of a creeping rise) */
+const FRENZY_PITCH = 0.12
 /** (the ghost was the first agent) */
 export const GHOST_OVER_SILENCE_MS = AGENT_OVER_SILENCE_MS
 const AGENT_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
@@ -350,7 +356,18 @@ function useMorseDecoderEngine(
       setIsReceiving(true)
 
       const t = timing ?? (isGhost ? GHOST_TIMING : REPLY_TIMING)
-      const tone = isGhost ? playGhostTone : (ms: number) => playTone(ms, t.toneHz)
+      // the last transmission runs away with itself: each character a little
+      // faster than the one before, and the pitch lurching more and more
+      const frenzy = isGhost ? Math.min(1, Math.max(0, t.frenzy ?? 0)) : 0
+      let keyedChars = 0
+      const runaway = () => (frenzy ? frenzy * Math.min(1, keyedChars / FRENZY_CHARS) : 0)
+      const pace = (ms: number) => ms * (1 - FRENZY_SPEEDUP * runaway())
+      const tone = isGhost
+        ? (ms: number) => {
+            const r = runaway()
+            playGhostTone(ms, r ? 1 + r * (0.08 + (Math.random() * 2 - 1) * FRENZY_PITCH) : 1)
+          }
+        : (ms: number) => playTone(ms, t.toneHz)
       const jitter = Math.min(0.9, Math.max(0, t.jitter ?? 0))
       /** an irregular fist: stretch or squeeze by up to `amount` */
       const shake = (ms: number, amount = jitter) => (amount ? Math.max(8, ms * (1 + (Math.random() * 2 - 1) * amount)) : ms)
@@ -384,9 +401,10 @@ function useMorseDecoderEngine(
           }
           const ch = chars[i++]
           keyed += ch
+          keyedChars++
           if (ch === ' ') {
             appendSpace()
-            schedule(nextChar, shake(t.wordGapMs))
+            schedule(nextChar, pace(shake(t.wordGapMs)))
             return
           }
           const code = CHAR_TO_MORSE[ch]
@@ -402,14 +420,14 @@ function useMorseDecoderEngine(
             if (j >= code.length) {
               setSymbol('')
               setMessage(messageRef.current + ch)
-              schedule(nextChar, shake(t.charGapMs))
+              schedule(nextChar, pace(shake(t.charGapMs)))
               return
             }
             const el = code[j++]
-            const ms = shake(el === '.' ? t.ditMs : t.dahMs, jitter / 2)
+            const ms = pace(shake(el === '.' ? t.ditMs : t.dahMs, jitter / 2))
             tone(ms)
             setSymbol(symbolRef.current + el)
-            schedule(nextElement, ms + shake(t.elementGapMs))
+            schedule(nextElement, ms + pace(shake(t.elementGapMs)))
           }
           nextElement()
         }
@@ -666,6 +684,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   const timingFor = (voice: AgentVoice): ReplyTiming => ({
     ...timingForWpm(voice.charWpm, voice.effectiveWpm, voice.leadInMs, voice.toneHz),
     jitter: voice.jitter,
+    frenzy: voice.frenzy,
   })
 
   /** Hand your over to an agent and key its reply live as it streams */
