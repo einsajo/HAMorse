@@ -1,7 +1,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CHAR_TO_MORSE, decodeSymbol } from '../utils/morseDictionary'
-import { playGhostTone, playTone } from '../utils/audioEngine'
+import { playGhostTone, playGlitchZap, playTone } from '../utils/audioEngine'
 import { useRadio } from '../context/RadioContext'
 import { agentStationAt, getBandInfo, hamStationAt } from '../constants'
 import type { Band, HamStationId } from '../constants'
@@ -56,6 +56,8 @@ const AGENT_OVER_ENDINGS = new Set(['K', 'KN', 'AR', 'SK', 'BK'])
  * from you (by dread: how many times it has spoken) and it reaches out
  */
 export const GHOST_SILENCE_MS: readonly number[] = Object.freeze([Infinity, 9000, 7000, 5500])
+/** the aftermath glimpse, this long after the first power-on after a reset */
+export const AFTERMATH_DELAY_MS = 1500
 /** after you fight it (power, dial), it answers this soon */
 export const GHOST_REACT_DELAY_MS = 800
 /** How often the band is checked for a station that wants to transmit unprompted */
@@ -1005,7 +1007,42 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     lastWhisper.current = word
     return word
   }, [])
-  const glitch = useGhostGlitches(onGhost, dread, whisper)
+  const ghostGlitch = useGhostGlitches(onGhost, dread, whisper)
+
+  /*
+   * The aftermath: it is not really gone. The first time the radio is
+   * switched back on after the reset, the lamp flickers once, and for an
+   * instant the crystal shows your name (or I SEE U).
+   */
+  const victim = useRef('I SEE U')
+  useEffect(() => {
+    const talk = castRef.current?.talks.ghost
+    const name = talk ? nameFrom(talk.history, '') : null
+    if (name) victim.current = name
+  }, [dread])
+  const aftermathDue = useRef(false)
+  const seenSession = useRef(sessionId)
+  useEffect(() => {
+    if (sessionId !== seenSession.current) {
+      seenSession.current = sessionId
+      aftermathDue.current = true
+    }
+  }, [sessionId])
+  const [aftermath, setAftermath] = useState<Glitch | null>(null)
+  useEffect(() => {
+    if (!isPowerOn || !aftermathDue.current) return
+    aftermathDue.current = false
+    const show = setTimeout(() => {
+      setAftermath({ kind: 'whisper', text: victim.current, id: -1 })
+      playGlitchZap('whisper', 1)
+    }, AFTERMATH_DELAY_MS)
+    const hide = setTimeout(() => setAftermath(null), AFTERMATH_DELAY_MS + 320)
+    return () => {
+      clearTimeout(show)
+      clearTimeout(hide)
+    }
+  }, [isPowerOn])
+  const glitch = aftermath ?? ghostGlitch
   const isGhostTransmitting = isReceiving && agent === 'ghost'
 
   const value = useMemo<MorseDecoderState>(

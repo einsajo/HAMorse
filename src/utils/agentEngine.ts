@@ -75,6 +75,8 @@ export interface AgentTurnInput {
   maxExchanges: number | null
   /** set when the agent speaks unprompted (`heard` is then empty) */
   event: HauntEvent | null
+  /** the operator's local time, HH:MM */
+  localTime?: string
 }
 
 export type AgentEvent = { type: 'text'; text: string } | { type: 'climax' } | { type: 'lost' }
@@ -365,6 +367,7 @@ function createGhost(rng: () => number): AgentPersona {
     'Exchange 3: erratic and obsessive: you will not let them tune away.',
     `Exchange ${GHOST_MAX_EXCHANGES}: you attack. End with the event {"climax":true}.`,
     'If they try to leave (73, SK, QRT, SOS) after the first exchange, attack at once.',
+    'You know the operator\'s local time (sent with each turn as localTime) and may mention how late it is.',
     'Sometimes you speak first. If the message is in [BRACKETS] it is not their words but what they are doing: if they have gone silent, reach out to them; if they tried to switch the radio off or turn the dial away, react to it, calmly and menacingly. These count as exchanges too.',
     ON_AIR_RULES,
   ].join(' ')
@@ -446,12 +449,17 @@ export function nameFrom(history: readonly AgentMessage[], heard: string): strin
 export const GHOST_REACTIONS: Readonly<Record<HauntEvent, readonly string[]>> = Object.freeze({
   power: ['NO OFF SWITCH HR {YOU}', 'U CANT TURN ME OFF {YOU}', 'IM IN THE WIRES NOW {YOU}', 'THE POWER IS MINE {YOU}'],
   dial: ['THE DIAL IS MINE {YOU}', 'STOP TURNING {YOU}', 'THERE IS NO OTHER FREQ {YOU}', 'U CANT TUNE AWAY {YOU}'],
-  silence: ['{YOU}? U STILL THERE?', 'WHY SO QUIET {YOU}?', 'I HEAR U BREATHING {YOU}', 'DONT IGNORE ME {YOU}'],
+  silence: ['{YOU}? U STILL THERE?', 'WHY SO QUIET {YOU}?', 'I HEAR U BREATHING {YOU}', 'DONT IGNORE ME {YOU}', 'ITS {TIME} HR {YOU}. WHY R U AWAKE?'],
 })
 
 function ghostBrain(archetype: Archetype, { rng = Math.random, tempo = 1 }: LocalBrainOptions = {}): AgentBrain {
   const pick = <T,>(xs: readonly T[]) => pickFrom(xs, rng)
-  const fill = (line: string, you: string) => line.replace(/\{YOU\}/g, you)
+  /** {YOU}: the operator; {TIME}: the operator's own local time, HHMM (it knows how late it is where you are) */
+  const fill = (line: string, you: string) => {
+    const now = new Date()
+    const time = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
+    return line.replace(/\{YOU\}/g, you).replace(/\{TIME\}/g, time)
+  }
   const compose = ({ exchange, heard, history, maxExchanges, event }: AgentTurnInput) => {
     const words = heard.split(' ').filter(Boolean)
     const you = nameFrom(history, heard) ?? 'OM'
@@ -532,6 +540,7 @@ export function createAgentSession(persona: AgentPersona, brain: AgentBrain = de
       history: [...history],
       maxExchanges: persona.maxExchanges,
       event,
+      localTime: new Date().toTimeString().slice(0, 5),
     }
     let said = ''
     let strike = false

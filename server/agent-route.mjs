@@ -73,7 +73,7 @@ export function buildMessages(turn) {
   return [
     { role: 'system', content: system },
     ...history.map((m) => ({ role: m.role === 'operator' ? 'user' : 'assistant', content: String(m.text ?? '').slice(0, MAX_HEARD) })),
-    { role: 'user', content: `${EVENTS[turn.event] ? `[${EVENTS[turn.event]}]` : String(turn.heard ?? '').slice(0, MAX_HEARD)} (exchange ${Number(turn.exchange) + 1})` },
+    { role: 'user', content: `${EVENTS[turn.event] ? `[${EVENTS[turn.event]}]` : String(turn.heard ?? '').slice(0, MAX_HEARD)} (exchange ${Number(turn.exchange) + 1}${/^\d\d:\d\d$/.test(String(turn.localTime ?? '')) ? `, operator's local time ${turn.localTime}` : ''})` },
   ]
 }
 

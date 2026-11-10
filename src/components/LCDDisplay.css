@@ -469,16 +469,16 @@
   visibility: hidden;
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) :is(.lcd__shatter, .lcd__drips) {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) :is(.lcd__shatter, .lcd__drips) {
   visibility: visible;
 }
 
 /* the lamp dying: dimmer, browner, uneven, smouldering (slow and low-contrast, never a strobe) */
-.stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass {
+.stage:is([data-haunt='corrupt'], [data-haunt='frozen']) .lcd[data-power='on'] .lcd__glass {
   animation: lcd-dying 2.8s ease-in-out infinite;
 }
 
-.stage[data-haunt='corrupt'] .lcd__haunt::before {
+.stage:is([data-haunt='corrupt'], [data-haunt='frozen']) .lcd__haunt::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -538,7 +538,7 @@
   transform: scale(0);
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__pool {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__pool {
   animation: lcd-pool-spread 1.7s cubic-bezier(0.2, 0.75, 0.3, 1) var(--d, 0s) forwards;
 }
 
@@ -589,7 +589,7 @@
   transform: scaleY(0);
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__drips::before {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__drips::before {
   animation: lcd-seep 1.6s ease-out forwards;
 }
 
@@ -604,7 +604,7 @@
   background: linear-gradient(90deg, #050505 0 28%, #241f30 42%, #09080d 56%, #050505);
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__drip {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__drip {
   animation: lcd-drip var(--dur) cubic-bezier(0.55, 0, 0.75, 0.6) var(--delay) forwards;
 }
 
@@ -633,7 +633,7 @@
 }
 
 /* --- leaking out under the bezel, down the chassis --- */
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd {
   position: relative;
   z-index: 3; /* over the tuning panel below */
 }
@@ -648,7 +648,7 @@
   visibility: hidden;
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__leak {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__leak {
   visibility: visible;
 }
 
@@ -680,7 +680,7 @@
   transform: translateX(-50%);
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__leak-drip {
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__leak-drip {
   animation: lcd-leak var(--dur) cubic-bezier(0.6, 0, 0.8, 0.5) var(--delay) forwards;
 }
 
@@ -700,7 +700,6 @@
   aspect-ratio: 200 / 240;
   transform: translate(-50%, -50%);
   opacity: 0;
-  mix-blend-mode: multiply;
 }
 
 /* half-seen on the build-up's last two dips (KEEP IN SYNC with HAUNT_BUILD_DIPS_MS: 1850, 2210 of 2600) */
@@ -717,7 +716,7 @@
 }
 
 /* ...and after the crash, it is still there in the black, if you look */
-.stage[data-haunt='corrupt'] .lcd__face {
+.stage:is([data-haunt='corrupt'], [data-haunt='frozen']) .lcd__face {
   animation: lcd-face-linger 3s ease-in 0.4s forwards;
 }
 
@@ -790,13 +789,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass,
+  .stage:is([data-haunt='corrupt'], [data-haunt='frozen']) .lcd[data-power='on'] .lcd__glass,
   .stage[data-ghost-tx='true'] .lcd[data-power='on'] .lcd__glass,
   .stage[data-glitch='tear'] .lcd__row {
     animation: none;
   }
 
-  .stage:is([data-haunt='flash'], [data-haunt='corrupt']) :is(.lcd__drip, .lcd__leak-drip, .lcd__pool, .lcd__drips::before) {
+  .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) :is(.lcd__drip, .lcd__leak-drip, .lcd__pool, .lcd__drips::before) {
     animation-duration: 1ms;
     animation-delay: 0s;
   }
