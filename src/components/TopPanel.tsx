@@ -282,6 +282,8 @@ interface SMeterProps {
   isReceiving: boolean
   /** an agent has your over and hasn't answered yet */
   isAwaitingAgent?: boolean
+  /** the set's power sagged (a glitch): the needle drops for a moment */
+  powerSag?: boolean
 }
 
 const METER_LABEL: Record<NeedleMode, string> = {
@@ -303,11 +305,11 @@ const BAND_TO_MODE: Record<Band, NeedleMode> = {
   ghost: 'peak',
 }
 
-function SMeter({ isPowerOn, frequency, isReceiving, isAwaitingAgent = false }: SMeterProps) {
+function SMeter({ isPowerOn, frequency, isReceiving, isAwaitingAgent = false, powerSag = false }: SMeterProps) {
   const band = getBandInfo(frequency).band
   // waiting on an agent's first word: the signal sinks into the QSB (even the ghost's);
   // otherwise the ghost keeps the needle pinned whatever it's doing
-  const mode: NeedleMode = !isPowerOn
+  const mode: NeedleMode = !isPowerOn || powerSag
     ? 'off'
     : isAwaitingAgent
       ? 'fading'
@@ -439,8 +441,9 @@ export const POWER_LOCK_JOLT_MS = 450
  * S-meter needle reacts to power and to the tuned frequency.
  */
 export default function TopPanel() {
-  const { frequency, isPowerOn, isDecoderOn, isTrapped, togglePower, setIsPowerOn, toggleDecoder } = useRadio()
-  const { isReceiving, isAwaitingAgent } = useMorseDecoder()
+  const { frequency, isPowerOn, isDecoderOn, isTrapped, togglePower, setIsPowerOn, toggleDecoder, reportResistance } = useRadio()
+  const { isReceiving, isAwaitingAgent, glitch } = useMorseDecoder()
+  const powerSag = glitch?.kind === 'flicker' || glitch?.kind === 'brownout'
   const { attention, nudge } = usePowerHint()
 
   /*
@@ -467,6 +470,7 @@ export default function TopPanel() {
           playBreakerThunk(true) // KA-CHUNK, by itself
           setForced(true)
           setIsPowerOn(true)
+          reportResistance('power') // ...and it has noticed
           if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate([30, 40, 60])
         }, POWER_LOCK_OFF_MS),
         setTimeout(() => {
@@ -478,7 +482,7 @@ export default function TopPanel() {
     }
     playBreakerThunk(!isPowerOn) // KA-CHUNK
     togglePower()
-  }, [isPowerOn, isTrapped, setIsPowerOn, togglePower])
+  }, [isPowerOn, isTrapped, setIsPowerOn, togglePower, reportResistance])
 
   // metal shoe scraping along the slide's track (silent until audio is unlocked).
   // It still slides with the power off; before the first power-on, show the guide.
@@ -494,7 +498,7 @@ export default function TopPanel() {
         <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} forced={forced} />
       </div>
       <div className="top__col top__col--meter">
-        <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} isAwaitingAgent={isAwaitingAgent} />
+        <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} isAwaitingAgent={isAwaitingAgent} powerSag={powerSag} />
       </div>
       <div className="top__col top__col--decoder">
         <DecoderSwitch on={isDecoderOn} onToggle={onDecoder} />

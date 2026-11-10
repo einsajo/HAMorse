@@ -186,6 +186,8 @@ interface DragState {
    your finger, but nothing it is connected to moves: the LCD stays on the
    ghost. Every degree you fight it feeds a rumble from inside the cabinet;
    let go and the knob springs back to where the ghost holds it. */
+/** a forced turn this big (deg), let go, makes the ghost answer it */
+const DIAL_FIGHT_DEG = 60
 /** degrees of forced travel that make one full-strength rumble push */
 const RUMBLE_PER_DEG = 1 / 240
 
@@ -222,7 +224,11 @@ function useVfoDrag(
   /** trapped: the knob slips (onSlip reports the forced angle; 0 = let go) */
   locked = false,
   onSlip?: (deg: number) => void,
+  /** trapped: the knob was let go after being forced this far (deg) */
+  onFought?: (deg: number) => void,
 ) {
+  const onFoughtRef = useRef(onFought)
+  onFoughtRef.current = onFought
   const lockedRef = useRef(locked)
   lockedRef.current = locked
   const onSlipRef = useRef(onSlip)
@@ -290,7 +296,11 @@ function useVfoDrag(
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onEnd)
         window.removeEventListener('pointercancel', onEnd)
-        if (dragRef.current && dragRef.current.slip !== 0) onSlipRef.current?.(0) // let go: it springs back
+        if (dragRef.current && dragRef.current.slip !== 0) {
+          // let go: it springs back (and a real fight, not a nudge, gets the ghost's attention)
+          onFoughtRef.current?.(Math.abs(dragRef.current.slip))
+          onSlipRef.current?.(0)
+        }
         dragRef.current = null
         stopRef.current = null
         setDragging(false)
@@ -319,7 +329,10 @@ function useVfoDrag(
  * and shadows sit on the non-rotating `.vfo__mount` so lighting stays fixed.
  */
 export default function TuningDial() {
-  const { frequency, setFrequency, isPowerOn, isTrapped, isHaunted } = useRadio()
+  const { frequency, setFrequency, isPowerOn, isTrapped, isHaunted, reportResistance } = useRadio()
+  const onFought = useCallback((deg: number) => {
+    if (deg >= DIAL_FIGHT_DEG) reportResistance('dial')
+  }, [reportResistance])
   const vfoRef = useRef<HTMLDivElement>(null)
   // the forced (slipping) angle is a direct style write: it changes every frame of the drag
   const onSlip = useCallback((deg: number) => {
@@ -340,6 +353,7 @@ export default function TuningDial() {
     },
     isTrapped,
     onSlip,
+    onFought,
   )
   const angle = freqToAngle(frequency)
 

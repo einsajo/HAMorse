@@ -447,40 +447,51 @@
 }
 
 /* ==========================================================================
-   The haunt, corrupted phase (.stage[data-haunt='corrupt']): the backlight
-   burns a dark, sick red, the glass is shattered and black #050505 liquid
-   crawls slowly down it. The flicker is a slow, low-contrast smoulder
-   (well under 3 changes a second), never a strobe.
+   The haunt on the LCD (src/hooks/useHauntSequence.ts, useGhostGlitches.ts)
+
+   No blood: this is a machine breaking. The amber lamp is dying, the glass
+   is cracked, and the black liquid crystal bleeds out of the fractures:
+   pools of pitch with oily rainbow rims (thin-film interference), dead pixel
+   columns, #050505 fluid running down inside the glass and leaking out
+   under the bezel onto the chassis.
    ========================================================================== */
 .lcd__haunt {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  visibility: hidden;
   container-type: size;
 }
 
-.stage[data-haunt='corrupt'] .lcd__haunt {
+/* the shatter, the pools and the drips exist from the flash on */
+.lcd__shatter,
+.lcd__drips {
+  visibility: hidden;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) :is(.lcd__shatter, .lcd__drips) {
   visibility: visible;
 }
 
+/* the lamp dying: dimmer, browner, uneven, smouldering (slow and low-contrast, never a strobe) */
 .stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass {
+  animation: lcd-dying 2.8s ease-in-out infinite;
+}
+
+.stage[data-haunt='corrupt'] .lcd__haunt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* the backlight failing from the left and the bottom */
   background:
-    /* scanlines still there, now over a burnt red */
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
-    radial-gradient(ellipse 70% 80% at 62% 40%, #6e0f0b 0%, #3d0605 55%, #1a0202 100%);
-  animation: lcd-smoulder 2.6s ease-in-out infinite;
+    radial-gradient(ellipse 60% 90% at 0% 70%, rgba(10, 6, 0, 0.55), rgba(10, 6, 0, 0) 70%),
+    linear-gradient(0deg, rgba(10, 6, 0, 0.35), rgba(10, 6, 0, 0) 45%);
 }
 
-.stage[data-haunt='corrupt'] .lcd__ghost {
-  color: rgba(30, 0, 0, 0.35);
-}
-
-@keyframes lcd-smoulder {
-  0%, 100% { filter: brightness(1) saturate(1.1); }
-  40% { filter: brightness(0.82) saturate(1.25); }
-  55% { filter: brightness(0.9) saturate(1.15); }
+@keyframes lcd-dying {
+  0%, 100% { filter: brightness(0.7) sepia(0.3) contrast(1.15); }
+  45% { filter: brightness(0.58) sepia(0.4) contrast(1.2); }
+  60% { filter: brightness(0.64) sepia(0.35) contrast(1.18); }
 }
 
 /* --- cracks --- */
@@ -505,22 +516,55 @@
 }
 
 .lcd__crack {
-  stroke: rgba(255, 214, 200, 0.55);
+  stroke: rgba(255, 236, 200, 0.5);
   stroke-width: 0.7;
 }
 
 .lcd__shard {
-  fill: rgba(255, 220, 210, 0.07);
+  fill: rgba(255, 236, 210, 0.07);
   stroke: none;
 }
 
 .lcd__impact {
-  fill: rgba(255, 235, 225, 0.35);
+  fill: rgba(255, 240, 225, 0.35);
   stroke: rgba(0, 0, 0, 0.55);
   stroke-width: 1.2;
 }
 
-/* --- the black liquid --- */
+/* --- the liquid crystal bleeding from the fractures --- */
+.lcd__pool {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__pool {
+  animation: lcd-pool-spread 1.7s cubic-bezier(0.2, 0.75, 0.3, 1) var(--d, 0s) forwards;
+}
+
+.lcd__pool-rim {
+  fill: none;
+  stroke: url(#lcd-pool-rim);
+  stroke-width: 2.6;
+  stroke-opacity: 0.6;
+}
+
+@keyframes lcd-pool-spread {
+  0% { transform: scale(0); }
+  30% { transform: scale(0.55); } /* it floods out of the crack... */
+  100% { transform: scale(1); } /* ...then creeps */
+}
+
+/* dead pixel columns: they appear with the crack */
+.lcd__deadline {
+  fill: rgba(5, 5, 5, 0.72);
+}
+
+.lcd__deadline--lit {
+  fill: rgba(255, 226, 160, 0.38);
+}
+
+/* --- the black fluid running down inside the glass --- */
 .lcd__drips {
   position: absolute;
   inset: 0;
@@ -542,7 +586,11 @@
     radial-gradient(ellipse 8% 150% at 79% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
     linear-gradient(#050505 0 35%, rgba(5, 5, 5, 0) 36%);
   transform-origin: top;
-  animation: lcd-seep 2.4s ease-out both;
+  transform: scaleY(0);
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__drips::before {
+  animation: lcd-seep 1.6s ease-out forwards;
 }
 
 .lcd__drip {
@@ -552,8 +600,11 @@
   width: var(--w);
   height: 0;
   border-radius: 0 0 999px 999px;
-  /* viscous black with a faint wet highlight down one side */
-  background: linear-gradient(90deg, #050505 0 28%, #232323 42%, #050505 58%);
+  /* liquid crystal: glossy pitch with a violet sheen down one side */
+  background: linear-gradient(90deg, #050505 0 28%, #241f30 42%, #09080d 56%, #050505);
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__drip {
   animation: lcd-drip var(--dur) cubic-bezier(0.55, 0, 0.75, 0.6) var(--delay) forwards;
 }
 
@@ -566,7 +617,7 @@
   width: 170%;
   aspect-ratio: 1 / 1.2;
   border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
-  background: radial-gradient(circle at 35% 35%, #2a2a2a 0, #050505 40%);
+  background: radial-gradient(circle at 35% 35%, #3a3448 0, #0a090e 28%, #050505 46%);
   transform: translateX(-50%);
 }
 
@@ -577,21 +628,180 @@
 
 @keyframes lcd-drip {
   0% { height: 0; }
-  12% { height: calc(var(--len) * 0.08); } /* it clings at first... */
-  100% { height: var(--len); }              /* ...then sags, slowly, all the way */
+  14% { height: calc(var(--len) * 0.1); } /* it clings at first... */
+  100% { height: var(--len); } /* ...then runs */
+}
+
+/* --- leaking out under the bezel, down the chassis --- */
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd {
+  position: relative;
+  z-index: 3; /* over the tuning panel below */
+}
+
+.lcd__leak {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: 94%;
+  height: 120%;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__leak {
+  visibility: visible;
+}
+
+.lcd__leak-drip {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: var(--w);
+  min-width: 3px;
+  height: 0;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(90deg, #050505 0 25%, #2b2538 40%, #08070c 55%, #050505);
+  /* wet: a hard specular glint and a soft contact shadow on the gunmetal */
+  box-shadow:
+    inset 1px 0 0 rgba(200, 190, 255, 0.18),
+    2px 3px 4px rgba(0, 0, 0, 0.55);
+}
+
+.lcd__leak-drip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 190%;
+  min-width: 6px;
+  aspect-ratio: 1 / 1.25;
+  border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+  background: radial-gradient(circle at 34% 30%, #4a4258 0, #0b0a10 30%, #050505 50%);
+  transform: translateX(-50%);
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt']) .lcd__leak-drip {
+  animation: lcd-leak var(--dur) cubic-bezier(0.6, 0, 0.8, 0.5) var(--delay) forwards;
+}
+
+@keyframes lcd-leak {
+  0% { height: 0; }
+  20% { height: calc(var(--len) * 0.06); } /* squeezing out from under the bezel */
+  100% { height: var(--len); }
+}
+
+/* --- the face in the crystal --- */
+.lcd__face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 135%;
+  width: auto;
+  aspect-ratio: 200 / 240;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  mix-blend-mode: multiply;
+}
+
+/* half-seen on the build-up's last two dips (KEEP IN SYNC with HAUNT_BUILD_DIPS_MS: 1850, 2210 of 2600) */
+.stage[data-haunt='build'] .lcd__face {
+  animation: lcd-face-glimpse 2600ms linear forwards;
+}
+
+@keyframes lcd-face-glimpse {
+  0%, 70.9% { opacity: 0; }
+  71.2%, 74.4% { opacity: 0.7; }
+  74.7%, 84.7% { opacity: 0; }
+  85%, 88.2% { opacity: 0.85; }
+  88.5%, 100% { opacity: 0; }
+}
+
+/* ...and after the crash, it is still there in the black, if you look */
+.stage[data-haunt='corrupt'] .lcd__face {
+  animation: lcd-face-linger 3s ease-in 0.4s forwards;
+}
+
+@keyframes lcd-face-linger {
+  from { opacity: 0; }
+  to { opacity: 0.34; }
+}
+
+/* ==========================================================================
+   Between transmissions: the ghost draining the set (useGhostGlitches)
+   ========================================================================== */
+
+/* the lamp sags while it keys (the deeper the haunt, the more it labours) */
+.lcd[data-power='on'] .lcd__glass {
+  transition: filter 900ms ease-out;
+}
+
+.stage[data-ghost-tx='true'] .lcd[data-power='on'] .lcd__glass {
+  filter: brightness(0.84) saturate(0.92);
+}
+
+.stage[data-ghost-tx='true']:is([data-dread='2'], [data-dread='3'], [data-dread='4']) .lcd[data-power='on'] .lcd__glass {
+  animation: lcd-ghost-sag 2.4s ease-in-out infinite;
+}
+
+@keyframes lcd-ghost-sag {
+  0%, 100% { filter: brightness(0.86) saturate(0.92); }
+  50% { filter: brightness(0.74) saturate(0.86); }
+}
+
+/* a torn line: the rows shear sideways for a few frames */
+.stage[data-glitch='tear'] .lcd__row {
+  animation: lcd-tear 280ms steps(1, end);
+}
+
+@keyframes lcd-tear {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-3.5%) skewX(-8deg); }
+  35% { transform: translateX(2.5%); }
+  55% { transform: translateX(-1.5%) skewX(5deg); clip-path: inset(0 0 40% 0); }
+  80% { transform: translateX(1%); clip-path: none; }
+  100% { transform: translateX(0); }
+}
+
+/* a whisper: the readout vanishes and a word is burned into the crystal */
+.lcd__whisper {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  transform: translate(-50%, -50%) scaleY(1.15);
+  font-family: var(--lcd-font);
+  font-size: 22cqh;
+  letter-spacing: 0.32em;
+  white-space: nowrap;
+  color: rgba(5, 5, 5, 0.82);
+  filter: blur(0.5px);
+  text-shadow: 0 0 6px rgba(5, 5, 5, 0.6);
+  pointer-events: none;
+  animation: lcd-whisper 220ms ease-out forwards;
+}
+
+.stage[data-glitch='whisper'] .lcd__row--buffer .lcd__ink {
+  opacity: 0;
+}
+
+@keyframes lcd-whisper {
+  0% { opacity: 0; }
+  20%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass {
+  .stage[data-haunt='corrupt'] .lcd[data-power='on'] .lcd__glass,
+  .stage[data-ghost-tx='true'] .lcd[data-power='on'] .lcd__glass,
+  .stage[data-glitch='tear'] .lcd__row {
     animation: none;
   }
 
-  .lcd__drip {
+  .stage:is([data-haunt='flash'], [data-haunt='corrupt']) :is(.lcd__drip, .lcd__leak-drip, .lcd__pool, .lcd__drips::before) {
     animation-duration: 1ms;
     animation-delay: 0s;
   }
 
-  .lcd__drips::before {
+  .stage[data-haunt='build'] .lcd__face {
     animation: none;
   }
 }

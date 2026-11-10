@@ -1036,6 +1036,126 @@ export function scheduleHauntBang(ctx: Ctx, destination: AudioNode, when = ctx.c
   s.done()
 }
 
+/* --- The haunt between transmissions: glitch zaps ------------------------------------ */
+/**
+ * The set misbehaving (useGhostGlitches): each glitch has its electrical sound.
+ *   flicker   two crackling arcs with a mains buzz, on the two lamp dips
+ *   brownout  the transformer groaning as the supply sags (hum dropping in pitch)
+ *   tear      digital chatter, like a scrambled data line
+ *   whisper   a breath through the speaker, a low filtered "hhhh"
+ * `intensity` 0..1 grows with the haunt.
+ */
+export type GlitchSound = 'flicker' | 'brownout' | 'tear' | 'whisper'
+
+export function scheduleGlitchZap(ctx: Ctx, destination: AudioNode, kind: GlitchSound, intensity = 0.6, when = ctx.currentTime): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), 0.5 * Math.min(1, Math.max(0.1, intensity)))
+  const buzz = (at: number, dur: number, level: number, hz = 100) => {
+    const o = s.source(ctx.createOscillator())
+    o.type = 'square'
+    o.frequency.setValueAtTime(vary(hz, 0.03), at)
+    const lp = s.node(filter(ctx, 'lowpass', 900, 0.8))
+    o.connect(lp).connect(s.node(hit(ctx, at, level, 0.002, dur))).connect(out)
+    o.start(at)
+    o.stop(at + dur + 0.05)
+  }
+  const arc = (at: number, dur: number, level: number) => {
+    const g = grains(s, at, dur, { rate: 900, peak: level, tau: 0.0004, profile: (u) => Math.sin(Math.PI * u) })
+    g.connect(s.node(filter(ctx, 'bandpass', vary(2600, 0.1), 0.9))).connect(out)
+  }
+  switch (kind) {
+    case 'flicker':
+      for (const at of [0, 0.19]) {
+        arc(when + at, 0.09, 0.9)
+        buzz(when + at, 0.09, 0.22)
+      }
+      break
+    case 'brownout': {
+      const o = s.source(ctx.createOscillator())
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(100, when)
+      o.frequency.exponentialRampToValueAtTime(62, when + 0.6)
+      o.frequency.exponentialRampToValueAtTime(100, when + 0.9)
+      const lp = s.node(filter(ctx, 'lowpass', 420, 2))
+      const env = contour(s, when, 0.9, 0.32, (u) => Math.sin(Math.PI * u))
+      o.connect(lp).connect(env).connect(out)
+      o.start(when)
+      o.stop(when + 1)
+      break
+    }
+    case 'tear': {
+      const o = s.source(ctx.createOscillator())
+      o.type = 'square'
+      o.frequency.value = vary(1250, 0.1)
+      const gate = s.node(ctx.createGain())
+      gate.gain.value = 0
+      for (let t = 0; t < 0.26; t += 0.012 + Math.random() * 0.02) gate.gain.setValueAtTime(Math.random() < 0.55 ? 0.12 : 0, when + t)
+      gate.gain.setValueAtTime(0, when + 0.27)
+      o.connect(s.node(filter(ctx, 'bandpass', 1600, 1.2))).connect(gate).connect(out)
+      o.start(when)
+      o.stop(when + 0.3)
+      break
+    }
+    case 'whisper': {
+      const n = s.source(noiseBurst(ctx, when, 0.5))
+      const bp = s.node(filter(ctx, 'bandpass', 700, 3.5))
+      bp.frequency.setValueAtTime(600, when)
+      bp.frequency.linearRampToValueAtTime(1300, when + 0.4) // an "hhhh" that opens like a mouth
+      n.connect(bp).connect(contour(s, when, 0.45, 0.55, (u) => Math.pow(Math.sin(Math.PI * u), 0.6))).connect(out)
+      break
+    }
+  }
+  s.done()
+}
+
+/* --- The climax build-up: the riser before the silence --------------------------------- */
+/**
+ * The 2.6 s before the blackout: something huge coming up through the set.
+ * Brown-ish noise opening from 150 Hz to 1.4 kHz, a saw rising 32 -> 110 Hz,
+ * both under a tremolo that speeds up 3 -> 14 Hz (sound only: nothing
+ * visual flickers that fast), swelling... and then cut dead, so the
+ * blackout's silence hits like a missed step.
+ */
+export const HAUNT_BUILD_SECONDS = 2.6
+
+export function scheduleHauntBuild(ctx: Ctx, destination: AudioNode, when = ctx.currentTime, seconds = HAUNT_BUILD_SECONDS): void {
+  const s = oneShot(ctx)
+  const out = bus(s, room(ctx, destination), 0.85)
+  const env = s.node(ctx.createGain())
+  env.gain.value = 0
+  env.gain.setValueAtTime(0.0001, when)
+  env.gain.exponentialRampToValueAtTime(0.9, when + seconds - 0.05)
+  env.gain.setValueAtTime(0, when + seconds) // cut dead
+  const trem = s.node(ctx.createGain())
+  trem.gain.value = 0.6
+  const lfo = s.source(ctx.createOscillator())
+  lfo.frequency.setValueAtTime(3, when)
+  lfo.frequency.exponentialRampToValueAtTime(14, when + seconds)
+  const depth = s.node(ctx.createGain())
+  depth.gain.value = 0.4
+  lfo.connect(depth).connect(trem.gain)
+  trem.connect(env).connect(out)
+
+  const noise = s.source(noiseBurst(ctx, when, seconds + 0.05))
+  const lp = s.node(filter(ctx, 'lowpass', 150, 1.2))
+  lp.frequency.setValueAtTime(150, when)
+  lp.frequency.exponentialRampToValueAtTime(1400, when + seconds)
+  noise.connect(lp).connect(trem)
+  const saw = s.source(ctx.createOscillator())
+  saw.type = 'sawtooth'
+  saw.frequency.setValueAtTime(32, when)
+  saw.frequency.exponentialRampToValueAtTime(110, when + seconds)
+  const sawLp = s.node(filter(ctx, 'lowpass', 700, 1.5))
+  const sawGain = s.node(ctx.createGain())
+  sawGain.gain.value = 0.5
+  saw.connect(sawLp).connect(sawGain).connect(trem)
+  for (const src of [lfo, saw]) {
+    src.start(when)
+    src.stop(when + seconds + 0.02)
+  }
+  s.done()
+}
+
 /* --- Live broadcasts (RX only): real internet radio through a vintage AM chain --- */
 /**
  * The three broadcasters play real internet radio (src/data/liveStreams.ts,
@@ -1401,6 +1521,17 @@ export function setHauntSilence(silent: boolean): void {
   g.cancelScheduledValues(t)
   g.setValueAtTime(g.value, t)
   g.linearRampToValueAtTime(silent ? 0 : MASTER_GAIN, t + (silent ? 0.015 : 0.004))
+}
+
+/** A glitch in the set (flicker, brown-out, tear, whisper); intensity 0..1 */
+export function playGlitchZap(kind: GlitchSound, intensity = 0.6): void {
+  if (hauntSilenced) return
+  whenRunning((e) => scheduleGlitchZap(e.ctx, e.master, kind, intensity, e.ctx.currentTime))
+}
+
+/** The riser before the blackout (cut dead at its end) */
+export function playHauntBuild(): void {
+  whenRunning((e) => scheduleHauntBuild(e.ctx, e.master, e.ctx.currentTime))
 }
 
 /** The flash: a deafening metallic BANG and a 2 kHz feedback screech (restores the sound first) */

@@ -11,7 +11,8 @@ import PowerOnGuide from './components/PowerOnGuide'
 import { RadioProvider, useRadio } from './context/RadioContext'
 import { useHauntSequence } from './hooks/useHauntSequence'
 import type { HauntPhase } from './hooks/useHauntSequence'
-import { MorseDecoderProvider } from './hooks/useMorseDecoder'
+import { MorseDecoderProvider, useMorseDecoder } from './hooks/useMorseDecoder'
+import GhostFace from './components/GhostFace'
 import { PowerHintProvider } from './hooks/usePowerHint'
 
 /**
@@ -22,6 +23,7 @@ import { PowerHintProvider } from './hooks/usePowerHint'
  */
 function Stage({ children }: { children: (props: { isRefCardOpen: boolean; ejected: boolean; toggleRefCard: () => void; closeRefCard: () => void }) => ReactNode }) {
   const { isHaunted, hardReset } = useRadio()
+  const { glitch, dread, isGhostTransmitting } = useMorseDecoder()
   const [isRefCardOpen, setIsRefCardOpen] = useState(false)
   const [ejected, setEjected] = useState(false)
   const toggleRefCard = useCallback(() => setIsRefCardOpen((open) => !open), [])
@@ -43,11 +45,21 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
 
   return (
     <>
-      <div className="stage" data-haunt={phase}>
+      <div
+        className="stage"
+        data-haunt={phase}
+        data-glitch={glitch?.kind ?? 'none'}
+        data-dread={dread}
+        data-ghost-tx={isGhostTransmitting}
+      >
         {children({ isRefCardOpen, ejected, toggleRefCard, closeRefCard })}
+        {/* the lamp dipping during a glitch (keyed, so each glitch replays its animation) */}
+        {glitch && <div key={glitch.id} className="glitch-veil" data-kind={glitch.kind} aria-hidden="true" />}
       </div>
-      {/* blackout / flash: over everything, never takes the pointer */}
-      <div className="haunt-veil" data-phase={phase} aria-hidden="true" />
+      {/* build-up flicker / blackout / flash (with the face): over everything, never takes the pointer */}
+      <div className="haunt-veil" data-phase={phase} aria-hidden="true">
+        {phase === 'flash' && <GhostFace idPrefix="veil-face" className="haunt-veil__face" />}
+      </div>
     </>
   )
 }
