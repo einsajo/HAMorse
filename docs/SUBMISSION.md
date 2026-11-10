@@ -26,6 +26,7 @@ Dec 2, so there's time to fix a broken link.
 | ☐ | Test the live URL on a real Android phone **and** an iPhone, with sound | |
 | ☐ | A judge who doesn't know Morse can reach the scare | The Quick Start note opens on load; the circled frequency is on the card. Land on it and wait: CQ at 3.6 s, jumpscare at about 44 s; talk to it and it takes about 2 min ✅ (Playwright) |
 | ☐ | Tests are visible in the repo | `tests/`, `npm test`, run by CI ✅ |
+| ☐ | **Kiro Crew** run of `.kiro/specs/hamorse-progress/TASK.md` merged, with its `TASK_PROGRESS.md` | Mention Crew in the write-up and video **only after** it has really run |
 
 ### Before you record or submit
 1. Open the live URL on your phone, in a **private tab**, so the Quick Start note shows.
