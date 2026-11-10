@@ -1,4 +1,4 @@
-# Design: The Telegraph Ghost
+# Design: HAMorse
 
 Companion to [requirements.md](./requirements.md). Every number below is the
 value actually used in the code; if a rule here and the code disagree, fix one
@@ -165,7 +165,7 @@ interface Transmission { text: string; timing: ReplyTiming }
 - **Conversation, not levels:** each operator is a small dialogue state
   machine with varied phrasing (seeded `rng`), so practice happens *inside* a
   QSO. Bulletin = text index. Elmer = stage `greet → ask → lesson ⇄ paused`
-  plus `learned` (persisted under `telegraph-ghost.elmer.learned`), `target`,
+  plus `learned` (persisted under `hamorse.elmer.learned`; the pre-rename `telegraph-ghost.elmer.learned` is still read), `target`,
   `isNew`, `reviewsLeft`, `misses`, `knowsCw`, `nudges`, and a `followUp`
   transmission: the second half of what he's saying, sent by `onIdle` after
   a 1.5s pause (cleared if you start sending). Chat lines use
@@ -501,7 +501,7 @@ not motion.
 | Artifact | Purpose |
 |---|---|
 | `.kiro/steering/{tech,visual,mobile}.md` | Stack, visual and mobile constraints applied to every session |
-| `.kiro/specs/telegraph-ghost/` | This spec: requirements, design, tasks |
+| `.kiro/specs/hamorse/` | This spec: requirements, design, tasks |
 | `.kiro/powers/morse-validator/` | Power (`plugin.json`, skill, script) that validates any Morse table against ITU Morse |
 | `.kiro/hooks/validate-morse.json` | `PostFileSave` hook that runs the validator (`--strict`) when the agent saves `src/utils/morseDictionary.ts`, the single source for the decoder and the reference card |
 

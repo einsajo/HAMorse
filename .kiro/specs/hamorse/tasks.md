@@ -1,4 +1,4 @@
-# Implementation Plan: The Telegraph Ghost
+# Implementation Plan: HAMorse
 
 Spec: [requirements.md](./requirements.md) · [design.md](./design.md)
 
@@ -57,7 +57,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [ ] 9. Verify on the real React runtime
   - [x] 9.1 `npm install && npm run build` with no TypeScript or Vite errors (GitHub Actions CI runs `npm ci && npm run build` on every PR)
   - [ ] 9.2 Run `npm run dev` on a real Android phone: drag tuning, detent, dust wipe, card, paddles
-  - [x] 9.3 Deploy to a public URL (required for submission): GitHub Pages workflow, https://einsajo.github.io/ghostFrequency-/
+  - [x] 9.3 Deploy to a public URL (required for submission): GitHub Pages workflow, https://einsajo.github.io/HAMorse/
   - _Requirements: 1_
 
 ## Phase 2: Morse code engine
@@ -168,6 +168,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.8 The reference card rots with dread: tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, greasy thumbprints, HELLO {NAME}; black grease floods it at the haunt (no face)
   - [x] 19c.9 Findable on first load: the ghost's frequency pencilled and ringed in the card's corner; land on it and stay quiet, and it calls CQ (`arrival`), so a visitor who never keys still reaches the jumpscare
   - [x] 19c.10 Paced by the conversation: talking keeps the slow ~2 min haunt (4 transmissions); 2 words or fewer and it strikes on the 3rd, faster and shorter (~44 s to the jumpscare, measured)
+  - [x] 19c.11 The ghost's QSL card before the trip: GHOSTED AT m:ss, a line about how it went, a disclaimer and apology, POWER ON AGAIN / CLOSE
   - [x] 16.6 The Quick Start note opens on page load: why Morse matters in a few lines, then four steps; no hint of the haunt
   - [x] 19c.7 Fix: cutting the power mid-strike no longer kills the ghost (`strikePending`: it strikes ~0.8 s after the power returns; cut turns still count)
   - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid running down inside the glass (the leak onto the chassis was removed after play-testing)

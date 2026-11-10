@@ -64,7 +64,7 @@ t('elmer: introduces himself, pauses, asks; one letter answers; welcome chat, th
   assert.equal(e.onWord(w('T')).text, 'NOT QUITE. E IS DIT. TRY AGN K ')
   assert.equal(e.onWord(w('T')).text, 'NO WORRIES. LISTEN. E E E. SEND E K ')
   assert.equal(e.onWord(w('E')).text, 'FB. NEXT T. T IS DAH. T T T. UR TURN K ')
-  assert.equal(mem.get('telegraph-ghost.elmer.learned'), '2')
+  assert.equal(mem.get('hamorse.elmer.learned'), '2')
   assert.equal(e.onWord(w('T')).text, 'FB. SEND E K ') // reviews of earlier letters
   assert.equal(e.onWord(w('HI')).text, 'HI HI. SEND E K ')
   assert.equal(e.onWord(w('E')).text, 'FB. SEND E K ')
@@ -107,12 +107,12 @@ t('elmer: not new -> pointers to Bob and Sam (new frequencies), then words', () 
   assert.match(e.onWord(w('CQ')).text, /^FB\. SEND [A-Z0-9]{2,} K $/)
 })
 t('elmer: returning student welcomed back, milestones, words after all 36', () => {
-  const { storage } = memStore([['telegraph-ghost.elmer.learned', '5']])
+  const { storage } = memStore([['telegraph-ghost.elmer.learned', '5']]) // the pre-rename key is still honoured
   const e = S.createStations({ rng: () => 0, storage }).elmer
   assert.equal(e.onTuneIn().text, 'GE. WB. NICE TO HEAR U AGN. LAST TIME U GOT TO N. ')
   assert.equal(e.onIdle(S.ELMER_FOLLOW_UP_MS).text, 'SEND N K ')
   assert.match(e.onWord(w('N')).text, /U KNOW 6 LTRS NOW\. NEXT M\. M IS DAHDAH\./)
-  const all = memStore([['telegraph-ghost.elmer.learned', String(S.ELMER_ORDER.length)]])
+  const all = memStore([['hamorse.elmer.learned', String(S.ELMER_ORDER.length)]])
   const f = S.createStations({ rng: () => 0, storage: all.storage }).elmer
   f.onTuneIn(); f.onIdle(S.ELMER_FOLLOW_UP_MS)
   assert.match(f.onWord(w('0')).text, /U KNOW THEM ALL\. NOW WORDS\. SEND [A-Z0-9]{2,} K $/)

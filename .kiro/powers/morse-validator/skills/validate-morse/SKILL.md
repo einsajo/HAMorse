@@ -5,7 +5,7 @@ description: Check that a Morse code table maps every letter A-Z and digit 0-9 t
 
 # Validate a Morse code table
 
-The Telegraph Ghost decodes paddle input with a Morse dictionary. One wrong
+HAMorse decodes paddle input with a Morse dictionary. One wrong
 entry (for example `E` mapped to `..`, which is really `I`) silently breaks
 decoding, so every table must be checked against the international standard
 (ITU-R M.1677-1) before it is trusted.

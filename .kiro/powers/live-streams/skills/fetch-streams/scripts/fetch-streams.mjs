@@ -51,7 +51,7 @@ export const SLOTS = [
 ]
 
 const MIRRORS = ['https://de1.api.radio-browser.info', 'https://fi1.api.radio-browser.info', 'https://nl1.api.radio-browser.info']
-const UA = 'TelegraphGhost-live-streams/1.0 (+https://github.com/einsajo/ghostFrequency-)'
+const UA = 'HAMorse-live-streams/1.0 (+https://github.com/einsajo/HAMorse)'
 const MAX_TRIES_PER_SLOT = 15
 
 export function parseArgs(argv) {

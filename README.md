@@ -1,4 +1,4 @@
-# The Telegraph Ghost
+# HAMorse
 
 **Learn Morse code on a painfully realistic old ham radio.**
 Tune the dial, key the paddles and talk to the operators on the band.
@@ -6,9 +6,9 @@ Just don't answer the frequency that answers back.
 
 *An entry for the Costume Contest track of Kiroween 2026.*
 
-**▶ Play it: <https://einsajo.github.io/ghostFrequency-/>** (best on a phone, with headphones)
+**▶ Play it: <https://einsajo.github.io/HAMorse/>** (best on a phone, with headphones)
 
-[![CI](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml)
+[![CI](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml)
 
 | The Quick Start note | A Morse trainer… | …until it isn't |
 |---|---|---|
@@ -97,7 +97,7 @@ npm run dev                       # .env also sets VITE_AGENT_URL for the app
 
 The whole project was specified, built and verified with [Kiro](https://kiro.dev):
 
-- **Spec**: [`.kiro/specs/telegraph-ghost/`](.kiro/specs/telegraph-ghost/) holds the
+- **Spec**: [`.kiro/specs/hamorse/`](.kiro/specs/hamorse/) holds the
   requirements, the design and the task list, kept up to date with every change.
 - **Steering**: [`.kiro/steering/`](.kiro/steering/) holds the product vision ("earn the scare")
   and the hard rules: the tech stack, mobile-first behaviour and the skeuomorphic visual language.

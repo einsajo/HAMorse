@@ -2,7 +2,7 @@
 inclusion: always
 ---
 
-# Product Vision: The Telegraph Ghost
+# Product Vision: HAMorse
 
 The north star for every decision. Read this before building anything. If a
 task conflicts with it, raise the conflict instead of quietly picking a side.

@@ -2,9 +2,9 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "live-streams",
   "version": "1.0.0",
-  "description": "Provisions CORS-friendly live internet radio (Icecast / Shoutcast HTTP streams) for The Telegraph Ghost's three RX-only broadcasters (89.30 news, 93.50 sports, 98.10 jazz). Finds candidates (curated + the open Radio Browser directory), verifies each one really plays in Web Audio (HTTPS, an audio content type, and Access-Control-Allow-Origin on a GET with an Origin header), and writes src/data/liveStreams.ts.",
+  "description": "Provisions CORS-friendly live internet radio (Icecast / Shoutcast HTTP streams) for HAMorse's three RX-only broadcasters (89.30 news, 93.50 sports, 98.10 jazz). Finds candidates (curated + the open Radio Browser directory), verifies each one really plays in Web Audio (HTTPS, an audio content type, and Access-Control-Allow-Origin on a GET with an Origin header), and writes src/data/liveStreams.ts.",
   "author": { "name": "einsajo" },
-  "repository": "https://github.com/einsajo/ghostFrequency-",
+  "repository": "https://github.com/einsajo/HAMorse",
   "license": "MIT",
   "keywords": ["radio", "icecast", "shoutcast", "stream", "cors", "web audio", "createMediaElementSource", "broadcast", "liveStreams"]
 }

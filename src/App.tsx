@@ -14,6 +14,13 @@ import type { HauntPhase } from './hooks/useHauntSequence'
 import { MorseDecoderProvider, useMorseDecoder } from './hooks/useMorseDecoder'
 import GhostFace from './components/GhostFace'
 import { PowerHintProvider } from './hooks/usePowerHint'
+import GhostedNote from './components/GhostedNote'
+import type { GhostedReport } from './components/GhostedNote'
+import { getGhostFrequency } from './constants'
+import { playBreakerThunk, unlockAudio } from './utils/audioEngine'
+
+/** the QSL card slides in this far into the 10 s freeze (4 s before the breaker trips) */
+const GHOSTED_NOTE_INTO_FREEZE_MS = 6000
 
 /**
  * The stage, which also plays the climax (it needs the radio state, so it
@@ -22,8 +29,8 @@ import { PowerHintProvider } from './hooks/usePowerHint'
  * blackout and the flash, and the blast forces the reference card out.
  */
 function Stage({ children }: { children: (props: { isRefCardOpen: boolean; ejected: boolean; toggleRefCard: () => void; closeRefCard: () => void }) => ReactNode }) {
-  const { isHaunted, hardReset } = useRadio()
-  const { glitch, dread, isGhostTransmitting } = useMorseDecoder()
+  const { isHaunted, hardReset, setIsPowerOn } = useRadio()
+  const { glitch, dread, isGhostTransmitting, ghostEncounter } = useMorseDecoder()
   const [isRefCardOpen, setIsRefCardOpen] = useState(false)
   const [ejected, setEjected] = useState(false)
   const toggleRefCard = useCallback(() => setIsRefCardOpen((open) => !open), [])
@@ -42,6 +49,42 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
     hardReset()
   }, [hardReset])
   const phase: HauntPhase = useHauntSequence(isHaunted, eject, trip)
+
+  // the ghost's QSL card: how long you lasted, measured at the moment it struck
+  const [ghosted, setGhosted] = useState<GhostedReport | null>(null)
+  const pendingReport = useRef<GhostedReport | null>(null)
+  useEffect(() => {
+    if (phase === 'flash' && !pendingReport.current) {
+      const e = ghostEncounter()
+      const now = performance.now()
+      pendingReport.current = { lastedMs: e.metAt === null ? 0 : now - e.metAt, words: e.words, name: e.name, frequency: getGhostFrequency() }
+    }
+    if (phase !== 'frozen') return
+    const show = setTimeout(() => {
+      setGhosted(pendingReport.current)
+      pendingReport.current = null
+    }, GHOSTED_NOTE_INTO_FREEZE_MS)
+    return () => clearTimeout(show)
+  }, [phase, ghostEncounter])
+  const closeGhosted = useCallback(() => setGhosted(null), [])
+  // pressed before the breaker has tripped: it waits for the reset, then switches on
+  const wantsPower = useRef(false)
+  const switchOn = useCallback(() => {
+    playBreakerThunk(true)
+    setIsPowerOn(true) // ...and it isn't really gone (the aftermath)
+  }, [setIsPowerOn])
+  const powerOnAgain = useCallback(() => {
+    setGhosted(null)
+    unlockAudio() // inside the tap: a real user gesture
+    if (phase === 'none') switchOn()
+    else wantsPower.current = true
+  }, [phase, switchOn])
+  useEffect(() => {
+    if (phase !== 'none' || !wantsPower.current) return
+    wantsPower.current = false
+    const t = setTimeout(switchOn, 600) // a beat after the trip's own thunk
+    return () => clearTimeout(t)
+  }, [phase, switchOn])
 
   // during the climax nothing on the radio answers: not a tap, and not a key either
   // (inert also takes focus off the breaker, so Enter can't flip it mid-scare)
@@ -71,6 +114,7 @@ function Stage({ children }: { children: (props: { isRefCardOpen: boolean; eject
       <div className="haunt-veil" data-phase={phase} aria-hidden="true">
         {phase === 'flash' && <GhostFace idPrefix="veil-face" className="haunt-veil__face" />}
       </div>
+      {ghosted && <GhostedNote report={ghosted} onPowerOn={powerOnAgain} onClose={closeGhosted} />}
     </>
   )
 }
