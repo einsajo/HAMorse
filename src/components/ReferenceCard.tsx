@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { AnimationEvent as ReactAnimationEvent, CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import './ReferenceCard.css'
 import { CHAR_TO_MORSE, MORSE_TABLE_ORDER, Q_CODES, toTypographic } from '../utils/morseDictionary'
@@ -6,7 +6,7 @@ import { REF_CARD_MOTION } from '../utils/cardMotion'
 import { playPaperScrape } from '../utils/audioEngine'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import { useRadio } from '../context/RadioContext'
-import GhostFace from './GhostFace'
+import { formatMhz, getGhostFrequency } from '../constants'
 
 /**
  * Must match the media query in ReferenceCard.css. Wider than the radio's own
@@ -100,11 +100,14 @@ function LensIcon() {
  * How far the card has rotted: the card belonged to a dead operator, and it
  * changes as the ghost talks. Every time you pull it out, it is a little
  * worse; the Morse table itself is never touched (it still teaches).
- *   0  a dead man's card: a scorched corner (where no type is), a water tide-mark, foxing
+ *   0  a dead man's card: a water tide-mark, foxing, and in the bottom-right
+ *      corner a frequency someone pencilled and ringed: the ghost's, this session
  *   1  someone has circled four letters in pencil: H, E, L, P
  *   2  a newer, shakier note under Nevlin's; damp mould spreads up the card
- *   3  fingernail scratches; DECEASED stamped across the header; a face in
- *      the damp stain; and a third hand, not Nevlin's, writes to YOU
+ *   3  fingernail scratches; DECEASED stamped across the header; black greasy
+ *      thumbprints at the edges; and a third hand, not Nevlin's, writes to YOU
+ * When the haunt strikes, black grease (the radio's liquid crystal) floods
+ * down over the whole card.
  */
 export type CardRot = 0 | 1 | 2 | 3
 
@@ -117,28 +120,127 @@ const SCRATCHES: readonly string[] = [
   'M16 30 C 24 46, 29 62, 33 92', 'M20.5 29 C 28.5 45, 33.5 61, 37.5 90', 'M25 32 C 32 47, 37 61, 41 86',
 ]
 
+/** Long runs of grease down the card when it floods: [x (% of the width), half-width, length, delay s] */
+const GREASE_DRIPS: readonly (readonly [number, number, number, number])[] = [
+  [6, 4, 62, 0.35], [19, 2.5, 40, 0.6], [31, 5, 86, 0.2], [47, 3, 52, 0.75], [58, 4.5, 90, 0.4],
+  [71, 2.5, 34, 0.9], [83, 5.5, 80, 0.3], [94, 3, 46, 0.55],
+]
+
+/**
+ * Black grease: the radio's own liquid crystal, the same pitch-black with an
+ * oily sheen as the LCD's bleed (no blood, no faces). Rot 3: a few greasy
+ * thumbprints and a wipe at the edges, clear of the type. The haunt: it floods
+ * down over the whole card from the top edge, in runs and drips, wet and glossy.
+ */
+function Grease({ idPrefix }: { idPrefix: string }) {
+  const id = (k: string) => `${idPrefix}-grease-${k}`
+  const wet = `url(#${id('wet')})`
+  return (
+    <svg className="refcard__grease" viewBox="0 0 400 200" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        {/* organic, wet edges with a hard specular sheen, lit from the top left */}
+        <filter id={id('wet')} x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="9" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G" result="shape" />
+          <feGaussianBlur in="shape" stdDeviation="2.6" result="soft" />
+          <feSpecularLighting in="soft" surfaceScale="5" specularConstant="0.85" specularExponent="26" lightingColor="#b8afd6" result="spec">
+            <fePointLight x="90" y="-80" z="140" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="shape" operator="in" result="sheen" />
+          <feMerge>
+            <feMergeNode in="shape" />
+            <feMergeNode in="sheen" />
+          </feMerge>
+        </filter>
+        <filter id={id('ooze')} x="-10%" y="-10%" width="120%" height="130%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="4" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <linearGradient id={id('oil')} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#050505" />
+          <stop offset="0.55" stopColor="#0b0910" />
+          <stop offset="1" stopColor="#050505" />
+        </linearGradient>
+        {/* the thin-film rainbow at the edge of a pool, very faint */}
+        <linearGradient id={id('film')} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#5a3d8a" stopOpacity="0.55" />
+          <stop offset="0.5" stopColor="#2f6b5a" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#8a6a2a" stopOpacity="0.5" />
+        </linearGradient>
+      </defs>
+
+      {/* rot 3: greasy thumbprints and a wipe, at the edges, clear of the type */}
+      <g className="refcard__grease-prints" filter={wet} fill="none" stroke="#070608" strokeLinecap="round">
+        <g transform="translate(6 112) rotate(-28)" strokeWidth="1.6" opacity="0.8">
+          <ellipse rx="13" ry="17" />
+          <ellipse rx="9.5" ry="13" />
+          <ellipse rx="6" ry="9" />
+          <ellipse rx="2.8" ry="5" />
+        </g>
+        <g transform="translate(232 7) rotate(64)" strokeWidth="1.5" opacity="0.7">
+          <ellipse rx="11" ry="15" />
+          <ellipse rx="7.5" ry="11" />
+          <ellipse rx="4" ry="7" />
+        </g>
+        <path d="M2 186 C 30 178, 52 182, 78 190" strokeWidth="7" opacity="0.55" />
+      </g>
+
+      {/* the haunt: it floods down from the top edge, in runs */}
+      <g className="refcard__grease-flood">
+        <g filter={`url(#${id('ooze')})`}>
+          <path
+            fill={`url(#${id('oil')})`}
+            d="M0 0 H400 V58 C 380 74, 366 60, 350 82 C 334 104, 318 76, 300 92 C 280 110, 266 84, 246 98 C 224 114, 212 90, 192 104 C 170 120, 156 92, 136 108 C 116 124, 102 96, 84 110 C 64 126, 48 98, 30 114 C 18 124, 8 108, 0 116 Z"
+          />
+          {/* the runs: each crawls down the card and ends in a heavy bulb */}
+          {GREASE_DRIPS.map(([x, w, len, delay]) => {
+            const top = 96
+            const end = top + len * 1.05
+            return (
+              <g key={x} className="refcard__grease-run" style={{ '--len': len * 1.05, animationDelay: `${delay}s` } as CSSProperties}>
+                <path d={`M${x * 4} ${top} V${end}`} stroke="#060509" strokeWidth={w * 2} strokeLinecap="round" pathLength={len * 1.05} />
+                <ellipse className="refcard__grease-bulb" cx={x * 4} cy={end} rx={w * 1.5} ry={w * 1.9} fill="#060509" style={{ animationDelay: `${delay}s` } as CSSProperties} />
+              </g>
+            )
+          })}
+        </g>
+        {/* wet: painted highlights, an oily rim and a glint on every bulb (no filter: they must stay crisp) */}
+        <g className="refcard__grease-sheen" fill="none" strokeLinecap="round">
+          <path d="M22 104 C 44 92, 62 116, 84 100 C 104 88, 118 112, 138 98" stroke="rgba(214, 206, 246, 0.42)" strokeWidth="1.6" />
+          <path d="M196 94 C 216 82, 228 104, 248 90 C 268 76, 282 100, 302 84" stroke="rgba(214, 206, 246, 0.36)" strokeWidth="1.4" />
+          <path d="M318 78 C 334 92, 348 66, 366 64 C 378 62, 388 60, 398 52" stroke="rgba(214, 206, 246, 0.3)" strokeWidth="1.2" />
+          {/* a soft gloss across the pool, where the room light catches it */}
+          <ellipse cx="120" cy="40" rx="70" ry="9" fill="rgba(214, 206, 246, 0.07)" stroke="none" transform="rotate(-4 120 40)" />
+          <ellipse cx="300" cy="30" rx="52" ry="6" fill="rgba(214, 206, 246, 0.06)" stroke="none" transform="rotate(3 300 30)" />
+          <path
+            d="M0 117 C 8 109, 18 125, 30 115 C 48 99, 64 127, 84 111 C 102 97, 116 125, 136 109 C 156 93, 170 121, 192 105 C 212 91, 224 115, 246 99 C 266 85, 280 111, 300 93 C 318 77, 334 105, 350 83 C 366 61, 380 75, 400 59"
+            stroke={`url(#${id('film')})`}
+            strokeWidth="2.2"
+          />
+          {GREASE_DRIPS.map(([x, w, len, delay]) => (
+            <ellipse
+              key={x}
+              className="refcard__grease-bulb"
+              cx={x * 4 - w * 0.5}
+              cy={96 + len * 1.05 - w * 0.7}
+              rx={w * 0.45}
+              ry={w * 0.6}
+              fill="rgba(226, 220, 255, 0.55)"
+              style={{ animationDelay: `${delay}s` } as CSSProperties}
+            />
+          ))}
+        </g>
+      </g>
+    </svg>
+  )
+}
+
 /** The printed card. Rendered twice: the card itself, and the copy the loupe magnifies. */
-function CardSheet({ idPrefix, rot, name }: { idPrefix: string; rot: CardRot; name: string | null }) {
+function CardSheet({ idPrefix, rot, name, ghostMhz }: { idPrefix: string; rot: CardRot; name: string | null; ghostMhz: number }) {
   const id = (k: string) => `${idPrefix}-${k}`
   return (
     <div className="refcard__sheet" data-rot={rot}>
       {/* the stains are under the type: ink sits on top of the damage */}
-      <svg className="refcard__stain refcard__stain--scorch" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <filter id={id('ragged')} x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="7" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-          <radialGradient id={id('burn')} cx="100%" cy="100%" r="100%">
-            <stop offset="0%" stopColor="#0d0805" />
-            <stop offset="42%" stopColor="#1c0f07" />
-            <stop offset="58%" stopColor="#4a2a12" stopOpacity="0.85" />
-            <stop offset="78%" stopColor="#8a5a2a" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#8a5a2a" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-        <path d="M100 18 C 78 26, 60 44, 48 62 C 38 78, 26 90, 14 100 L 100 100 Z" fill={`url(#${id('burn')})`} filter={`url(#${id('ragged')})`} />
-      </svg>
       <svg className="refcard__stain refcard__stain--tide" viewBox="0 0 100 100" aria-hidden="true">
         <defs>
           <filter id={id('tide')} x="-20%" y="-20%" width="140%" height="140%">
@@ -166,8 +268,6 @@ function CardSheet({ idPrefix, rot, name }: { idPrefix: string; rot: CardRot; na
         <rect width="100" height="100" fill={`url(#${id('damp')})`} filter={`url(#${id('mould')})`} />
       </svg>
 
-      {/* the face in the damp: you only see it once you have seen it */}
-      <GhostFace idPrefix={id('face')} className="refcard__face" />
 
       <header className="refcard__head">
         <span>HAMorse HM-13</span>
@@ -234,6 +334,13 @@ function CardSheet({ idPrefix, rot, name }: { idPrefix: string; rot: CardRot; na
       <span className="refcard__deceased" aria-hidden="true">
         DECEASED
       </span>
+
+      {/* pencilled in the corner and ringed, by someone who found it: where the ghost is tonight */}
+      <span className="refcard__hint">
+        <span className="refcard__hint-text">{formatMhz(ghostMhz)}</span>
+      </span>
+
+      <Grease idPrefix={idPrefix} />
     </div>
   )
 }
@@ -248,7 +355,9 @@ const RIM_TEXT_PATH = 'M 50 50 m -46.4 0 a 46.4 46.4 0 1 1 92.8 0 a 46.4 46.4 0 
  */
 export default function ReferenceCard({ open, ejected = false, onClose }: ReferenceCardProps) {
   const { dread, victimName } = useMorseDecoder()
-  const { isHaunted } = useRadio()
+  const { isHaunted, sessionId } = useRadio()
+  // the ghost's frequency this session (it moves on every hard reset)
+  const ghostMhz = useMemo(() => getGhostFrequency(), [sessionId])
   const rot = (isHaunted ? 3 : Math.min(3, Math.max(0, dread))) as CardRot
   const cardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -486,14 +595,14 @@ export default function ReferenceCard({ open, ejected = false, onClose }: Refere
         onPointerCancel={endDrag}
         onPointerLeave={onPointerLeave}
       >
-        <CardSheet idPrefix="refcard" rot={rot} name={victimName} />
+        <CardSheet idPrefix="refcard" rot={rot} name={victimName} ghostMhz={ghostMhz} />
       </div>
 
       {/* The reading loupe: above the radio, never takes the pointer */}
       <div ref={loupeRef} className="loupe" data-show="false" aria-hidden="true">
         <div className="loupe__view">
           <div ref={paperRef} className="loupe__paper">
-            <CardSheet idPrefix="loupe-card" rot={rot} name={victimName} />
+            <CardSheet idPrefix="loupe-card" rot={rot} name={victimName} ghostMhz={ghostMhz} />
           </div>
         </div>
         <div className="loupe__glass" />

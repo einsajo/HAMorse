@@ -127,6 +127,16 @@
   opacity: 0.8;
 }
 
+.guide__intro {
+  margin: 0 0 0.75em;
+  font-size: 0.95em;
+  line-height: 1.38;
+}
+
+.guide__intro b {
+  font-weight: 700;
+}
+
 .guide__steps {
   margin: 0;
   padding-left: 1.6em;

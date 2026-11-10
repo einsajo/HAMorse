@@ -23,6 +23,8 @@ Dec 2, so there's time to fix a broken link.
 | ☐ | Category: **Costume Contest** | |
 | ☐ | **No API key** anywhere in the repo, video or screenshots | `.env` is git-ignored; the live demo uses the local brains |
 | ☐ | Test the live URL on a real Android phone **and** an iPhone, with sound | |
+| ☐ | A judge who doesn't know Morse can reach the scare | The Quick Start note opens on load; the circled frequency is on the card. Land on it and wait: CQ at 3.6 s, jumpscare at about 44 s; talk to it and it takes about 2 min ✅ (Playwright) |
+| ☐ | Tests are visible in the repo | `tests/`, `npm test`, run by CI ✅ |
 
 ### Before you record or submit
 1. Open the live URL on your phone, in a **private tab**, so the Quick Start note shows.
@@ -52,7 +54,7 @@ would happen if something else on the band was listening.
   - Key on a twin-lever Morse key (one press, one dit or dah), read along with the decoder, or switch it off and copy by ear.
   - An operator's reference card slides out from behind the set, with a reading loupe.
 - **Then the costume slips:**
-  - One frequency isn't on any list, and it moves every time you power on.
+  - One frequency isn't on any list, and it moves every time the radio resets. The last operator pencilled it in the corner of the card.
   - Answer it, and the radio won't let you go. The dial slips back to it, and the breaker
     slams itself back on.
   - The glitches get worse every time it speaks. It learns your name, writes it on the
@@ -118,10 +120,10 @@ Record the **phone screen** (portrait) with internal audio. Headphones on.
 
 | Time | Shot | Say / caption |
 |---|---|---|
-| 0:00–0:08 | Black screen. The Quick Start note. Thumb throws MAIN POWER: *KA-CHUNK*, static swells | "This is a 1970s ham radio. Every pixel is CSS, and every sound is synthesised live." |
+| 0:00–0:08 | The page loads with the Quick Start note (Morse, 1830s, SOS). Thumb throws MAIN POWER: *KA-CHUNK*, static swells | "This is a 1970s ham radio. Every pixel is CSS, and every sound is synthesised live." |
 | 0:08–0:30 | Turn the VFO: the detents, the S-meter flick, a news broadcast through the AM chain, then the ham band. The Elmer says hello | "It's a real Morse trainer…" |
 | 0:30–0:45 | Key `CQ` on the paddles with the decoder ON. REF: the card slides out, and you hold it to use the loupe | "…with a decoder for beginners, and a reference card you can actually read." |
-| 0:45–1:25 | Tune to the ghost (find it before recording). It answers like a normal operator. Answer it. The glitches start. Cut the power: it slams back on, "IM IN THE WIRES NOW". Pull out the card: HELP is circled | "But there's a frequency that isn't on any list." |
+| 0:45–1:25 | Hold the card to the loupe: a frequency pencilled and ringed in the corner. Tune to it. Silence, then it calls CQ like any operator. Answer it. The glitches start. Cut the power: it slams back on, "IM IN THE WIRES NOW". Pull out the card: HELP is circled | "Someone pencilled a frequency on this card. It isn't on any list." |
 | 1:25–1:55 | It says your name and the time. The last transmission speeds up. Build-up, blackout, **the jumpscare**, the bleed, ten seconds of frozen silence, the breaker trips | *(no voice-over: let it play)* |
 | 1:55–2:05 | Power on again: your name glimpsed in the LCD | "It's not really gone." |
 | 2:05–2:45 | Screen recording of the repo: `.kiro/specs` tasks, `vision.md`, the hook firing on save, a Playwright screenshot strip, the CI badge | "Built spec-first with Kiro: steering kept the vision, hooks validate the Morse, powers find the live streams, and MCP verified every frame." |

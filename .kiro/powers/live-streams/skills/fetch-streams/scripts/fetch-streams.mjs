@@ -55,7 +55,7 @@ const UA = 'TelegraphGhost-live-streams/1.0 (+https://github.com/einsajo/ghostFr
 const MAX_TRIES_PER_SLOT = 15
 
 export function parseArgs(argv) {
-  const o = { check: false, origin: 'https://example.com', api: null, out: null, prefer: [], timeout: 8000, allowHttp: false, dryRun: false }
+  const o = { check: false, origin: 'https://example.com', api: null, out: null, prefer: [], timeout: 8000, allowHttp: false, dryRun: false, curated: true }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     const next = () => argv[++i]
@@ -67,6 +67,7 @@ export function parseArgs(argv) {
     else if (a === '--timeout') o.timeout = Number(next()) || o.timeout
     else if (a === '--allow-http') o.allowHttp = true
     else if (a === '--dry-run') o.dryRun = true
+    else if (a === '--no-curated') o.curated = false // directory only (tests: no real stations)
   }
   return o
 }
@@ -132,7 +133,7 @@ export async function probe(url, { origin, timeout = 8000, allowHttp = false, fe
 export async function provisionSlot(slot, opts) {
   const seen = new Set()
   const tried = []
-  const queue = [...opts.prefer.map((url) => ({ name: url, url })), ...slot.curated]
+  const queue = [...opts.prefer.map((url) => ({ name: url, url })), ...(opts.curated === false ? [] : slot.curated)]
   const fromDirectory = async () => (await directoryCandidates(slot.tags, { api: opts.api, timeout: opts.timeout, https: !opts.allowHttp, fetchImpl: opts.fetchImpl })) ?? []
   let directoryLoaded = false
   while (tried.length < MAX_TRIES_PER_SLOT) {

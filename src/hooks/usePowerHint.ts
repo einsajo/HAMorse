@@ -26,7 +26,8 @@ const PowerHintContext = createContext<PowerHintState | null>(null)
 /** Must sit inside <RadioProvider>. */
 export function PowerHintProvider({ children }: { children?: ReactNode }) {
   const { isPowerOn } = useRadio()
-  const [isOpen, setIsOpen] = useState(false)
+  // shown from the first frame: everyone starts by throwing MAIN POWER
+  const [isOpen, setIsOpen] = useState(!isPowerOn)
   const [glowing, setGlowing] = useState(false)
 
   const poweredOnce = useRef(isPowerOn)

@@ -10,6 +10,12 @@ Just don't answer the frequency that answers back.
 
 [![CI](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/ghostFrequency-/actions/workflows/ci.yml)
 
+| The Quick Start note | A Morse trainer… | …until it isn't |
+|---|---|---|
+| <img src="docs/screens/1-quick-start.png" width="240" alt="The Quick Start note taped over the radio"> | <img src="docs/screens/2-radio.png" width="240" alt="The radio tuned to 101.00 MHz with the reference card out"> | <img src="docs/screens/3-haunt.png" width="240" alt="The haunt: the LCD cracked and bleeding black liquid crystal, black grease over the card"> |
+
+*Every pixel is CSS and SVG, and every sound is synthesised live. There are no images or audio files in the app.*
+
 ---
 
 ## What it is
@@ -21,8 +27,9 @@ set. Everything you see is drawn with CSS and SVG, and everything you hear is
 synthesised live with the Web Audio API. There are no images and no sound files.
 
 Underneath, it's a horror story told by the radio's own parts. Somewhere on
-the dial is a frequency that isn't on any list. It moves every time you
-switch the set on. Once you've answered it, the radio won't let you go.
+the dial is a frequency that isn't on any list. It is somewhere new every
+time the radio is reset, and the last operator pencilled it on his card.
+Once it has called you, the radio won't let you go.
 
 ## How to play
 
@@ -44,7 +51,7 @@ switch the set on. Once you've answered it, the radio won't let you go.
 3. **Key with the paddles**: **DIT** (left) and **DAH** (right). Arm **TX**
    and press **TX SEND** to transmit your over. Keyboard works too: Tab to a
    paddle, then press Enter or Space.
-4. **REF** slides the reference card out. Hold it (touch) or hover over it
+4. **REF** slides the reference card out. It belonged to the last operator: read it closely. Hold it (touch) or hover over it
    (mouse) to read it through the loupe.
 5. **DECODER ON/OFF**: beginners see what they key and what they hear.
    Switch it off to copy by ear and build real speed.
@@ -60,6 +67,7 @@ switch the set on. Once you've answered it, the radio won't let you go.
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # type-check and production build into dist/
+npm test           # 53 unit tests: Morse timing, stations, agents, the agent route, the streams power
 ```
 
 ### Optional: live AI operators

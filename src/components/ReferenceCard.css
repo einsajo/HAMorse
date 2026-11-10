@@ -356,21 +356,11 @@
   isolation: isolate; /* the stains (z -1) sit on the paper, under the ink */
 }
 
-.refcard__stain,
-.refcard__face {
+.refcard__stain {
   position: absolute;
   z-index: -1;
   pointer-events: none;
   mix-blend-mode: multiply;
-}
-
-/* 0: a corner scorched, as if it was pulled out of a fire (the empty one: it never hides type) */
-.refcard__stain--scorch {
-  right: 0;
-  bottom: 0;
-  width: min(48cqh, 18cqw);
-  aspect-ratio: 1;
-  opacity: 0.9;
 }
 
 /* 0: a water tide-mark, where a glass once stood on it */
@@ -500,22 +490,6 @@
   opacity: 1;
 }
 
-/* 3: the face in the damp: only its shadows print (sockets, the grin) */
-.refcard__face {
-  right: 4cqw;
-  top: 4cqh;
-  height: 92cqh;
-  width: auto;
-  aspect-ratio: 3 / 4;
-  filter: grayscale(1) sepia(0.55) contrast(1.7) brightness(1.15);
-  opacity: 0;
-  transition: opacity 6s ease-in;
-}
-
-.refcard__sheet[data-rot='3'] .refcard__face {
-  opacity: 0.22;
-}
-
 /* 3: rubber-stamped across the header, in faded office red */
 .refcard__deceased {
   position: absolute;
@@ -542,20 +516,131 @@
   opacity: 1;
 }
 
-/* the climax: the card is blown out, and the face in it is plain to see */
-.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__face {
-  opacity: 0.45;
-  transition-duration: 0.4s;
-}
-
+/* the climax: the card is blown out, and the paper darkens under the grease */
 .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__sheet {
   filter: brightness(0.82) contrast(1.12) sepia(0.15);
+}
+
+/* --- The hint: a frequency pencilled in the corner and ringed ------------
+   The ghost's, this session. Quiet (soft graphite, small), but big enough to
+   read on a phone, and the same hand as the HELP rings, so a curious player
+   connects the two. */
+.refcard__hint {
+  position: absolute;
+  right: 4.5cqw;
+  bottom: calc(var(--tuck) + 3.5cqh);
+  padding: 0.18em 0.55em 0.12em;
+  font-family: 'Segoe Print', 'Bradley Hand', 'Comic Neue', 'Segoe Script', 'Lucida Handwriting', cursive;
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+  color: rgba(54, 54, 60, 0.72); /* graphite */
+  text-shadow: 0.03em 0.02em 0 rgba(54, 54, 60, 0.25);
+  rotate: -7deg;
+  pointer-events: none;
+}
+
+/* the pencil ring: drawn twice round, not quite closing */
+.refcard__hint::before,
+.refcard__hint::after {
+  content: '';
+  position: absolute;
+  inset: -0.12em -0.05em;
+  border: 1.2px solid rgba(54, 54, 60, 0.62);
+  border-radius: 55% 45% 52% 48% / 58% 50% 50% 42%;
+}
+
+.refcard__hint::after {
+  inset: -0.2em 0.06em -0.04em -0.14em;
+  border-color: rgba(54, 54, 60, 0.32);
+  rotate: 4deg;
+}
+
+/* tall card (beside the radio): the strip tucked away is on the left, not the bottom */
+@container refcard (aspect-ratio < 1) {
+  .refcard__hint {
+    right: 7cqw;
+    bottom: 3cqh;
+  }
+}
+
+/* --- Black grease: the radio's liquid crystal, never blood -------------- */
+.refcard__grease {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.refcard__grease-prints {
+  opacity: 0;
+  transition: opacity 2.5s ease-out;
+}
+
+.refcard__sheet[data-rot='3'] .refcard__grease-prints {
+  opacity: 1;
+}
+
+/* it floods down from the top edge the moment the haunt strikes */
+.refcard__grease-flood {
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-flood {
+  opacity: 1;
+  animation: refcard-grease-flood 2.2s cubic-bezier(0.5, 0, 0.75, 0.4) 0.15s both;
+}
+
+.refcard__grease-run path {
+  stroke-dasharray: var(--len) var(--len);
+  stroke-dashoffset: var(--len);
+}
+
+.refcard__grease-bulb {
+  opacity: 0;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-run path {
+  animation: refcard-grease-run 3.4s cubic-bezier(0.6, 0, 0.8, 0.5) both;
+  animation-delay: inherit;
+}
+
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-bulb {
+  animation: refcard-grease-bulb 3.4s linear both;
+}
+
+@keyframes refcard-grease-flood {
+  from { clip-path: inset(0 0 100% 0); }
+  25% { clip-path: inset(0 0 72% 0); } /* it clings to the edge at first... */
+  to { clip-path: inset(0 0 -5% 0); } /* ...then pours */
+}
+
+@keyframes refcard-grease-run {
+  0% { stroke-dashoffset: var(--len); }
+  18% { stroke-dashoffset: calc(var(--len) * 0.92); } /* it clings... */
+  100% { stroke-dashoffset: 0; } /* ...then runs */
+}
+
+/* the bulb gathers at the tip as the run arrives */
+@keyframes refcard-grease-bulb {
+  0%, 80% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .refcard__line--late,
   .refcard__line--ghost {
     animation: none !important;
+  }
+
+  .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) :is(.refcard__grease-flood, .refcard__grease-run path, .refcard__grease-bulb) {
+    animation-duration: 1ms;
+    animation-delay: 0s;
   }
 }
 
