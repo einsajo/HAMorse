@@ -206,7 +206,7 @@ function createGuide(rng: () => number): AgentPersona {
     identity: { name },
     systemPrompt,
     maxExchanges: null,
-    voice: () => ({ distorted: false, charWpm: 18, effectiveWpm: 14, leadInMs: 1300, jitter: 0.05, toneHz: 600 }),
+    voice: () => ({ distorted: false, charWpm: 16, effectiveWpm: 13, leadInMs: 1300, jitter: 0.05, toneHz: 600 }),
     cq: () => `CQ CQ DE ${name} K `,
     localBrain: (opts) => guideBrain(name, opts),
     whispers: [],

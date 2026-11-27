@@ -8,6 +8,8 @@ interface ImportMetaEnv {
    * See src/utils/agentEngine.ts.
    */
   readonly VITE_AGENT_URL?: string
+  /** The tx relay ("the air") for TX ARM: ws://host:8788/air */
+  readonly VITE_RELAY_URL?: string
   /** Older name for VITE_AGENT_URL (still honoured) */
   readonly VITE_GHOST_AGENT_URL?: string
 }

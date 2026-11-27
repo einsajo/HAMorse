@@ -12,6 +12,8 @@ import { GHOST_QUIET_MAX_EXCHANGES, createAgentSession, createCast, ghostMaxExch
 import type { AgentCast, AgentId, AgentSession, AgentVoice, HauntEvent } from '../utils/agentEngine'
 import { useGhostGlitches } from './useGhostGlitches'
 import { loadProgress, recordWpm } from '../utils/progress'
+import { createTxRelay, txRelayUrl } from '../utils/txRelay'
+import type { TxRelay } from '../utils/txRelay'
 import type { Progress } from '../utils/progress'
 import type { Glitch } from './useGhostGlitches'
 
@@ -241,11 +243,14 @@ interface EngineCallbacks {
  * the latest value without being recreated on every render.
  *
  * `canKey`: the rig can transmit here (power ON, ham band or ghost), so a tap
- * sounds the sidetone and is decoded. The DECODER switch is not the
- * engine's business: it only decides whether the LCD shows the text.
+ * is decoded. `powered`: the rig is on at all, so the keyer itself sounds
+ * (every band: you hear a real dit / dah and feel the tick, even where the
+ * transmitter is inhibited). The DECODER switch is not the engine's business:
+ * it only decides whether the LCD shows the text.
  */
 function useMorseDecoderEngine(
   canKey: boolean,
+  powered: boolean,
   { symbolTimeoutMs = SYMBOL_TIMEOUT_MS, wordTimeoutMs = WORD_TIMEOUT_MS }: DecoderOptions,
   callbacks: EngineCallbacks = {},
 ): Omit<MorseDecoderState, 'band' | 'station' | 'status' | 'sendOver' | 'txStatus' | 'clearButton' | 'isAwaitingAgent' | 'agent' | 'dread' | 'isGhostTransmitting' | 'victimName' | 'ghostEncounter' | 'progress' | 'glitch'> & {
@@ -271,6 +276,8 @@ function useMorseDecoderEngine(
   const wordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const canKeyRef = useRef(canKey)
   canKeyRef.current = canKey
+  const powerOnRef = useRef(powered)
+  powerOnRef.current = powered
 
   // the word being sent, and its timing (for the operator's WPM)
   const wordRef = useRef('')
@@ -505,8 +512,12 @@ function useMorseDecoderEngine(
     (type: MorseTap) => {
       if (type !== '.' && type !== '-') return
       if (receivingRef.current) return // the other station has the frequency: wait your turn
-      if (!canKeyRef.current) return // dead radio, broadcaster or dead air: nothing keyed
+      if (!powerOnRef.current) return // a dead radio is silent
+      // the keyer itself is alive on every band: a real dit / dah, and a tiny
+      // buzz with it (a short tick for a dit, a longer one for a dah)
       playTone(type === '.' ? DIT_TONE_MS : DAH_TONE_MS)
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(type === '.' ? 18 : 45)
+      if (!canKeyRef.current) return // a broadcaster: you hear the keyer, but nothing is keyed
       clearTimers()
 
       const now = performance.now()
@@ -650,7 +661,7 @@ function browserStorage(): StationStorage | undefined {
  *     A new session (RadioContext.sessionId: the hard reset) recasts them all.
  */
 export function MorseDecoderProvider({ children, ...options }: MorseDecoderProviderProps) {
-  const { isPowerOn, isDecoderOn, frequency, isHaunted, setIsHaunted, isTrapped, setIsTrapped, sessionId, resistance } = useRadio()
+  const { isPowerOn, isDecoderOn, frequency, isHaunted, setIsHaunted, isTrapped, setIsTrapped, isTxArmed, sessionId, resistance } = useRadio()
   const { band, canTransmit } = getBandInfo(frequency)
   const canKey = isPowerOn && canTransmit
   const station = hamStationAt(frequency)
@@ -824,9 +835,13 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     agentOverTimer.current = setTimeout(check, AGENT_OVER_SILENCE_MS)
   }, [endAgentOver, stopAgentOverTimer])
 
+  /** the air (tx relay) connection, if TX ARM is up */
+  const airRef = useRef<TxRelay | null>(null)
+
   const deliver = useCallback(
     (words: readonly SentWord[], endOfOver = false) => {
       markSentRef.current()
+      if (words.length) airRef.current?.send(words.map((w) => w.word).join(' '))
       const f = frequencyRef.current
       const id: AgentId | null = getBandInfo(f).band === 'ghost' ? 'ghost' : agentStationAt(f)
       if (id) {
@@ -882,11 +897,32 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     refreshProgress() // the Elmer may have just taught you a new character
   }, [refreshProgress, touch])
 
-  const engine = useMorseDecoderEngine(canKey, options, { onWordEnd, onReplyEnd })
+  const engine = useMorseDecoderEngine(canKey, isPowerOn, options, { onWordEnd, onReplyEnd })
   const { currentSymbol, decodedMessage, draftFrom, isActive, isReceiving, simulateReply, flush, receivingNow, pendingNow } = engine
   replyRef.current = simulateReply
   streamRef.current = engine.streamReply
   const streamReply = engine.streamReply
+
+  // the air: with TX ARM up, your overs reach anyone else tuned to this frequency
+  const airMessage = useCallback(
+    (text: string) => {
+      // a busy frequency (someone sending, or an agent thinking): you miss it, like real QRM
+      if (receivingNow() || agentInFlight.current || isHaunted) return
+      simulateReply(text, false)
+    },
+    [receivingNow, simulateReply, isHaunted],
+  )
+  useEffect(() => {
+    const url = txRelayUrl()
+    if (!isPowerOn || !isTxArmed || !canTransmit || !url || isHaunted) {
+      airRef.current?.close()
+      airRef.current = null
+      return
+    }
+    airRef.current ??= createTxRelay(url, airMessage)
+    airRef.current.setFrequency(frequency)
+  }, [airMessage, canTransmit, frequency, isHaunted, isPowerOn, isTxArmed])
+  useEffect(() => () => airRef.current?.close(), [])
   markSentRef.current = engine.markSent
   /** you have keyed something that hasn't been sent yet */
   const hasDraftNow = useCallback(() => draftWords.current.length > 0 || pendingNow(), [pendingNow])

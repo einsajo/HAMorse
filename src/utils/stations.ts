@@ -59,14 +59,18 @@ export interface ReplyTiming {
   frenzy?: number
 }
 
-/** The 101.00 practice station: brisk, clean 700 Hz (60 ms dits) */
+/**
+ * The default reply speed: 15 WPM PARIS (80 ms dits, full 3-dit letter gaps,
+ * 7-dit word gaps). Conversational, but a touch slower than a real QSO, so
+ * even a fast reader can follow it; Sam (103.10) is the fast one on purpose.
+ */
 export const REPLY_TIMING: Readonly<ReplyTiming> = Object.freeze({
   leadInMs: 700,
-  ditMs: 60,
-  dahMs: 180,
-  elementGapMs: 60,
-  charGapMs: 150,
-  wordGapMs: 420,
+  ditMs: 80,
+  dahMs: 240,
+  elementGapMs: 80,
+  charGapMs: 240,
+  wordGapMs: 560,
 })
 
 /** The ghost's default timing (its agent normally sets its own timing, exchange by exchange) */
@@ -509,7 +513,7 @@ function createTutor(): Station {
  * answers with the traditional "E E" (dit dit). Your name and QTH are echoed
  * back, so you know he copied you. 18 WPM characters at 13 WPM effective.
  */
-export const RAGCHEW_TIMING = timingForWpm(18, 13, 1500, 760)
+export const RAGCHEW_TIMING = timingForWpm(16, 12, 1500, 760)
 export const RAGCHEW_NAME = 'BOB'
 export const RAGCHEW_QTH = 'OHIO'
 const RAGCHEW_CQ_EVERY_MS = 30000
