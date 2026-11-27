@@ -28,6 +28,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc -b && npx vite build --base=/${{ github.event.repository.name }}/
+        env:
+          # the air (tx relay) for TX GBL: set it in repo Settings → Secrets and variables → Actions
+          VITE_RELAY_URL: ${{ secrets.VITE_RELAY_URL }}
       # every public asset must carry the sub-path, or the font and icon 404 on Pages
       - run: |
           grep -q '/${{ github.event.repository.name }}/favicon.svg' dist/index.html

@@ -138,11 +138,10 @@ function TxButton({ onPress }: { onPress?: () => void }) {
 }
 
 /**
- * TX ARM: a guarded "missile" safety toggle. A hinged, faded-red translucent
- * cover sits closed over a small bat toggle, on a hazard-striped steel plate.
- * Mirrors REF over CLR on the left so the desk stays symmetrical.
- * Its real purpose: flip the cover up and the bat on, and your overs go out
- * over the air (the tx relay) to anyone else tuned to this frequency.
+ * TX GBL: a square industrial push button on a hazard-striped steel plate
+ * (same plate as the old guarded toggle). Its real purpose: press it, and
+ * your overs go out over the air (the tx relay) to anyone else tuned to this
+ * frequency. The cap sinks and glows while it's on.
  */
 function ArmGuard({ armed, onToggle }: { armed: boolean; onToggle: () => void }) {
   return (
@@ -150,7 +149,7 @@ function ArmGuard({ armed, onToggle }: { armed: boolean; onToggle: () => void })
       className="utility guard"
       role="switch"
       aria-checked={armed}
-      aria-label="TX global arm"
+      aria-label="TX global"
       tabIndex={0}
       data-armed={armed}
       onClick={onToggle}
@@ -164,15 +163,12 @@ function ArmGuard({ armed, onToggle }: { armed: boolean; onToggle: () => void })
       <div className="guard__plate" aria-hidden="true">
         <span className="guard__screw guard__screw--a" />
         <span className="guard__screw guard__screw--b" />
-        <span className="guard__well">
-          <span className="guard__toggle" />
-        </span>
-        <span className="guard__cover">
-          <span className="guard__hinge" />
+        <span className="guard__sq">
+          <span className="guard__sqcap" />
         </span>
       </div>
       <span className="utility__label silk" aria-hidden="true">
-        TX ARM
+        TX GBL
       </span>
     </div>
   )
@@ -184,7 +180,7 @@ interface TelegraphDeskProps {
 }
 
 /**
- * Telegraph Desk: REF/CLR switches | horizontal twin-lever key | TX ARM guard / TX SEND.
+ * Telegraph Desk: REF/CLR switches | horizontal twin-lever key | TX GBL / TX SEND.
  * REF toggles the reference card; DIT / DAH key the Morse decoder; CLR clears it;
  * TX SEND sends what you've keyed at once and hands the frequency over.
  */

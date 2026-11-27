@@ -203,7 +203,7 @@ export function getBandInfo(mhz: number): BandInfo {
     return { band: 'ham', canTransmit: true }
   }
   // open frequencies: nobody scheduled, but the rig transmits (CQ goes out on
-  // the air; with TX ARM up it reaches anyone else tuned there)
+  // the air; with TX GBL up it reaches anyone else tuned there)
   return { band: 'dead', canTransmit: true }
 }
 

@@ -29,7 +29,7 @@ main.tsx
                     ├── TopPanel        MCB power | S-meter | DECODER slide
                     ├── LCDDisplay      amber LCD + stain + DustCanvas  (reads the decoder)
                     ├── TuningDial      SOP plate | VFO | badge + serial plates
-                    └── TelegraphDesk   REF/CLR | squeeze keyer | TX ARM / TX SEND  (writes the decoder)
+                    └── TelegraphDesk   REF/CLR | squeeze keyer | TX GBL / TX SEND  (writes the decoder)
 ```
 
 - **Layout:** the chassis is a 4-row grid (`16fr 26fr 30fr 28fr`). Each panel
