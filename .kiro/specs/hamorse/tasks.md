@@ -171,6 +171,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.12 Scarier jumpscare: a double scare (hit, relief, it snaps closer at 0.6 s), camera shake, picture tearing, the jaw stretching, black tears; raspy blown-out shrieks in 3D (HRTF); a safety soft-clip after the limiter (peak 0.96, measured)
   - [x] 2e.1 Your progress pencilled on the reference card: ticks by every character the Elmer has taught you, BEST: NN WPM (`progress.ts`, 3 unit tests)
   - [x] 19c.11 The ghost's QSL card before the trip: GHOSTED AT m:ss, a line about how it went, a disclaimer and apology, POWER ON AGAIN / CLOSE
+  - [x] 16.7 Quick Start: "New to ham? The Elmer on 100.30 will help you. Fellow operators are on 100-103.50 MHz"; a tap on the red PWR lamp reopens it any time (the look is unchanged; with the power on it shows only GOT IT)
+  - [x] 14.3 Stronger detents: broadcasters 0.30 / 0.45 MHz, ham operators and RX slots 0.15 / 0.24, the ghost 0.35 / 0.60 (it pulls hardest); the ghost now keeps 0.70 MHz from every station (206 hiding places)
+  - [x] 19c.13 The card's haunt stain soaks into the paper: a light, wide, uneven wash with a darker tide-line, multiply-blended so the type shows through (replaces the solid black flood)
   - [x] 16.6 The Quick Start note opens on page load: why Morse matters in a few lines, then four steps; no hint of the haunt
   - [x] 19c.7 Fix: cutting the power mid-strike no longer kills the ghost (`strikePending`: it strikes ~0.8 s after the power returns; cut turns still count)
   - [x] 19c.5 No red: black liquid crystal bleed (iridescent pools, dead columns, dying lamp), fluid running down inside the glass (the leak onto the chassis was removed after play-testing)

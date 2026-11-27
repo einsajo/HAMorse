@@ -107,7 +107,7 @@ export function agentStationAt(mhz: number): AgentStationId | null {
 /* --- The wandering ghost --------------------------------------------------------- */
 
 /** The ghost keeps at least this far from every station (broadcasters, operators, reserved slots) */
-export const GHOST_STATION_BUFFER_MHZ = 0.5
+export const GHOST_STATION_BUFFER_MHZ = 0.7
 /** ...and from where the radio powers on, so you never start inside its drone */
 export const GHOST_START_BUFFER_MHZ = 1.0
 /** It sits on the dial's 0.05 MHz step, so the arrow keys can reach it too */
@@ -223,10 +223,16 @@ export interface Detent {
   escapeMhz: number
 }
 
-/** Broadcasters and the ghost: wide, strong detents (the ghost feels like just one more station) */
-const WIDE_DETENT = { captureMhz: 0.2, escapeMhz: 0.32 } as const
-/** Ham operators: small detents (0.70 apart), so most of the band between them stays open to tune through */
-const NARROW_DETENT = { captureMhz: 0.1, escapeMhz: 0.16 } as const
+/** Broadcasters: wide, strong detents */
+const WIDE_DETENT = { captureMhz: 0.3, escapeMhz: 0.45 } as const
+/** Ham operators and the receive-only slots: 0.35 apart, so their detents stay just clear of each other */
+const NARROW_DETENT = { captureMhz: 0.15, escapeMhz: 0.24 } as const
+/**
+ * The ghost: it wants you. Pass within 0.35 MHz (a few tenths) and the dial is
+ * dragged onto it; it takes a 0.6 MHz pull to break free (before it has
+ * trapped you; after that it doesn't let go at all).
+ */
+const GHOST_DETENT = { captureMhz: 0.35, escapeMhz: 0.6 } as const
 
 const FIXED_DETENTS: readonly Detent[] = Object.freeze([
   ...BROADCAST_STATIONS.map((frequency) => ({ frequency, ...WIDE_DETENT })),
@@ -240,7 +246,7 @@ let detentCache: { ghost: number; detents: readonly Detent[] } | null = null
 /** Every detent on the dial, the ghost's included (it moves on a reset, so this is a function) */
 export function getDetents(): readonly Detent[] {
   if (detentCache?.ghost !== ghostFrequency) {
-    detentCache = { ghost: ghostFrequency, detents: Object.freeze([...FIXED_DETENTS, { frequency: ghostFrequency, ...WIDE_DETENT }]) }
+    detentCache = { ghost: ghostFrequency, detents: Object.freeze([...FIXED_DETENTS, { frequency: ghostFrequency, ...GHOST_DETENT }]) }
   }
   return detentCache.detents
 }

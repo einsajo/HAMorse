@@ -618,51 +618,28 @@
   opacity: 1;
 }
 
-/* it floods down from the top edge the moment the haunt strikes */
-.refcard__grease-flood {
+/* it soaks in and spreads the moment the haunt strikes: slow at first (it
+   wicks into the fibres), then outward, like ink on old paper. Multiply, so
+   the type and the paper's grain still show through the stain. */
+.refcard__soak {
+  mix-blend-mode: multiply;
+}
+
+.refcard__soak-blot {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
   opacity: 0;
-  clip-path: inset(0 0 100% 0);
+  transform: scale(0.2);
 }
 
-.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-flood {
-  opacity: 1;
-  animation: refcard-grease-flood 2.2s cubic-bezier(0.5, 0, 0.75, 0.4) 0.15s both;
+.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__soak-blot {
+  animation: refcard-soak 3s cubic-bezier(0.25, 0.6, 0.3, 1) both;
 }
 
-.refcard__grease-run path {
-  stroke-dasharray: var(--len) var(--len);
-  stroke-dashoffset: var(--len);
-}
-
-.refcard__grease-bulb {
-  opacity: 0;
-}
-
-.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-run path {
-  animation: refcard-grease-run 3.4s cubic-bezier(0.6, 0, 0.8, 0.5) both;
-  animation-delay: inherit;
-}
-
-.stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__grease-bulb {
-  animation: refcard-grease-bulb 3.4s linear both;
-}
-
-@keyframes refcard-grease-flood {
-  from { clip-path: inset(0 0 100% 0); }
-  25% { clip-path: inset(0 0 72% 0); } /* it clings to the edge at first... */
-  to { clip-path: inset(0 0 -5% 0); } /* ...then pours */
-}
-
-@keyframes refcard-grease-run {
-  0% { stroke-dashoffset: var(--len); }
-  18% { stroke-dashoffset: calc(var(--len) * 0.92); } /* it clings... */
-  100% { stroke-dashoffset: 0; } /* ...then runs */
-}
-
-/* the bulb gathers at the tip as the run arrives */
-@keyframes refcard-grease-bulb {
-  0%, 80% { opacity: 0; }
-  100% { opacity: 1; }
+@keyframes refcard-soak {
+  0% { opacity: 0; transform: scale(0.2); }
+  12% { opacity: 0.7; transform: scale(0.32); } /* it lands, dark, small... */
+  100% { opacity: 1; transform: scale(1); } /* ...and spreads, paling as it goes */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -671,7 +648,7 @@
     animation: none !important;
   }
 
-  .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) :is(.refcard__grease-flood, .refcard__grease-run path, .refcard__grease-bulb) {
+  .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .refcard__soak-blot {
     animation-duration: 1ms;
     animation-delay: 0s;
   }

@@ -23,7 +23,7 @@ interface Spot {
  */
 export default function PowerOnGuide() {
   const { isOpen, dismiss } = usePowerHint()
-  const { setIsPowerOn } = useRadio()
+  const { isPowerOn, setIsPowerOn } = useRadio()
   const rootRef = useRef<HTMLDivElement>(null)
   const primaryRef = useRef<HTMLButtonElement>(null)
   const [spot, setSpot] = useState<Spot | null>(null)
@@ -80,14 +80,16 @@ export default function PowerOnGuide() {
       <div className="guide__card" role="dialog" aria-labelledby="guide-title" aria-describedby="guide-steps">
         <span className="guide__tape guide__tape--l" aria-hidden="true" />
         <span className="guide__tape guide__tape--r" aria-hidden="true" />
-        <span className="guide__pencil" aria-hidden="true">
-          start here
-          {/* pencil arrow up at the breaker (drawn, so it never depends on font glyphs) */}
-          <svg className="guide__arrow" viewBox="0 0 30 30">
-            <path d="M3 27 C 9 24, 15 16, 21 5" />
-            <path d="M14.5 7.5 L 21.5 4 L 22.5 11.5" />
-          </svg>
-        </span>
+        {!isPowerOn && (
+          <span className="guide__pencil" aria-hidden="true">
+            start here
+            {/* pencil arrow up at the breaker (drawn, so it never depends on font glyphs) */}
+            <svg className="guide__arrow" viewBox="0 0 30 30">
+              <path d="M3 27 C 9 24, 15 16, 21 5" />
+              <path d="M14.5 7.5 L 21.5 4 L 22.5 11.5" />
+            </svg>
+          </span>
+        )}
 
         <h2 id="guide-title" className="guide__title">
           <span>QUICK START</span>
@@ -107,8 +109,8 @@ export default function PowerOnGuide() {
               Throw <b>MAIN POWER</b> (top left). Sound starts here; headphones help.
             </li>
             <li>
-              Turn the <b>VFO</b> dial. Operators answer on the <b>HAM band, 100.00&ndash;103.50&nbsp;MHz</b>. New to
-              Morse? The <b>Elmer on 100.30</b> will teach you.
+              Turn the <b>VFO</b> dial. New to ham? The <b>Elmer on 100.30</b> will help you. Fellow operators are
+              on <b>100&ndash;103.50&nbsp;MHz</b>: call them and say hello.
             </li>
             <li>
               Key with <b>DIT (&middot;)</b> and <b>DAH (&ndash;)</b>, then press <b>TX SEND</b>.
@@ -117,14 +119,20 @@ export default function PowerOnGuide() {
               <b>DECODER ON</b> shows your Morse as text; <b>OFF</b> trains your ear. <b>REF</b>: the code card.{' '}
               <b>CLR</b>: erase.
             </li>
+            <li>
+              Tap the red <b>PWR</b> lamp any time to read this note again.
+            </li>
           </ol>
         </div>
 
         <div className="guide__actions">
-          <button ref={primaryRef} type="button" className="guide__btn guide__btn--primary" onClick={powerOn}>
-            [ THROW MAIN POWER ]
-          </button>
-          <button type="button" className="guide__btn" onClick={dismiss}>
+          {/* read again with the radio already on: just close it */}
+          {!isPowerOn && (
+            <button ref={primaryRef} type="button" className="guide__btn guide__btn--primary" onClick={powerOn}>
+              [ THROW MAIN POWER ]
+            </button>
+          )}
+          <button ref={isPowerOn ? primaryRef : undefined} type="button" className="guide__btn" onClick={dismiss}>
             [ GOT IT ]
           </button>
         </div>

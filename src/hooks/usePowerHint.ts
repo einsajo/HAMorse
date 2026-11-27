@@ -19,6 +19,8 @@ export interface PowerHintState {
   nudge: () => void
   /** Close the guide; later nudges only make the breaker glow */
   dismiss: () => void
+  /** Open the guide again, any time (a tap on the PWR lamp) */
+  open: () => void
 }
 
 const PowerHintContext = createContext<PowerHintState | null>(null)
@@ -69,12 +71,14 @@ export function PowerHintProvider({ children }: { children?: ReactNode }) {
   const dismiss = useCallback(() => {
     dismissed.current = true
     setIsOpen(false)
-    glow() // one last pointer at the breaker
+    if (!poweredOnce.current) glow() // one last pointer at the breaker (not once it's on)
   }, [glow])
 
+  const open = useCallback(() => setIsOpen(true), [])
+
   const value = useMemo<PowerHintState>(
-    () => ({ isOpen, attention: isOpen || glowing, nudge, dismiss }),
-    [isOpen, glowing, nudge, dismiss],
+    () => ({ isOpen, attention: (isOpen && !poweredOnce.current) || glowing, nudge, dismiss, open }),
+    [isOpen, glowing, nudge, dismiss, open],
   )
   return createElement(PowerHintContext.Provider, { value }, children)
 }

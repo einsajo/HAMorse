@@ -122,17 +122,24 @@ const SCRATCHES: readonly string[] = [
   'M16 30 C 24 46, 29 62, 33 92', 'M20.5 29 C 28.5 45, 33.5 61, 37.5 90', 'M25 32 C 32 47, 37 61, 41 86',
 ]
 
-/** Long runs of grease down the card when it floods: [x (% of the width), half-width, length, delay s] */
-const GREASE_DRIPS: readonly (readonly [number, number, number, number])[] = [
-  [6, 4, 62, 0.35], [19, 2.5, 40, 0.6], [31, 5, 86, 0.2], [47, 3, 52, 0.75], [58, 4.5, 90, 0.4],
-  [71, 2.5, 34, 0.9], [83, 5.5, 80, 0.3], [94, 3, 46, 0.55],
+/**
+ * Where the black liquid crystal soaked into the card at the haunt:
+ * [cx, cy, rx, ry, rotate deg, delay s] in the 400 x 200 viewBox. One big
+ * blot from the top edge (where the card came out of the slot), and smaller
+ * ones it ran into.
+ */
+const SOAK_BLOTS: readonly (readonly [number, number, number, number, number, number])[] = [
+  [205, 34, 150, 66, -6, 0.1],
+  [52, 150, 58, 40, 18, 0.55],
+  [336, 128, 64, 46, -14, 0.8],
+  [128, 92, 34, 24, 8, 1.1],
 ]
 
 /**
- * Black grease: the radio's own liquid crystal, the same pitch-black with an
- * oily sheen as the LCD's bleed (no blood, no faces). Rot 3: a few greasy
- * thumbprints and a wipe at the edges, clear of the type. The haunt: it floods
- * down over the whole card from the top edge, in runs and drips, wet and glossy.
+ * The radio's own black liquid crystal on the card (no blood, no faces).
+ * Rot 3: a few greasy thumbprints and a wipe at the edges, clear of the type.
+ * The haunt: it soaks into the old paper and spreads, a light, wide, uneven
+ * stain with a darker tide-line, the type still readable through it.
  */
 function Grease({ idPrefix }: { idPrefix: string }) {
   const id = (k: string) => `${idPrefix}-grease-${k}`
@@ -154,21 +161,24 @@ function Grease({ idPrefix }: { idPrefix: string }) {
             <feMergeNode in="sheen" />
           </feMerge>
         </filter>
-        <filter id={id('ooze')} x="-10%" y="-10%" width="120%" height="130%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="4" result="n" />
-          <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
+        {/* paper fibres: ragged, feathered edges (displaced, then softened) */}
+        <filter id={id('wick')} x="-25%" y="-25%" width="150%" height="150%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.035 0.06" numOctaves="4" seed="17" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G" result="ragged" />
+          <feGaussianBlur in="ragged" stdDeviation="2.2" />
         </filter>
-        <linearGradient id={id('oil')} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#050505" />
-          <stop offset="0.55" stopColor="#0b0910" />
-          <stop offset="1" stopColor="#050505" />
-        </linearGradient>
-        {/* the thin-film rainbow at the edge of a pool, very faint */}
-        <linearGradient id={id('film')} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#5a3d8a" stopOpacity="0.55" />
-          <stop offset="0.5" stopColor="#2f6b5a" stopOpacity="0.45" />
-          <stop offset="1" stopColor="#8a6a2a" stopOpacity="0.5" />
-        </linearGradient>
+        {/* the stain: a light grey wash with a darker tide-line where it dried */}
+        <radialGradient id={id('soak')} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#3a332b" stopOpacity="0.26" />
+          <stop offset="0.62" stopColor="#2b2620" stopOpacity="0.34" />
+          <stop offset="0.86" stopColor="#1d1a16" stopOpacity="0.5" />
+          <stop offset="0.95" stopColor="#14110e" stopOpacity="0.62" />
+          <stop offset="1" stopColor="#14110e" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={id('halo')} cx="50%" cy="50%" r="50%">
+          <stop offset="0.55" stopColor="#4a4136" stopOpacity="0.14" />
+          <stop offset="1" stopColor="#4a4136" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       {/* rot 3: greasy thumbprints and a wipe, at the edges, clear of the type */}
@@ -187,51 +197,24 @@ function Grease({ idPrefix }: { idPrefix: string }) {
         <path d="M2 186 C 30 178, 52 182, 78 190" strokeWidth="7" opacity="0.55" />
       </g>
 
-      {/* the haunt: it floods down from the top edge, in runs */}
-      <g className="refcard__grease-flood">
-        <g filter={`url(#${id('ooze')})`}>
-          <path
-            fill={`url(#${id('oil')})`}
-            d="M0 0 H400 V58 C 380 74, 366 60, 350 82 C 334 104, 318 76, 300 92 C 280 110, 266 84, 246 98 C 224 114, 212 90, 192 104 C 170 120, 156 92, 136 108 C 116 124, 102 96, 84 110 C 64 126, 48 98, 30 114 C 18 124, 8 108, 0 116 Z"
-          />
-          {/* the runs: each crawls down the card and ends in a heavy bulb */}
-          {GREASE_DRIPS.map(([x, w, len, delay]) => {
-            const top = 96
-            const end = top + len * 1.05
-            return (
-              <g key={x} className="refcard__grease-run" style={{ '--len': len * 1.05, animationDelay: `${delay}s` } as CSSProperties}>
-                <path d={`M${x * 4} ${top} V${end}`} stroke="#060509" strokeWidth={w * 2} strokeLinecap="round" pathLength={len * 1.05} />
-                <ellipse className="refcard__grease-bulb" cx={x * 4} cy={end} rx={w * 1.5} ry={w * 1.9} fill="#060509" style={{ animationDelay: `${delay}s` } as CSSProperties} />
-              </g>
-            )
-          })}
-        </g>
-        {/* wet: painted highlights, an oily rim and a glint on every bulb (no filter: they must stay crisp) */}
-        <g className="refcard__grease-sheen" fill="none" strokeLinecap="round">
-          <path d="M22 104 C 44 92, 62 116, 84 100 C 104 88, 118 112, 138 98" stroke="rgba(214, 206, 246, 0.42)" strokeWidth="1.6" />
-          <path d="M196 94 C 216 82, 228 104, 248 90 C 268 76, 282 100, 302 84" stroke="rgba(214, 206, 246, 0.36)" strokeWidth="1.4" />
-          <path d="M318 78 C 334 92, 348 66, 366 64 C 378 62, 388 60, 398 52" stroke="rgba(214, 206, 246, 0.3)" strokeWidth="1.2" />
-          {/* a soft gloss across the pool, where the room light catches it */}
-          <ellipse cx="120" cy="40" rx="70" ry="9" fill="rgba(214, 206, 246, 0.07)" stroke="none" transform="rotate(-4 120 40)" />
-          <ellipse cx="300" cy="30" rx="52" ry="6" fill="rgba(214, 206, 246, 0.06)" stroke="none" transform="rotate(3 300 30)" />
-          <path
-            d="M0 117 C 8 109, 18 125, 30 115 C 48 99, 64 127, 84 111 C 102 97, 116 125, 136 109 C 156 93, 170 121, 192 105 C 212 91, 224 115, 246 99 C 266 85, 280 111, 300 93 C 318 77, 334 105, 350 83 C 366 61, 380 75, 400 59"
-            stroke={`url(#${id('film')})`}
-            strokeWidth="2.2"
-          />
-          {GREASE_DRIPS.map(([x, w, len, delay]) => (
-            <ellipse
-              key={x}
-              className="refcard__grease-bulb"
-              cx={x * 4 - w * 0.5}
-              cy={96 + len * 1.05 - w * 0.7}
-              rx={w * 0.45}
-              ry={w * 0.6}
-              fill="rgba(226, 220, 255, 0.55)"
-              style={{ animationDelay: `${delay}s` } as CSSProperties}
-            />
-          ))}
-        </g>
+      {/*
+        the haunt: the black liquid crystal soaks INTO the old paper, the way
+        ink does: it spreads in a wide, light, uneven wash, greyer than black,
+        with a darker tide-line at its edge where the fibres carried it furthest,
+        and the type still showing through (multiply blend)
+      */}
+      <g className="refcard__soak">
+        {SOAK_BLOTS.map(([cx, cy, rx, ry, rot, delay]) => (
+          // outer: it spreads (CSS animates this one); inner: its angle (an SVG transform, untouched by CSS)
+          <g key={`${cx}-${cy}`} className="refcard__soak-blot" style={{ animationDelay: `${delay}s` } as CSSProperties}>
+            <g transform={`rotate(${rot} ${cx} ${cy})`}>
+              {/* the fibres wick it out beyond the stain: a faint halo */}
+              <ellipse cx={cx} cy={cy} rx={rx * 1.28} ry={ry * 1.32} fill={`url(#${id('halo')})`} filter={`url(#${id('wick')})`} />
+              {/* the stain itself: light in the middle, darker at the tide-line */}
+              <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={`url(#${id('soak')})`} filter={`url(#${id('wick')})`} />
+            </g>
+          </g>
+        ))}
       </g>
     </svg>
   )

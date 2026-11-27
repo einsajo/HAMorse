@@ -60,9 +60,11 @@ interface PowerSwitchProps extends SwitchProps {
   attention?: boolean
   /** the ghost has just slammed it back ON by itself */
   forced?: boolean
+  /** a tap on the PWR lamp: the Quick Start note again */
+  onLamp?: () => void
 }
 
-function PowerSwitch({ on, onToggle, attention = false, forced = false }: PowerSwitchProps) {
+function PowerSwitch({ on, onToggle, attention = false, forced = false, onLamp }: PowerSwitchProps) {
   const handlers = useToggleHandlers(onToggle)
   return (
     <div className="power">
@@ -77,8 +79,21 @@ function PowerSwitch({ on, onToggle, attention = false, forced = false }: PowerS
         </g>
       </svg>
 
-      {/* the jewel lights when the breaker is closed */}
-      <span className="power__led" data-on={on} aria-hidden="true" />
+      {/* the jewel lights when the breaker is closed; tap it for the Quick Start note */}
+      <span
+        className="power__led"
+        data-on={on}
+        role="button"
+        tabIndex={0}
+        aria-label="Quick start guide"
+        onClick={onLamp}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onLamp?.()
+          }
+        }}
+      />
 
       {/* the whole breaker block is the touch target; the handle snaps inside it */}
       <div
@@ -444,7 +459,7 @@ export default function TopPanel() {
   const { frequency, isPowerOn, isDecoderOn, isTrapped, isHaunted, sessionId, togglePower, setIsPowerOn, toggleDecoder, reportResistance } = useRadio()
   const { isReceiving, isAwaitingAgent, glitch } = useMorseDecoder()
   const powerSag = glitch?.kind === 'flicker' || glitch?.kind === 'brownout'
-  const { attention, nudge } = usePowerHint()
+  const { attention, nudge, open: openGuide } = usePowerHint()
 
   /*
    * The trap's power lock: once the ghost has you, the breaker won't stay
@@ -503,7 +518,7 @@ export default function TopPanel() {
   return (
     <section className="top" aria-label="Top Panel">
       <div className="top__col top__col--power">
-        <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} forced={forced} />
+        <PowerSwitch on={isPowerOn} onToggle={onPower} attention={attention} forced={forced} onLamp={openGuide} />
       </div>
       <div className="top__col top__col--meter">
         <SMeter isPowerOn={isPowerOn} frequency={frequency} isReceiving={isReceiving} isAwaitingAgent={isAwaitingAgent} powerSag={powerSag} />
