@@ -48,9 +48,11 @@ Once it has called you, the radio won't let you go.
    | 102.75 | **The Stranger**: a different ragchewer every boot |
    | 103.10 | **Sam**: high-speed copy practice in 5-character groups |
    | ??? | Something else |
-3. **Key with the paddles**: **DIT** (left) and **DAH** (right). Arm **TX**
-   and press **TX SEND** to transmit your over. Keyboard works too: Tab to a
-   paddle, then press Enter or Space.
+3. **Key with the paddles**: **DIT** (left) and **DAH** (right). Every press
+   sounds the real 700 Hz dit or dah, with a tiny tick of vibration (short for
+   a dit, longer for a dah). Replies come back at an easy 15 WPM. Then arm
+   **TX** and press **TX SEND** to transmit your over. Keyboard works too: Tab
+   to a paddle, then press Enter or Space.
 4. **REF** slides the reference card out. It belonged to the last operator: read it closely. Hold it (touch) or hover over it
    (mouse) to read it through the loupe.
 5. **DECODER ON/OFF**: beginners see what they key and what they hear.
@@ -71,6 +73,24 @@ npm run dev        # http://localhost:5173
 npm run build      # type-check and production build into dist/
 npm test           # 57 unit tests: Morse timing, stations, agents, your progress, the agent route, the streams power
 ```
+
+### Optional: talk to real people (TX ARM)
+
+Flip the **TX ARM** guard up and your overs also go out over **the air**: anyone
+else tuned to the same frequency on any other device hears them, keyed out
+loud. That is its real HAM purpose, and it needs a tiny relay (the "air"):
+
+```bash
+node server/tx-relay.mjs        # ws://localhost:8788/air, no dependencies
+# .env: VITE_RELAY_URL=ws://localhost:8788/air
+```
+
+Rooms are the frequencies themselves: everyone on 106.30 hears everyone on
+106.30. Messages are sanitized to what a keyer can send, rate-limited, and
+**nothing is stored and nobody has an account**: like the air, it only exists
+while someone is sending. For the public demo, host `server/tx-relay.mjs`
+anywhere that speaks WebSocket (a free Render/Fly/Railway dyno works) and set
+`VITE_RELAY_URL` at build time. Without a relay, TX ARM simply finds nobody.
 
 ### Optional: live AI operators
 

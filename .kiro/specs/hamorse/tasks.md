@@ -103,7 +103,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - _Requirements: 3_
 
 - [x] 16. Sidetone and mechanical sounds
-  - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on the ham band / ghost when powered, even with the DECODER OFF (ear training)
+  - [x] 16.1 700 Hz sine sidetone with 5ms attack/release: DIT 60ms, DAH 180ms. Plays on EVERY powered tap, every band (the keyer is alive even where TX is inhibited), even with the DECODER OFF (ear training); a haptic tick with it (18 ms dit, 45 ms dah)
   - [x] 16.2 Distinct Foley: breaker KA-CHUNK, slider scrape, button snap, ball-bearing VFO thud, paper scrape synced to the card animation
   - [x] 11.5 Reading loupe on the REF card: hold (touch) / hover (mouse), real card copy magnified to ~22px type, engraved rim marks, rubber-stamp hint; tap / swipe / click still close the card
   - [x] 18a.11 Reserved receive-only slots midway in each operator gap (silent S5 carrier, RX ONLY, INHIBIT), to be mapped later
@@ -163,6 +163,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.1 Unprompted ghost turns: silence, power, dial (local lines + route events); they count toward the climax
   - [x] 19c.2 Glitches between transmissions escalating with dread: flicker, brown-out, tear, whisper (+ sounds, S-meter drop, lamp sag while it keys)
   - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), riser cut dead before the blackout (face glimpses removed: the flicker alone)
+  - [x] 18.5 Replies slowed to a readable 15 WPM PARIS (the 101.00 tutor); the Guide 16/13, Bob 16/12; Sam stays fast on purpose
+  - [x] 18.6 TX ARM's real purpose: the guarded switch arms the air (server/tx-relay.mjs, a zero-dependency WebSocket relay, rooms by frequency, no accounts, nothing stored); overs reach anyone else tuned there, theirs are keyed like a station reply; open (dead-air) frequencies transmit too; 5 relay tests
   - [x] 19c.14 LCD bleed reworked as a soak: a light wash that lands dark and spreads and pales with a tide-line, the amber smouldering through (multiply), softer runs flowing down the glass
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
   - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse

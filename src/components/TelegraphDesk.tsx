@@ -140,11 +140,27 @@ function TxButton({ onPress }: { onPress?: () => void }) {
 /**
  * TX ARM: a guarded "missile" safety toggle. A hinged, faded-red translucent
  * cover sits closed over a small bat toggle, on a hazard-striped steel plate.
- * Mirrors REF over CLR on the left so the desk stays symmetrical. Static for now.
+ * Mirrors REF over CLR on the left so the desk stays symmetrical.
+ * Its real purpose: flip the cover up and the bat on, and your overs go out
+ * over the air (the tx relay) to anyone else tuned to this frequency.
  */
-function ArmGuard() {
+function ArmGuard({ armed, onToggle }: { armed: boolean; onToggle: () => void }) {
   return (
-    <div className="utility guard" role="img" aria-label="TX arm safety switch, cover closed">
+    <div
+      className="utility guard"
+      role="switch"
+      aria-checked={armed}
+      aria-label="TX global arm"
+      tabIndex={0}
+      data-armed={armed}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
+    >
       <div className="guard__plate" aria-hidden="true">
         <span className="guard__screw guard__screw--a" />
         <span className="guard__screw guard__screw--b" />
@@ -173,6 +189,7 @@ interface TelegraphDeskProps {
  * TX SEND sends what you've keyed at once and hands the frequency over.
  */
 export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphDeskProps) {
+  const { isTxArmed, toggleTxArm } = useRadio()
   // DIT / DAH feed the shared decoder; CLR wipes its buffer
   const { handleTap, clearButton, sendOver } = useMorseDecoder()
   const { isPowerOn } = useRadio()
@@ -209,7 +226,7 @@ export default function TelegraphDesk({ isRefCardOpen, onRefToggle }: TelegraphD
       </div>
 
       <div className="desk__col desk__col--tx">
-        <ArmGuard />
+        <ArmGuard armed={isTxArmed} onToggle={() => { playButtonSnap(); toggleTxArm() }} />
         <TxButton onPress={onSend} />
       </div>
     </section>

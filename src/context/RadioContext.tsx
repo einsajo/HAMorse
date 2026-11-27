@@ -67,6 +67,9 @@ export interface RadioState {
    * somewhere new, a new session (new personas). Switching back on boots fresh.
    */
   hardReset: () => void
+  /** TX ARM flipped up: overs also go out over the air (the tx relay), to anyone on this frequency */
+  isTxArmed: boolean
+  toggleTxArm: () => void
   togglePower: () => void
   toggleDecoder: () => void
 }
@@ -82,6 +85,7 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
   const [frequency, setFrequencyRaw] = useState(() => clampFrequency(initialFrequency))
   const [isPowerOn, setIsPowerOn] = useState(false)
   const [isDecoderOn, setIsDecoderOn] = useState(false)
+  const [isTxArmed, setIsTxArmed] = useState(false)
   const [isHaunted, setIsHaunted] = useState(false)
   const [isTrapped, setIsTrappedState] = useState(false)
   // read synchronously by setFrequency, so a drag can't slip a change in before a re-render
@@ -102,6 +106,7 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
     setIsTrappedState(false)
     setIsHaunted(false)
     setIsPowerOn(false)
+    setIsTxArmed(false) // the trip disarms it too
     setFrequencyRaw(clampFrequency(FREQ_DEFAULT))
     reseedGhostFrequency()
     setSessionId((n) => n + 1)
@@ -122,6 +127,8 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       frequency,
       isPowerOn,
       isDecoderOn,
+      isTxArmed,
+      toggleTxArm: () => setIsTxArmed((a) => !a),
       isHaunted,
       isTrapped,
       sessionId,
@@ -136,7 +143,7 @@ export function RadioProvider({ children, initialFrequency = FREQ_DEFAULT }: Rad
       togglePower,
       toggleDecoder,
     }),
-    [frequency, isPowerOn, isDecoderOn, isHaunted, isTrapped, sessionId, resistance, reportResistance, setFrequency, setIsTrapped, hardReset, togglePower, toggleDecoder],
+    [frequency, isPowerOn, isDecoderOn, isTxArmed, isHaunted, isTrapped, sessionId, resistance, reportResistance, setFrequency, setIsTrapped, hardReset, togglePower, toggleDecoder],
   )
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>

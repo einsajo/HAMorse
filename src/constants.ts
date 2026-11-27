@@ -202,7 +202,9 @@ export function getBandInfo(mhz: number): BandInfo {
   if (mhz >= HAM_BAND_START - FREQ_EPSILON && mhz <= HAM_BAND_END + FREQ_EPSILON) {
     return { band: 'ham', canTransmit: true }
   }
-  return { band: 'dead', canTransmit: false }
+  // open frequencies: nobody scheduled, but the rig transmits (CQ goes out on
+  // the air; with TX ARM up it reaches anyone else tuned there)
+  return { band: 'dead', canTransmit: true }
 }
 
 /** Which ham station (if any) is exactly on `mhz` */
