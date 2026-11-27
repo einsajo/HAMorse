@@ -38,7 +38,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 
 - [x] 5. Build the Telegraph Desk hardware
   - [x] 5.1 Horizontal iambic squeeze keyer with a see-saw Z-axis pivot
-  - [x] 5.2 REF / CLR tactile switches; TX SEND (same size) under the TX ARM guarded toggle
+  - [x] 5.2 REF / CLR tactile switches; TX SEND (same size) under the TX GBL guarded toggle
   - _Requirements: 2d_
 
 - [x] 6. Build the reference card
@@ -164,7 +164,9 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 19c.2 Glitches between transmissions escalating with dread: flicker, brown-out, tear, whisper (+ sounds, S-meter drop, lamp sag while it keys)
   - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), riser cut dead before the blackout (face glimpses removed: the flicker alone)
   - [x] 18.5 Replies slowed to a readable 15 WPM PARIS (the 101.00 tutor); the Guide 16/13, Bob 16/12; Sam stays fast on purpose
-  - [x] 18.6 TX ARM's real purpose: the guarded switch arms the air (server/tx-relay.mjs, a zero-dependency WebSocket relay, rooms by frequency, no accounts, nothing stored); overs reach anyone else tuned there, theirs are keyed like a station reply; open (dead-air) frequencies transmit too; 5 relay tests
+  - [x] 18.7 Fix: escaping the ghost mid-transmission no longer desyncs the dial (the trap only closes while you are still on its frequency; a pending strike still waits for you)
+  - [x] 18.8 TX GBL as a square push button on the same hazard plate (cap sinks and glows while armed)
+  - [x] 18.6 TX GBL's real purpose: the guarded switch arms the air (server/tx-relay.mjs, a zero-dependency WebSocket relay, rooms by frequency, no accounts, nothing stored); overs reach anyone else tuned there, theirs are keyed like a station reply; open (dead-air) frequencies transmit too; 5 relay tests
   - [x] 19c.14 LCD bleed reworked as a soak: a light wash that lands dark and spreads and pales with a tide-line, the amber smouldering through (multiply), softer runs flowing down the glass
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
   - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse

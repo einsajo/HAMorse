@@ -782,9 +782,10 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
           abort.abort() // cut off: stop the agent too
           if (id === 'ghost' && !lost) {
             // cut off by the power or a retune, the ghost still MEANT it: the turn
-            // counts, and if this was its strike, it strikes as soon as it can
+            // counts... but the trap only closes if you are STILL on its frequency
+            // (escape mid-transmission and you have escaped: the dial stays yours)
             setDread(session.exchange)
-            if (session.exchange > 0 && !trappedRef.current) setIsTrapped(true)
+            if (session.exchange > 0 && !trappedRef.current && getBandInfo(frequencyRef.current).band === 'ghost') setIsTrapped(true)
             if (session.climaxed && !hauntedRef.current) strikePending.current = true
           }
           return
@@ -792,7 +793,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
         touch()
         if (id !== 'ghost' || lost) return
         setDread(session.exchange)
-        if (!trappedRef.current) setIsTrapped(true) // it has you now
+        if (!trappedRef.current && getBandInfo(frequencyRef.current).band === 'ghost') setIsTrapped(true) // it has you now (you're still there)
         if (strikes) setIsHaunted(true)
       })
       return true
@@ -835,7 +836,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     agentOverTimer.current = setTimeout(check, AGENT_OVER_SILENCE_MS)
   }, [endAgentOver, stopAgentOverTimer])
 
-  /** the air (tx relay) connection, if TX ARM is up */
+  /** the air (tx relay) connection, if TX GBL is up */
   const airRef = useRef<TxRelay | null>(null)
 
   const deliver = useCallback(
@@ -903,7 +904,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
   streamRef.current = engine.streamReply
   const streamReply = engine.streamReply
 
-  // the air: with TX ARM up, your overs reach anyone else tuned to this frequency
+  // the air: with TX GBL up, your overs reach anyone else tuned to this frequency
   const airMessage = useCallback(
     (text: string) => {
       // a busy frequency (someone sending, or an agent thinking): you miss it, like real QRM
@@ -1118,7 +1119,7 @@ export function MorseDecoderProvider({ children, ...options }: MorseDecoderProvi
     pendingReaction.current = { kind: resistance.kind, at: performance.now() }
   }, [resistance])
   useEffect(() => {
-    if (!onGhost || !isTrapped) {
+    if (!onGhost || (!isTrapped && !strikePending.current)) {
       pendingReaction.current = null
       return
     }

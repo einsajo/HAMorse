@@ -1,5 +1,5 @@
 /**
- * The air, client side (server/tx-relay.mjs): with TX ARM flipped, the radio
+ * The air, client side (server/tx-relay.mjs): with TX GBL flipped, the radio
  * joins the room for the frequency you're on. Your overs are heard by every
  * other device tuned there, and theirs are keyed out loud like any station.
  *

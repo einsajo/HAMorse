@@ -74,9 +74,9 @@ npm run build      # type-check and production build into dist/
 npm test           # 57 unit tests: Morse timing, stations, agents, your progress, the agent route, the streams power
 ```
 
-### Optional: talk to real people (TX ARM)
+### Optional: talk to real people (TX GBL)
 
-Flip the **TX ARM** guard up and your overs also go out over **the air**: anyone
+Flip the **TX GBL** guard up and your overs also go out over **the air**: anyone
 else tuned to the same frequency on any other device hears them, keyed out
 loud. That is its real HAM purpose, and it needs a tiny relay (the "air"):
 
@@ -90,7 +90,7 @@ Rooms are the frequencies themselves: everyone on 106.30 hears everyone on
 **nothing is stored and nobody has an account**: like the air, it only exists
 while someone is sending. For the public demo, host `server/tx-relay.mjs`
 anywhere that speaks WebSocket (a free Render/Fly/Railway dyno works) and set
-`VITE_RELAY_URL` at build time. Without a relay, TX ARM simply finds nobody.
+`VITE_RELAY_URL` at build time. Without a relay, TX GBL simply finds nobody.
 
 ### Optional: live AI operators
 

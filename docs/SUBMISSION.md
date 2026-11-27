@@ -53,7 +53,7 @@ would happen if something else on the band was listening.
   - The operators teach you: an Elmer who mentors beginners, a practice station, a slow
     code bulletin, a ragchewer, a high-speed copy station.
   - Key on a twin-lever Morse key (one press, one dit or dah), read along with the decoder, or switch it off and copy by ear.
-  - **TX ARM is real:** flip the guard and you are on the air with anyone else tuned to the same frequency, person to person. No accounts, nothing stored — like the air itself.
+  - **TX GBL is real:** flip the guard and you are on the air with anyone else tuned to the same frequency, person to person. No accounts, nothing stored — like the air itself.
   - An operator's reference card slides out from behind the set, with a reading loupe; your progress is pencilled on it (a tick by every letter the Elmer has taught you, and your best speed).
 - **Then the costume slips:**
   - One frequency isn't on any list, and it moves every time the radio resets. The last operator pencilled it in the corner of the card.
