@@ -126,10 +126,11 @@ const DEAD_ZONE = 0.18 // fraction of the knob radius
    detents at these stations. A drag that comes within a detent's captureMhz
    snaps the frequency onto it exactly. The pull has hysteresis: once captured,
    the drag must travel escapeMhz away before it pops out, so leaving the
-   station takes a slightly harder pull than entering it. Broadcasters and the
-   ghost have wide detents (0.20 / 0.32 MHz, so the ghost's is no giveaway: it
-   feels like one more station); the ham operators, 0.70 apart, have narrow
-   ones (0.10 / 0.16 MHz) so you can still tune the open band between them. */
+   station takes a slightly harder pull than entering it. Broadcasters have
+   wide detents (0.30 / 0.45 MHz); the ham operators and the receive-only
+   slots, 0.35 apart, have narrower ones (0.15 / 0.24 MHz). The ghost pulls
+   hardest (0.35 / 0.60 MHz): pass within a few tenths and the dial is dragged
+   onto it (constants.ts). */
 
 /** Short haptic "click" when the dial drops into a detent (where supported) */
 const detentClick = () => {

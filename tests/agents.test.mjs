@@ -26,6 +26,19 @@ await t('wandering ghost: legal spots clear of every station AND agent; reseedin
   const d = [...C.getDetents()].sort((a, b) => a.frequency - b.frequency)
   for (let i = 1; i < d.length; i++) assert.ok(d[i].frequency - d[i - 1].frequency > d[i].captureMhz + d[i - 1].captureMhz, `overlap ${d[i].frequency}`)
 })
+await t('the ghost pulls hardest: a few tenths away and the dial is dragged onto it; nothing overlaps', () => {
+  for (const seed of [0.05, 0.3, 0.55, 0.8, 0.97]) {
+    const g = C.reseedGhostFrequency(() => seed)
+    const det = C.getDetents()
+    const ghost = det.find((d) => d.frequency === g)
+    assert.ok(ghost.captureMhz >= 0.3, 'caught from 0.3 MHz away')
+    assert.ok(ghost.escapeMhz > ghost.captureMhz)
+    for (const d of det) if (d !== ghost) assert.ok(ghost.captureMhz > d.captureMhz, `stronger than ${d.frequency}`)
+    const sorted = [...det].sort((a, b) => a.frequency - b.frequency)
+    for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i].frequency - sorted[i - 1].frequency > sorted[i].captureMhz + sorted[i - 1].captureMhz, `overlap at ${sorted[i].frequency}`)
+  }
+  assert.ok(C.GHOST_SPOTS.length > 150, 'still plenty of places for it to hide')
+})
 await t('agent stations: two-way, on their own frequencies', () => {
   for (const [id, f] of Object.entries(C.AGENT_STATIONS)) { assert.equal(C.agentStationAt(f), id); assert.deepEqual(C.getBandInfo(f), { band: 'ham', canTransmit: true }) }
   assert.equal(C.getBandInfo(90.25).band, 'dead')

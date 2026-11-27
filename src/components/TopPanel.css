@@ -316,6 +316,23 @@
 /* LED jewel lit: glowing red glass with light spilling onto the panel */
 .power__led {
   transition: filter 60ms ease-out;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  outline: none;
+}
+
+/* a finger-sized tap target around the small jewel (invisible: the look is unchanged) */
+.power__led::after {
+  content: '';
+  position: absolute;
+  inset: -90%;
+  border-radius: 50%;
+}
+
+.power__led:focus-visible {
+  outline: 2px solid rgba(255, 176, 0, 0.75);
+  outline-offset: 4px;
 }
 
 .power__led[data-on='true'] {
