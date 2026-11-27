@@ -9,9 +9,9 @@
  *     torn up into the cheeks in thin scars
  *   - a film-grain skin and a slight warp, as if through cracked glass
  *
- * Used twice: half-seen in the LCD during the build-up (`backdrop`: a dark
- * oval so it reads on the amber glass), and lunging out of the black at the
- * jumpscare. `idPrefix` keeps the SVG ids unique when it is on the page twice.
+ * Used at the jumpscare, lunging out of the black (the build-up is only the
+ * flicker: no face glimpses there, by request). `idPrefix` keeps the SVG ids
+ * unique when it is on the page twice.
  */
 const TEETH: readonly (readonly [number, number, number])[] = [
   // [x, width, height] along the grin, uneven
@@ -27,7 +27,7 @@ const TEARS: readonly (readonly [string, number])[] = [
   ['M196 162 C 192 184, 196 202, 190 222', 3],
 ]
 
-export default function GhostFace({ idPrefix, className, backdrop = false, bleed = false }: { idPrefix: string; className?: string; backdrop?: boolean; bleed?: boolean }) {
+export default function GhostFace({ idPrefix, className, bleed = false }: { idPrefix: string; className?: string; bleed?: boolean }) {
   const id = (s: string) => `${idPrefix}-${s}`
   return (
     <svg className={className} viewBox="0 0 300 400" aria-hidden="true">
@@ -70,8 +70,6 @@ export default function GhostFace({ idPrefix, className, backdrop = false, bleed
           <path d="M70 262 C 110 300, 190 300, 230 262 C 205 312, 95 312, 70 262 Z" />
         </clipPath>
       </defs>
-
-      {backdrop && <ellipse cx="150" cy="200" rx="150" ry="200" fill={`url(#${id('dark')})`} />}
 
       {/* where the light falls: the face is carved out of the dark */}
       <g filter={`url(#${id('light')})`} fill={`url(#${id('skin')})`}>

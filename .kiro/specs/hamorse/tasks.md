@@ -162,7 +162,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 - [x] 19c. The haunt that hunts
   - [x] 19c.1 Unprompted ghost turns: silence, power, dial (local lines + route events); they count toward the climax
   - [x] 19c.2 Glitches between transmissions escalating with dread: flicker, brown-out, tear, whisper (+ sounds, S-meter drop, lamp sag while it keys)
-  - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), face glimpses, riser cut dead before the blackout
+  - [x] 19c.3 Build-up: accelerating flicker (≤ 3/s, verified), riser cut dead before the blackout (face glimpses removed: the flicker alone)
+  - [x] 19c.14 LCD bleed reworked as a soak: a light wash that lands dark and spreads and pales with a tide-line, the amber smouldering through (multiply), softer runs flowing down the glass
   - [x] 19c.4 Jumpscare: the face lunges out of a single white flash; chassis jolt
   - [x] 19c.6 Scarier: photographic grinning face out of the black, horror stinger (+7 dB headroom), 10 s frozen silence before the trip, heartbeat vibration, local-time line, post-reset name glimpse
   - [x] 19c.8 The reference card rots with dread: tide-mark, HELP circled, a shaky note, mould, scratches, DECEASED, greasy thumbprints, HELLO {NAME}; black grease floods it at the haunt (no face)
