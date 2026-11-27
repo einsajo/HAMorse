@@ -450,10 +450,11 @@
    The haunt on the LCD (src/hooks/useHauntSequence.ts, useGhostGlitches.ts)
 
    No blood: this is a machine breaking. The amber lamp is dying, the glass
-   is cracked, and the black liquid crystal bleeds out of the fractures:
-   pools of pitch with oily rainbow rims (thin-film interference), dead pixel
-   columns, #050505 fluid running down inside the glass (it never leaks out
-   onto the chassis).
+   is cracked, and the black liquid crystal soaks out of the fractures the way
+   ink soaks into old paper: a light, uneven wash that lands dark and spreads
+   and pales, with a darker tide-line at its edge (multiply blend, so the
+   amber smoulders through it). Softer runs flow down inside the glass. Dead
+   pixel columns. It never leaks out onto the chassis.
    ========================================================================== */
 .lcd__haunt {
   position: absolute;
@@ -532,27 +533,32 @@
 }
 
 /* --- the liquid crystal bleeding from the fractures --- */
+.lcd__pools {
+  mix-blend-mode: multiply; /* it stains the amber, it doesn't paint over it */
+}
+
 .lcd__pool {
   transform-box: fill-box;
   transform-origin: center;
-  transform: scale(0);
+  transform: scale(0.15);
+  opacity: 0;
 }
 
 .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__pool {
-  animation: lcd-pool-spread 1.7s cubic-bezier(0.2, 0.75, 0.3, 1) var(--d, 0s) forwards;
+  animation: lcd-pool-soak 2.4s cubic-bezier(0.25, 0.6, 0.3, 1) var(--d, 0s) forwards;
 }
 
+/* the tide-line: a darker edge where the crystal dried */
 .lcd__pool-rim {
   fill: none;
-  stroke: url(#lcd-pool-rim);
-  stroke-width: 2.6;
-  stroke-opacity: 0.6;
+  stroke: rgba(16, 12, 9, 0.7);
+  stroke-width: 2;
 }
 
-@keyframes lcd-pool-spread {
-  0% { transform: scale(0); }
-  30% { transform: scale(0.55); } /* it floods out of the crack... */
-  100% { transform: scale(1); } /* ...then creeps */
+@keyframes lcd-pool-soak {
+  0% { opacity: 0; transform: scale(0.15); }
+  12% { opacity: 0.75; transform: scale(0.38); } /* it lands, dark, small... */
+  100% { opacity: 1; transform: scale(1); } /* ...and spreads, paling as it goes */
 }
 
 /* dead pixel columns: they appear with the crack */
@@ -580,11 +586,11 @@
   top: 0;
   height: 9%;
   background:
-    radial-gradient(ellipse 9% 120% at 8% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
-    radial-gradient(ellipse 7% 140% at 30% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
-    radial-gradient(ellipse 11% 110% at 56% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
-    radial-gradient(ellipse 8% 150% at 79% 0%, #050505 60%, rgba(5, 5, 5, 0) 62%),
-    linear-gradient(#050505 0 35%, rgba(5, 5, 5, 0) 36%);
+    radial-gradient(ellipse 9% 120% at 8% 0%, rgba(26, 21, 17, 0.85) 60%, rgba(26, 21, 17, 0) 62%),
+    radial-gradient(ellipse 7% 140% at 30% 0%, rgba(26, 21, 17, 0.8) 60%, rgba(26, 21, 17, 0) 62%),
+    radial-gradient(ellipse 11% 110% at 56% 0%, rgba(26, 21, 17, 0.8) 60%, rgba(26, 21, 17, 0) 62%),
+    radial-gradient(ellipse 8% 150% at 79% 0%, rgba(26, 21, 17, 0.8) 60%, rgba(26, 21, 17, 0) 62%),
+    linear-gradient(rgba(26, 21, 17, 0.8) 0 35%, rgba(26, 21, 17, 0) 36%);
   transform-origin: top;
   transform: scaleY(0);
 }
@@ -600,24 +606,25 @@
   width: var(--w);
   height: 0;
   border-radius: 0 0 999px 999px;
-  /* liquid crystal: glossy pitch with a violet sheen down one side */
-  background: linear-gradient(90deg, #050505 0 28%, #241f30 42%, #09080d 56%, #050505);
+  mix-blend-mode: multiply;
+  /* a wet streak of crystal, the amber still glowing faintly through it */
+  background: linear-gradient(90deg, rgba(26, 21, 17, 0.85) 0 22%, rgba(58, 48, 70, 0.45) 45%, rgba(26, 21, 17, 0.85) 74%);
 }
 
 .stage:is([data-haunt='flash'], [data-haunt='corrupt'], [data-haunt='frozen']) .lcd__drip {
   animation: lcd-drip var(--dur) cubic-bezier(0.55, 0, 0.75, 0.6) var(--delay) forwards;
 }
 
-/* the heavy drop gathering at the tip */
+/* a little more gathers at the tip, still just a stain */
 .lcd__drip::after {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: calc(var(--w) * -1.2);
-  width: 170%;
-  aspect-ratio: 1 / 1.2;
+  bottom: calc(var(--w) * -0.8);
+  width: 150%;
+  aspect-ratio: 1 / 1.15;
   border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
-  background: radial-gradient(circle at 35% 35%, #3a3448 0, #0a090e 28%, #050505 46%);
+  background: radial-gradient(circle at 35% 35%, rgba(90, 80, 100, 0.5) 0, rgba(30, 26, 24, 0.7) 42%, rgba(18, 15, 13, 0.85) 62%);
   transform: translateX(-50%);
 }
 
@@ -630,41 +637,6 @@
   0% { height: 0; }
   14% { height: calc(var(--len) * 0.1); } /* it clings at first... */
   100% { height: var(--len); } /* ...then runs */
-}
-
-/* --- the face in the crystal --- */
-.lcd__face {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  height: 135%;
-  width: auto;
-  aspect-ratio: 200 / 240;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-}
-
-/* half-seen on the build-up's last two dips (KEEP IN SYNC with HAUNT_BUILD_DIPS_MS: 1850, 2210 of 2600) */
-.stage[data-haunt='build'] .lcd__face {
-  animation: lcd-face-glimpse 2600ms linear forwards;
-}
-
-@keyframes lcd-face-glimpse {
-  0%, 70.9% { opacity: 0; }
-  71.2%, 74.4% { opacity: 0.7; }
-  74.7%, 84.7% { opacity: 0; }
-  85%, 88.2% { opacity: 0.85; }
-  88.5%, 100% { opacity: 0; }
-}
-
-/* ...and after the crash, it is still there in the black, if you look */
-.stage:is([data-haunt='corrupt'], [data-haunt='frozen']) .lcd__face {
-  animation: lcd-face-linger 3s ease-in 0.4s forwards;
-}
-
-@keyframes lcd-face-linger {
-  from { opacity: 0; }
-  to { opacity: 0.34; }
 }
 
 /* ==========================================================================
@@ -742,7 +714,4 @@
     animation-delay: 0s;
   }
 
-  .stage[data-haunt='build'] .lcd__face {
-    animation: none;
-  }
 }

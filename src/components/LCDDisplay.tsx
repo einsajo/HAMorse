@@ -4,15 +4,15 @@ import { formatFrequency, useRadio } from '../context/RadioContext'
 import { useMorseDecoder } from '../hooks/useMorseDecoder'
 import type { TxStatus } from '../hooks/useMorseDecoder'
 import type { CSSProperties } from 'react'
-import GhostFace from './GhostFace'
 
 /* --- The haunt: shattered glass and bleeding liquid crystal --------------------
    What a really broken LCD looks like, not blood: the impact cracks the
-   glass and the black liquid crystal BLEEDS from the fractures, spreading
-   pools of pitch with oily rainbow rims (interference in the thin film at
-   their edges), dead pixel columns, and #050505 fluid running down inside
-   the glass (it stays inside the glass: nothing leaks onto the chassis). Drawn once
-   (deterministic), shown from the flash (LCDDisplay.css). */
+   glass and the black liquid crystal soaks OUT of the fractures the way ink
+   soaks into old paper: a light, uneven wash that lands dark and spreads and
+   pales, with a darker tide-line at its edge, the amber still smouldering
+   through it. Softer runs of it flow down inside the glass. Dead pixel
+   columns, the dying lamp. It stays inside the glass: nothing leaks onto the
+   chassis. Drawn once (deterministic), shown from the flash (LCDDisplay.css). */
 const GLASS_W = 400
 const GLASS_H = 130
 const IMPACT = { x: 268, y: 50 }
@@ -116,22 +116,18 @@ function HauntGlass() {
           </filter>
           {/* the pools' ragged, organic edges */}
           <filter id="lcd-crystal" x="-30%" y="-30%" width="160%" height="160%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="3" seed="13" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.045 0.08" numOctaves="4" seed="13" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="22" xChannelSelector="R" yChannelSelector="G" result="ragged" />
+            <feGaussianBlur in="ragged" stdDeviation="1.8" />
           </filter>
+          {/* the stain: a light wash with a darker tide-line where it dried */}
           <radialGradient id="lcd-pool-fill">
-            <stop offset="0%" stopColor="#050505" />
-            <stop offset="70%" stopColor="#07070a" />
-            <stop offset="88%" stopColor="#140f1e" stopOpacity="0.92" />
-            <stop offset="100%" stopColor="#1a1426" stopOpacity="0" />
+            <stop offset="0%" stopColor="#241f1a" stopOpacity="0.55" />
+            <stop offset="55%" stopColor="#1e1915" stopOpacity="0.62" />
+            <stop offset="80%" stopColor="#171310" stopOpacity="0.78" />
+            <stop offset="92%" stopColor="#100d0a" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#100d0a" stopOpacity="0" />
           </radialGradient>
-          {/* thin-film interference at the edge of the bleed: an oily rainbow */}
-          <linearGradient id="lcd-pool-rim" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#7a46b8" />
-            <stop offset="33%" stopColor="#2c9c94" />
-            <stop offset="66%" stopColor="#d1a92a" />
-            <stop offset="100%" stopColor="#a8407e" />
-          </linearGradient>
         </defs>
         {/* dead pixel columns */}
         {DEAD_LINES.map(([x, lit]) => (
@@ -141,7 +137,7 @@ function HauntGlass() {
         <g className="lcd__pools" filter="url(#lcd-crystal)">
           {SHATTER.pools.map((p) => (
             <g key={`${p.x}-${p.y}`} className="lcd__pool" style={{ '--d': `${p.delay.toFixed(2)}s` } as CSSProperties}>
-              <ellipse className="lcd__pool-rim" cx={p.x} cy={p.y} rx={p.rx + 1.5} ry={p.ry + 1.5} />
+              <ellipse className="lcd__pool-rim" cx={p.x} cy={p.y} rx={p.rx + 1.2} ry={p.ry + 1.2} />
               <ellipse cx={p.x} cy={p.y} rx={p.rx} ry={p.ry} fill="url(#lcd-pool-fill)" />
             </g>
           ))}
@@ -162,8 +158,6 @@ function HauntGlass() {
         </g>
         <circle className="lcd__impact" cx={IMPACT.x} cy={IMPACT.y} r="5" />
       </svg>
-      {/* half-seen in the crystal during the build-up, and lingering in the black after */}
-      <GhostFace idPrefix="lcd-face" className="lcd__face" backdrop />
     </div>
   )
 }

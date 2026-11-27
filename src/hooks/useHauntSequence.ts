@@ -6,7 +6,7 @@ import { playBreakerThunk, playHauntBang, playHauntBuild, setHauntSilence } from
  *
  *   build      2.6 s    it comes up through the set: the lamp flickers faster
  *                       and faster (5 dips, 800 -> 360 ms apart), a face is
- *                       half-seen in the LCD on the last dips, and a roar
+ *                       (the flicker alone: no face glimpses), and a roar
  *                       rises under it... and is cut dead
  *   blackout   800 ms   everything goes black and dead silent
  *   jumpscare  1.5 s    a double scare: out of the black a grinning face is
