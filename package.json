@@ -22,5 +22,15 @@
   },
   "allowScripts": {
     "esbuild@0.21.5": true
-  }
+  },
+  "description": "HAMorse: learn Morse code on a ham radio that answers back. Kiroween 2026 Costume Contest entry.",
+  "keywords": [
+    "morse",
+    "ham radio",
+    "horror",
+    "kiroween",
+    "kiro",
+    "web audio",
+    "skeuomorphism"
+  ]
 }
