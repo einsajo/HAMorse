@@ -199,7 +199,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 ## Phase 5: Submission
 
 - [ ] 21. Submission package
-  - [x] 21.0 Winner polish: HOW-KIRO-BUILT-THIS.md (the real story), VERIFICATION.md (the measured numbers), QSL screenshot in the README, the submission kit refreshed, 63 tests
+  - [x] 21.0 Winner polish: HOW-KIRO-BUILT-THIS.md (the real story), VERIFICATION.md (the measured numbers), QSL screenshot in the README, the submission kit finalised (held outside the repo, so the repo stays judge-facing), 63 tests
   - [ ] 21.1 3-minute demo video: the haunt within the first 40 seconds, then the tactile details, then the Kiro workflow
   - [x] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
   - [x] 21.4 Review pass: audio recovers after calls / app switches and sleeps when hidden; iOS silent switch; keyboard paddles; climax locks keys too (inert); agent route configurable (Groq qwen/qwen3.8-27b default, thinking off, <think> never on air), key never committed (.env ignored); CI builds every PR

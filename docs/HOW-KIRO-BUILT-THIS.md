@@ -19,13 +19,25 @@ branch → change → measure → tests → PR → CI.
 
 ## Where Kiro changed the product, not just the code
 
-- **"Most judges will never see the scare."** Asked for an honest rating,
-  Kiro found the ghost hid on one of 234 frequencies and stayed silent until
-  someone keyed Morse to it. That single uncomfortable insight produced the
-  project's best mechanic: the last operator's frequency pencilled and ringed
-  on the reference card, and the ghost calling an ordinary CQ 3.5 s after you
-  land on it. A visitor who never keys now reaches the jumpscare in ~44 s
-  (measured), down from never.
+It started with an honest review. Asked to score the project like a judge
+would, Kiro's first review found two structural problems — and both became
+features:
+
+- **"Judges will never see the scare."** The ghost hid on one of 234
+  frequencies and stayed silent until someone keyed Morse to it. A judge with
+  five minutes would tune around, hear static, and leave before the best part.
+  That produced the project's best mechanic: the last operator's frequency
+  pencilled and ringed on the reference card, and the ghost calling an
+  ordinary CQ 3.5 s after you land on it. A visitor who never keys now
+  reaches the jumpscare in ~44 s (measured), down from never.
+- **"Learners could land in the haunt by accident."** The flip side: someone
+  practising Morse could stumble onto the ghost mid-lesson, and the training —
+  the app's core purpose — would be interrupted by the horror. The answers are
+  in the design: the ghost keeps at least 0.70 MHz from every station (it
+  never hides next to a lesson), the ham-band operators are never haunted,
+  and after a user reported a dial desync while fleeing, escaping
+  mid-transmission became a real, tested way out. When the haunt ends, the
+  radio resets clean and is a trainer again.
 - **The dead ghost.** A player killed the power mid-strike and the ghost went
   silent forever. Kiro traced it: the agent *decides* the strike before the
   radio finishes keying it, so a cut left the session "climaxed" without the

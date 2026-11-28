@@ -1,12 +1,12 @@
 # HAMorse
 
-**Learn Morse code on a painfully realistic old ham radio.**
-Tune the dial, key the paddles and talk to the operators on the band.
-Just don't answer the frequency that answers back.
+**Learn Morse on a ham radio that answers back.**
+A painfully realistic 1970s transceiver that teaches you Morse code —
+and something on the band has learned it too.
 
-*An entry for the Costume Contest track of Kiroween 2026.*
+*Kiroween 2026 · Costume Contest*
 
-**▶ Play it: <https://einsajo.github.io/HAMorse/>** (best on a phone, with headphones)
+**▶ Play it: <https://einsajo.github.io/HAMorse/>** — best on a phone, with headphones.
 
 [![CI](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml)
 
@@ -14,158 +14,79 @@ Just don't answer the frequency that answers back.
 |---|---|---|---|
 | <img src="docs/screens/1-quick-start.png" width="185" alt="The Quick Start note taped over the radio"> | <img src="docs/screens/2-radio.png" width="185" alt="The radio tuned to 101.00 MHz with the reference card out"> | <img src="docs/screens/3-haunt.png" width="185" alt="The haunt: the LCD cracked, black liquid crystal soaking into the glass"> | <img src="docs/screens/4-qsl-card.png" width="185" alt="The ghost's QSL card: GHOSTED AT 0:32"> |
 
-*Every pixel is CSS and SVG, and every sound is synthesised live. There are no images or audio files in the app.*
+*No image files. No audio files. Every pixel is CSS and SVG; every sound is synthesised live.*
 
 ---
 
-## What it is
+## Try it in one minute
 
-On the surface, it's a calm, useful Morse trainer built as a heavy 1970s
-transceiver: a brushed-metal chassis, an amber LCD, an S-meter, a weighted
-VFO dial, a twin-lever Morse key and a dog-eared operator's card tucked behind the
-set. Everything you see is drawn with CSS and SVG, and everything you hear is
-synthesised live with the Web Audio API. There are no images and no sound files.
+1. **Throw MAIN POWER** (top left). Sound starts here — headphones on.
+2. Press **REF** and read the card. Someone pencilled a frequency in the corner.
+3. **Tune to it. Wait.** It calls you, like any operator.
+4. Answer it — or just listen. You have about **45 seconds**.
 
-Underneath, it's a horror story told by the radio's own parts. Somewhere on
-the dial is a frequency that isn't on any list. It is somewhere new every
-time the radio is reset, and the last operator pencilled it on his card.
-Once it has called you, the radio won't let you go.
+## Learn Morse properly
 
-## How to play
-
-1. **Throw MAIN POWER** (the breaker, top left). Audio only starts here,
-   because phones don't allow autoplay.
-2. **Turn the VFO dial.** 88–108 MHz:
-   | Frequency | What's there |
-   |---|---|
-   | 89.30 · 93.50 · 98.10 | News, sports and jazz broadcasts (live streams, through a vintage AM chain) |
-   | 90.20 | **The Guide**: a friendly ham who points beginners at the tutors |
-   | 100.00 – 103.50 | **The ham band**: Morse stations to learn with |
-   | 100.30 | **The Elmer** (mentor): introduces himself, asks if you're new, then teaches |
-   | 101.00 | Practice station: HI, then SOS |
-   | 101.70 | Code-practice bulletin: slow text to copy by ear |
-   | 102.40 | **Bob**: a real-feeling QSO (RST, name, QTH, 73) |
-   | 102.75 | **The Stranger**: a different ragchewer every boot |
-   | 103.10 | **Sam**: high-speed copy practice in 5-character groups |
-   | ??? | Something else |
-   | everywhere else | Open air: nobody scheduled — key and call CQ; with **TX GBL** armed it reaches whoever else is tuned there |
-3. **Key with the paddles**: **DIT** (left) and **DAH** (right). Every press
-   sounds the real 700 Hz dit or dah, with a tiny tick of vibration (short for
-   a dit, longer for a dah). Replies come back at an easy 15 WPM. Then arm
-   **TX** and press **TX SEND** to transmit your over. Keyboard works too: Tab
-   to a paddle, then press Enter or Space.
-4. **REF** slides the reference card out. It belonged to the last operator: read it closely. Hold it (touch) or hover over it
-   (mouse) to read it through the loupe.
-5. **DECODER ON/OFF**: beginners see what they key and what they hear.
-   Switch it off to copy by ear and build real speed.
-6. **Your progress** is pencilled on the card: a tick beside every letter the
-   Elmer has taught you, and your best sending speed (`BEST: 14 WPM`).
-
-> **Photosensitivity:** the haunt uses low-contrast flicker at no more than 3 flashes per
-> second, plus one bright flash at the jumpscare. With *reduce motion* turned on,
-> the animations are calmed down.
-> **Headphones recommended.**
+- **The Elmer on 100.30** teaches beginners letter by letter. A practice station,
+  a slow bulletin, **Bob** (a real-feeling QSO) and **Sam** (speed drills) train
+  the rest. The **Guide on 90.20** points you around. News, sports and jazz play
+  on 89.30 / 93.50 / 98.10.
+- Every paddle press sounds the **real 700 Hz dit or dah**, with a tick of
+  vibration. Replies come back at a readable **15 WPM**.
+- **Your progress is pencilled on the card:** a tick by every letter the Elmer
+  has taught you, and your best speed.
+- **TX GBL** puts you on the air with anyone else tuned to the same frequency,
+  person to person (local relay today; a public relay is the next step).
+- The **decoder** shows what you key and what you hear. Switch it off and copy
+  by ear, like real CW.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # type-check and production build into dist/
-npm test           # 63 unit tests: Morse, stations, agents, your progress, the air relay, the agent route, the streams power
+npm run dev     # http://localhost:5173
+npm test        # 63 unit tests
 ```
 
-### Optional: talk to real people (TX GBL)
-
-Flip the **TX GBL** guard up and your overs also go out over **the air**: anyone
-else tuned to the same frequency on any other device hears them, keyed out
-loud. That is its real HAM purpose, and it needs a tiny relay (the "air"):
+**Live AI operators (optional):** the Guide, the Stranger and the Ghost run on
+built-in local brains by default. To let a real LLM play them (Groq
+`qwen/qwen3.8-27b`), run the small agent route — the key stays on the server:
 
 ```bash
-node server/tx-relay.mjs        # ws://localhost:8788/air, no dependencies
-# .env: VITE_RELAY_URL=ws://localhost:8788/air
-```
-
-Rooms are the frequencies themselves: everyone on 106.30 hears everyone on
-106.30. Messages are sanitized to what a keyer can send, rate-limited, and
-**nothing is stored and nobody has an account**: like the air, it only exists
-while someone is sending. Without a relay, TX GBL simply finds nobody.
-**Next step:** a public relay for the live demo — host `server/tx-relay.mjs`
-anywhere that speaks WebSocket (a free Render/Fly/Railway dyno works) and set
-the `VITE_RELAY_URL` secret in repo Settings → Secrets and variables → Actions;
-the Pages workflow already reads it into the build.
-
-### Optional: live AI operators
-
-The Guide, the Stranger and the Ghost run on built-in local "brains" by
-default, so the app works offline. To let a real LLM play them, run the
-small agent route. It keeps your API key on the server, never in the
-browser:
-
-```bash
-cp .env.example .env              # then put your Groq key in AGENT_LLM_KEY
+cp .env.example .env   # add AGENT_LLM_KEY
 node --env-file=.env server/agent-route.mjs
-npm run dev                       # .env also sets VITE_AGENT_URL for the app
 ```
-
-- The default is [Groq](https://console.groq.com) running `qwen/qwen3.8-27b`: one fast reply per turn,
-  with thinking switched off. Any OpenAI-compatible provider works (OpenAI, Gemini and others)
-  if you set `AGENT_LLM_URL` and `AGENT_LLM_MODEL`.
-- Every persona keeps to the on-air rules, which the server adds itself: stay in
-  character, and reply in short upper-case CW shorthand the radio can actually key.
-- `.env` is git-ignored. **Never commit a real key.**
-- If the route is unreachable or slow (more than 6 s), nothing breaks: the
-  operator's signal fades out (`QSB... QSB... LOST SIG`), and you can call again.
-- To go back to the offline local brains, leave `VITE_AGENT_URL` empty.
 
 ## Verified, in numbers
 
-- A judge who never keys reaches the jumpscare in **~44 s**; a conversation
-  takes ~2 minutes (measured).
-- One bright flash, flicker at most 3 per second, checked frame by frame.
-- The jumpscare's measured peak is 0.96 full scale: loud, never clipping.
-- 63 unit tests plus CI on every PR.
+- A judge who never keys reaches the jumpscare in **~44 s**; a conversation takes ~2 min.
+- One bright flash; flicker at most **3 per second**, checked frame by frame (WCAG 2.3.1).
+- The jumpscare's measured peak is **0.96 full scale**: loud, never clipping.
+- **63 unit tests** plus CI (type check, build, tests, Morse validator) on every PR.
 
-All of it, with method: **[docs/VERIFICATION.md](docs/VERIFICATION.md)**.
+Method and measurements: **[docs/VERIFICATION.md](docs/VERIFICATION.md)**.
 
 ## Built with Kiro
 
-The whole project was specified, built and verified with [Kiro](https://kiro.dev):
+Specified, built and verified with [Kiro](https://kiro.dev): the spec
+([`.kiro/specs/hamorse/`](.kiro/specs/hamorse/), ~115 tasks) stayed the source
+of truth across 48 PRs; steering kept the vision ("earn the scare"); a hook
+re-validates the Morse dictionary on every save; two powers validate codes and
+provision the live streams; Playwright (MCP) measured the UI frame by frame.
 
-- **Spec**: [`.kiro/specs/hamorse/`](.kiro/specs/hamorse/) holds the
-  requirements, the design and the task list, kept up to date with every change.
-- **Steering**: [`.kiro/steering/`](.kiro/steering/) holds the product vision ("earn the scare")
-  and the hard rules: the tech stack, mobile-first behaviour and the skeuomorphic visual language.
-- **Hooks**: [`validate-morse`](.kiro/hooks/validate-morse.json) re-checks every
-  A–Z / 0–9 code against ITU Morse whenever the dictionary is saved. The decoder and the
-  printed card both read that one dictionary, so they can never disagree.
-- **Powers**:
-  - [`morse-validator`](.kiro/powers/morse-validator/) checks the codes.
-  - [`live-streams`](.kiro/powers/live-streams/) finds radio streams for the broadcast slots and verifies they
-    actually play in a browser (audio, CORS, HTTPS).
-- **Playwright (MCP)**: visual and timing checks at phone size. This covered every
-  stage of the haunt, flicker timing measured frame by frame (≤ 3 per second),
-  the stinger's loudness, and the card's rot.
-
-The full story — including where Kiro surprised us and changed the product:
+The full story — including the honest review that changed the product:
 **[docs/HOW-KIRO-BUILT-THIS.md](docs/HOW-KIRO-BUILT-THIS.md)**.
 
 ## Under the hood
 
-- **Stack:** React 18, TypeScript and Vite with plain CSS. No UI libraries and no 3D.
-- **Audio:** everything is synthesised with Web Audio:
-  - a 700 Hz sidetone and band static with QSB fading;
-  - physically modelled switch, card and breaker sounds;
-  - the ghost's drone;
-  - a horror stinger behind its own limiter, so it can never clip.
-- **Agents:** a multi-agent engine ([`agentEngine.ts`](src/utils/agentEngine.ts)) runs each persona's
-  memory and turns. The ghost is a real agent that decides when to strike.
-- **Phones:** portrait-first.
-  - Pinch-zoom and pull-to-refresh are blocked while you key.
-  - Your phone gives haptic feedback where it's supported.
-  - Audio recovers after calls and app switches, and sleeps while the tab is hidden.
+React 18, TypeScript, Vite, plain CSS. No UI libraries, no 3D, no assets.
+All audio is Web Audio: the sidetone, band static with fading, physically
+modelled switch and paper Foley, the ghost's drone, and a double-hit horror
+stinger behind a safety limiter. Portrait-first, with haptics where supported.
+
+> **Photosensitivity:** one bright flash; flicker ≤ 3/s; calmer with *reduce motion*.
 
 ## License
 
-See [LICENSE](LICENSE). The VT323 font is under the SIL Open Font License; see
+[MIT](LICENSE). The VT323 font is under the SIL OFL; see
 [`public/fonts/VT323-OFL.txt`](public/fonts/VT323-OFL.txt).
