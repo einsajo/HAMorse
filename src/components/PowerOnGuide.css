@@ -148,6 +148,38 @@
   font-weight: 700;
 }
 
+/* the bare instruction list on the back of the note (the operator guide) */
+.guide__steps--bare {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* the channel list: compact typewriter rows, like a station log */
+.guide__channels {
+  margin: 0.9em 0 0;
+  padding-top: 0.7em;
+  border-top: 1px dashed rgba(46, 43, 38, 0.4);
+  display: grid;
+  gap: 0.28em;
+  font-size: 0.88em;
+}
+
+.guide__channel {
+  display: flex;
+  gap: 0.8em;
+  align-items: baseline;
+}
+
+.guide__channel dt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.guide__channel dd {
+  margin: 0;
+  opacity: 0.85;
+}
+
 .guide__actions {
   margin-top: 1.6cqw;
   display: flex;
