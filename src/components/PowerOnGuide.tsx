@@ -4,11 +4,61 @@ import './PowerOnGuide.css'
 import { useRadio } from '../context/RadioContext'
 import { usePowerHint } from '../hooks/usePowerHint'
 import { playBreakerThunk, unlockAudio } from '../utils/audioEngine'
+import { AGENT_STATIONS, BROADCAST_KINDS, BROADCAST_STATIONS, HAM_STATIONS, formatMhz } from '../constants'
 
 interface Spot {
   x: number
   y: number
   r: number
+}
+
+/**
+ * The back of the note: what the red PWR lamp shows once the radio is on.
+ * No theory — just the controls and who's on the band. The frequencies come
+ * from constants.ts, so this can never drift from the dial. (The ghost's
+ * frequency is never listed, obviously.)
+ */
+function StationGuide() {
+  const channels: [string, string][] = [
+    [BROADCAST_STATIONS.map((f) => formatMhz(f)).join(' · '), BROADCAST_STATIONS.map((f) => BROADCAST_KINDS[f]).join(' · ') + ' (listen)'],
+    [formatMhz(AGENT_STATIONS.guide), 'The Guide - points you around'],
+    [formatMhz(HAM_STATIONS.elmer), 'The Elmer - for beginners'],
+    [formatMhz(HAM_STATIONS.tutor), 'Practice - HI, then SOS'],
+    [formatMhz(HAM_STATIONS.bulletin), 'Bulletin - slow copy practice'],
+    [formatMhz(HAM_STATIONS.ragchew), 'Bob - a real-feeling QSO'],
+    [formatMhz(AGENT_STATIONS.stranger), 'The Stranger - someone new every boot'],
+    [formatMhz(HAM_STATIONS.speed), 'Sam - speed drills'],
+  ]
+  return (
+    <>
+      <h2 id="guide-title" className="guide__title">
+        <span>OPERATOR GUIDE</span>
+        <span className="guide__model">HAMorse HM-13 · STATIONS &amp; KEYS</span>
+      </h2>
+
+      <div id="guide-steps">
+        <ul className="guide__steps guide__steps--bare">
+          <li>
+            <b>VFO knob:</b> tune the band; it clicks onto stations. <b>DIT (·)</b> / <b>DAH (–)</b> key Morse,{' '}
+            <b>TX SEND</b> transmits, <b>CLR</b> erases a mistake.
+          </li>
+          <li>
+            <b>DECODER</b> ON shows your Morse as text; OFF trains your ear. <b>TX GBL</b>: on the air - anyone else
+            on your frequency hears you. <b>REF</b>: the code card. <b>PWR lamp</b>: this guide.
+          </li>
+        </ul>
+
+        <dl className="guide__channels">
+          {channels.map(([f, who]) => (
+            <div key={f} className="guide__channel">
+              <dt>{f}</dt>
+              <dd>{who}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </>
+  )
 }
 
 /**
@@ -91,6 +141,10 @@ export default function PowerOnGuide() {
           </span>
         )}
 
+        {isPowerOn ? (
+          <StationGuide />
+        ) : (
+          <>
         <h2 id="guide-title" className="guide__title">
           <span>QUICK START</span>
           <span className="guide__model">HAMorse HM-13 · MORSE TRAINER</span>
@@ -120,10 +174,12 @@ export default function PowerOnGuide() {
               <b>CLR</b>: erase.
             </li>
             <li>
-              Tap the red <b>PWR</b> lamp any time to read this note again.
+              Tap the red <b>PWR</b> lamp any time for the operator guide: every station and control.
             </li>
           </ol>
         </div>
+          </>
+        )}
 
         <div className="guide__actions">
           {/* read again with the radio already on: just close it */}
