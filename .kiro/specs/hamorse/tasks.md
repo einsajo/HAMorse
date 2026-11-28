@@ -74,7 +74,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 11.3 Gap timing from the last tap: 600ms ends a letter, 1400ms ends a word (touch-friendly; configurable on `MorseDecoderProvider`)
   - _Requirements: 2d, 3_
 
-- [ ] 12. Decoder and LCD buffer
+- [x] 12. Decoder and LCD buffer
   - [x] 12.1 Decode symbols with the dictionary; unknown or over-long sequences become `?`
   - [x] 12.2 DECODER ON shows the decoded text plus the live dits/dahs and a cursor in the LCD buffer row (newest text pinned right, overflow hidden left); OFF leaves it blank and ignores taps
   - [x] 12.3 CLR clears the buffer; power OFF wipes it
@@ -82,8 +82,8 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 12.5 DECODER ON: words wait as an underlined draft until TX SEND (`PRESS TX`), stations hold off while a draft waits, CLR wipes the draft first; DECODER OFF keeps send-on-pause
   - _Requirements: 2b, 2d, 3_
 
-- [x] 12.5 Frequency bands (`src/constants.ts`): broadcasters, ham band, ghost, dead air
-  - S-meter targets per band; decoder only on the ham band / ghost; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
+- [x] 12.5 Frequency bands (`src/constants.ts`): broadcasters and reserved slots RX-only; ham band, open (dead-air) frequencies and ghost two-way
+  - S-meter targets per band; decoder anywhere you can transmit; `RX ONLY` / `DEAD BAND` LCD status; retuning clears the buffer
   - _Requirements: 2a, 2b, 3_
 
 - [x] 13.* Unit tests in `tests/` (`npm test`, run by CI on every PR): Morse timing (PARIS / Farnsworth), stations and detents, the agents and the ghost's arcs, your progress, the agent route, the live-streams power (57 tests)
@@ -96,10 +96,10 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
   - [x] 14.2 Power OFF ramps the static to silence; a limiter caps output loudness
   - _Requirements: 3_
 
-- [ ] 15. Band static
+- [x] 15. Band static
   - [x] 15.1 Looping white noise (with crackle) through a ~1 kHz bandpass
   - [x] 15.2 Static level per band: dead air 100%, ham 50%, broadcast 20%, ghost 10%
-  - [ ] 15.3* Static colour / fade that varies continuously with distance from a station
+  - [x] 15.3* Static level scales continuously with distance from the ghost (silent right on it), plus slow QSB fading (the colour part was dropped)
   - _Requirements: 3_
 
 - [x] 16. Sidetone and mechanical sounds
@@ -199,6 +199,7 @@ Submission deadline: Friday, December 4, 2026, 2:00 PM PT.
 ## Phase 5: Submission
 
 - [ ] 21. Submission package
+  - [x] 21.0 Winner polish: HOW-KIRO-BUILT-THIS.md (the real story), VERIFICATION.md (the measured numbers), QSL screenshot in the README, the submission kit refreshed, 63 tests
   - [ ] 21.1 3-minute demo video: the haunt within the first 40 seconds, then the tactile details, then the Kiro workflow
   - [x] 21.2 README: how Kiro was used (specs, steering, hooks, powers, MCP / Playwright visual verification)
   - [x] 21.4 Review pass: audio recovers after calls / app switches and sleeps when hidden; iOS silent switch; keyboard paddles; climax locks keys too (inert); agent route configurable (Groq qwen/qwen3.8-27b default, thinking off, <think> never on air), key never committed (.env ignored); CI builds every PR

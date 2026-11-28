@@ -10,9 +10,9 @@ Just don't answer the frequency that answers back.
 
 [![CI](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml/badge.svg)](https://github.com/einsajo/HAMorse/actions/workflows/ci.yml)
 
-| The Quick Start note | A Morse trainer… | …until it isn't |
-|---|---|---|
-| <img src="docs/screens/1-quick-start.png" width="240" alt="The Quick Start note taped over the radio"> | <img src="docs/screens/2-radio.png" width="240" alt="The radio tuned to 101.00 MHz with the reference card out"> | <img src="docs/screens/3-haunt.png" width="240" alt="The haunt: the LCD cracked and bleeding black liquid crystal, black grease over the card"> |
+| The Quick Start note | A Morse trainer… | …until it isn't | …and it sends you a card |
+|---|---|---|---|
+| <img src="docs/screens/1-quick-start.png" width="185" alt="The Quick Start note taped over the radio"> | <img src="docs/screens/2-radio.png" width="185" alt="The radio tuned to 101.00 MHz with the reference card out"> | <img src="docs/screens/3-haunt.png" width="185" alt="The haunt: the LCD cracked, black liquid crystal soaking into the glass"> | <img src="docs/screens/4-qsl-card.png" width="185" alt="The ghost's QSL card: GHOSTED AT 0:32"> |
 
 *Every pixel is CSS and SVG, and every sound is synthesised live. There are no images or audio files in the app.*
 
@@ -48,6 +48,7 @@ Once it has called you, the radio won't let you go.
    | 102.75 | **The Stranger**: a different ragchewer every boot |
    | 103.10 | **Sam**: high-speed copy practice in 5-character groups |
    | ??? | Something else |
+   | everywhere else | Open air: nobody scheduled — key and call CQ; with **TX GBL** armed it reaches whoever else is tuned there |
 3. **Key with the paddles**: **DIT** (left) and **DAH** (right). Every press
    sounds the real 700 Hz dit or dah, with a tiny tick of vibration (short for
    a dit, longer for a dah). Replies come back at an easy 15 WPM. Then arm
@@ -71,7 +72,7 @@ Once it has called you, the radio won't let you go.
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # type-check and production build into dist/
-npm test           # 57 unit tests: Morse timing, stations, agents, your progress, the agent route, the streams power
+npm test           # 63 unit tests: Morse, stations, agents, your progress, the air relay, the agent route, the streams power
 ```
 
 ### Optional: talk to real people (TX GBL)
@@ -88,9 +89,11 @@ node server/tx-relay.mjs        # ws://localhost:8788/air, no dependencies
 Rooms are the frequencies themselves: everyone on 106.30 hears everyone on
 106.30. Messages are sanitized to what a keyer can send, rate-limited, and
 **nothing is stored and nobody has an account**: like the air, it only exists
-while someone is sending. For the public demo, host `server/tx-relay.mjs`
+while someone is sending. Without a relay, TX GBL simply finds nobody.
+**Next step:** a public relay for the live demo — host `server/tx-relay.mjs`
 anywhere that speaks WebSocket (a free Render/Fly/Railway dyno works) and set
-`VITE_RELAY_URL` at build time. Without a relay, TX GBL simply finds nobody.
+the `VITE_RELAY_URL` secret in repo Settings → Secrets and variables → Actions;
+the Pages workflow already reads it into the build.
 
 ### Optional: live AI operators
 
@@ -115,6 +118,16 @@ npm run dev                       # .env also sets VITE_AGENT_URL for the app
   operator's signal fades out (`QSB... QSB... LOST SIG`), and you can call again.
 - To go back to the offline local brains, leave `VITE_AGENT_URL` empty.
 
+## Verified, in numbers
+
+- A judge who never keys reaches the jumpscare in **~44 s**; a conversation
+  takes ~2 minutes (measured).
+- One bright flash, flicker at most 3 per second, checked frame by frame.
+- The jumpscare's measured peak is 0.96 full scale: loud, never clipping.
+- 63 unit tests plus CI on every PR.
+
+All of it, with method: **[docs/VERIFICATION.md](docs/VERIFICATION.md)**.
+
 ## Built with Kiro
 
 The whole project was specified, built and verified with [Kiro](https://kiro.dev):
@@ -133,6 +146,9 @@ The whole project was specified, built and verified with [Kiro](https://kiro.dev
 - **Playwright (MCP)**: visual and timing checks at phone size. This covered every
   stage of the haunt, flicker timing measured frame by frame (≤ 3 per second),
   the stinger's loudness, and the card's rot.
+
+The full story — including where Kiro surprised us and changed the product:
+**[docs/HOW-KIRO-BUILT-THIS.md](docs/HOW-KIRO-BUILT-THIS.md)**.
 
 ## Under the hood
 
